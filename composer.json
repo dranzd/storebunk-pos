@@ -1,16 +1,65 @@
 {
     "name": "dranzd/storebunk-pos",
-    "description": "storebunk-pos library",
+    "description": "POS Domain library for StoreBunk Multi-Retail Platform - manages terminal lifecycle, cashier shifts, checkout orchestration, payment delegation, and operational cash tracking",
     "type": "library",
-    "require-dev": {
-        "phpunit/phpunit": "^9.5"
-    },
     "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "dranzd/common-event-sourcing": "dev-master",
+        "ramsey/uuid": "^4.7"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "phpstan/phpstan": "^1.10",
+        "squizlabs/php_codesniffer": "^3.7"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/common-event-sourcing.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/common-utils.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/common-domain-assert.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/common-valueobject.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/common-cqrs.git"
+        }
+    ],
     "autoload": {
         "psr-4": {
-            "Dranzd\\StorebunkPos\\": "{\"psr-4\":{\"Dranzd\\\\Storebunk-pos\\\\\":\"src/\"}}"
+            "Dranzd\\StorebunkPos\\": "src/"
         }
     },
-    "minimum-stability": "stable",
-    "require": {}
+    "autoload-dev": {
+        "psr-4": {
+            "Dranzd\\StorebunkPos\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --testdox",
+        "test:unit": "phpunit tests/Unit --testdox",
+        "test:integration": "phpunit tests/Integration --testdox",
+        "test:coverage": "phpunit --coverage-html coverage",
+        "test:filter": "phpunit --filter",
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "cs-check": "phpcs",
+        "cs-fix": "phpcbf",
+        "quality": [
+            "@test",
+            "@phpstan",
+            "@cs-check"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
