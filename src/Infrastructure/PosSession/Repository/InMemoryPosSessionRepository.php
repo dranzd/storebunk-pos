@@ -9,6 +9,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 
 final class InMemoryPosSessionRepository implements PosSessionRepositoryInterface
 {
@@ -17,8 +18,23 @@ final class InMemoryPosSessionRepository implements PosSessionRepositoryInterfac
     ) {
     }
 
-    final public function store(PosSession $session): void
+    final public function store(PosSession $session, ?int $expectedVersion = null): void
     {
+        $aggregateId = $session->getAggregateRootUuid();
+
+        if ($expectedVersion !== null) {
+            $currentEvents = $this->eventStore->loadEvents($aggregateId);
+            $currentVersion = count($currentEvents);
+
+            if ($currentVersion !== $expectedVersion) {
+                throw ConcurrencyException::forAggregate(
+                    $aggregateId,
+                    $expectedVersion,
+                    $currentVersion
+                );
+            }
+        }
+
         $events = $session->popRecordedEvents();
         $this->eventStore->appendAll($events);
     }

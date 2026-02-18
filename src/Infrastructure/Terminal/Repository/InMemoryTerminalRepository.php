@@ -9,6 +9,7 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\Repository\TerminalRepositoryInter
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Terminal;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 
 final class InMemoryTerminalRepository implements TerminalRepositoryInterface
 {
@@ -17,8 +18,23 @@ final class InMemoryTerminalRepository implements TerminalRepositoryInterface
     ) {
     }
 
-    final public function store(Terminal $terminal): void
+    final public function store(Terminal $terminal, ?int $expectedVersion = null): void
     {
+        $aggregateId = $terminal->getAggregateRootUuid();
+
+        if ($expectedVersion !== null) {
+            $currentEvents = $this->eventStore->loadEvents($aggregateId);
+            $currentVersion = count($currentEvents);
+
+            if ($currentVersion !== $expectedVersion) {
+                throw ConcurrencyException::forAggregate(
+                    $aggregateId,
+                    $expectedVersion,
+                    $currentVersion
+                );
+            }
+        }
+
         $events = $terminal->popRecordedEvents();
         $this->eventStore->appendAll($events);
     }

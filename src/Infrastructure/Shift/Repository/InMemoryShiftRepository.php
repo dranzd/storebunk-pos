@@ -9,6 +9,7 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Shift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 
 final class InMemoryShiftRepository implements ShiftRepositoryInterface
 {
@@ -17,8 +18,23 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
     ) {
     }
 
-    final public function store(Shift $shift): void
+    final public function store(Shift $shift, ?int $expectedVersion = null): void
     {
+        $aggregateId = $shift->getAggregateRootUuid();
+
+        if ($expectedVersion !== null) {
+            $currentEvents = $this->eventStore->loadEvents($aggregateId);
+            $currentVersion = count($currentEvents);
+
+            if ($currentVersion !== $expectedVersion) {
+                throw ConcurrencyException::forAggregate(
+                    $aggregateId,
+                    $expectedVersion,
+                    $currentVersion
+                );
+            }
+        }
+
         $events = $shift->popRecordedEvents();
         $this->eventStore->appendAll($events);
     }
