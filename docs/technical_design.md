@@ -19,10 +19,24 @@ src/
 ├── Domain/           # Pure domain logic (Aggregates, VOs, Events, Repository/Service/ReadModel Interfaces)
 ├── Application/      # Use cases (Commands, Queries, Handlers, Event Handlers)
 ├── Infrastructure/   # Adapters (Persistence, ReadModel projections, Service stubs)
-└── Shared/           # Base classes, exceptions, common utilities
+└── Shared/           # POS-specific exceptions only (base classes come from common libraries)
 ```
 
 See [Folder Structure](folder-structure.md) for the complete directory reference.
+
+## Common Libraries (Do NOT Re-implement)
+
+The following are provided by Composer dependencies and must NOT be duplicated in this project:
+
+| Library | Provides | Namespace |
+|---------|----------|-----------|
+| `dranzd/common-event-sourcing` | `AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository` | `Dranzd\Common\EventSourcing\Domain\EventSourcing\` |
+| `dranzd/common-cqrs` | `Command`, `AbstractCommand`, `Query`, `AbstractQuery`, `Event`, `AbstractEvent`, `SimpleCommandBus`, `SimpleQueryBus`, `SimpleEventBus`, `InMemoryHandlerRegistry` | `Dranzd\Common\Cqrs\` |
+| `dranzd/common-valueobject` | `ValueObject`, `Uuid`, `Money\Basic`, `Literal`, `Integer`, `Collection`, `DateTime`, `Actor` | `Dranzd\Common\Domain\ValueObject\` |
+| `dranzd/common-domain-assert` | `Assertion` | `Dranzd\Common\Domain\Assert\` |
+| `dranzd/common-utils` | `ArrayUtil`, `DateUtil`, `MoneyUtil`, `StringUtil` | `Dranzd\Common\Utils\` |
+
+POS aggregates implement `AggregateRoot` and use `AggregateRootTrait` from `common-event-sourcing`. POS events extend `AbstractAggregateEvent`. POS value objects (e.g., `TerminalId`, `ShiftId`) extend `Uuid` from `common-valueobject`. POS commands extend `AbstractCommand` from `common-cqrs`.
 
 ## Coding Standards
 

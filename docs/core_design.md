@@ -12,12 +12,23 @@ The system follows a strict **Hexagonal Architecture (Ports & Adapters)** combin
 4. **Bounded Context**: POS is a first-class bounded context that orchestrates but never owns business truth (pricing, stock, payments, accounting).
 5. **Operational Domain**: POS enforces operational discipline — terminal lifecycle, shift accountability, cash tracking, checkout boundaries.
 
+## Common Libraries (Do NOT Re-implement)
+
+Base infrastructure is provided by Composer dependencies:
+- `dranzd/common-event-sourcing` — `AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository`
+- `dranzd/common-cqrs` — `Command`, `AbstractCommand`, `Query`, `AbstractQuery`, `Event`, `AbstractEvent`, buses, handler registry
+- `dranzd/common-valueobject` — `ValueObject`, `Uuid`, `Money\Basic`, `Literal`, `Integer`, `Collection`, `DateTime`, `Actor`
+- `dranzd/common-domain-assert` — `Assertion`
+- `dranzd/common-utils` — `ArrayUtil`, `DateUtil`, `MoneyUtil`, `StringUtil`
+
+POS aggregates implement `AggregateRoot` + use `AggregateRootTrait`. POS events extend `AbstractAggregateEvent`. POS value objects extend `Uuid` or other common-valueobject classes. POS commands extend `AbstractCommand`.
+
 ## Architectural Layers
 
 ### 1. Domain (The Core)
-- **Aggregates**: Transaction boundaries — `Terminal`, `Shift`, `PosSession`.
-- **Value Objects**: Immutable data structures — `TerminalId`, `ShiftId`, `SessionId`, `Money`, `CashDrop`.
-- **Domain Events**: Facts that happened — `ShiftOpened`, `CheckoutInitiated`, `CashDropRecorded`.
+- **Aggregates**: Transaction boundaries — `Terminal`, `Shift`, `PosSession` (implement `AggregateRoot` from common-event-sourcing).
+- **Value Objects**: Immutable data structures — `TerminalId`, `ShiftId`, `SessionId` (extend `Uuid` from common-valueobject), `CashDrop`.
+- **Domain Events**: Facts that happened — `ShiftOpened`, `CheckoutInitiated`, `CashDropRecorded` (extend `AbstractAggregateEvent` from common-event-sourcing).
 - **Repository Interfaces (Ports)**: Interfaces for saving/loading aggregates.
 - **Read Model Interfaces**: Interfaces for CQRS query-side projections.
 - **Service Interfaces (Ports)**: Interfaces for external BC integration — `OrderingServiceInterface`, `InventoryServiceInterface`, `PaymentServiceInterface`.

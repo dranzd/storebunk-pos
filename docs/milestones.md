@@ -2,18 +2,21 @@
 
 ## Phase 1: Foundation (Features 1001-1005)
 
-**Goal:** Shared kernel, base classes, event store, CQRS bus integration.
+**Goal:** Project setup, verify common library integration, POS-specific exceptions, Docker environment, quality tooling.
 
-- [ ] AggregateRoot, DomainEvent, ValueObject base classes
-- [ ] EventStoreInterface + InMemoryEventStore
-- [ ] CQRS bus integration (dranzd/common-cqrs, dranzd/common-event-sourcing)
-- [ ] Shared value objects (Money, BranchId, CashierId)
-- [ ] Exception hierarchy (DomainException, AggregateNotFoundException, InvariantViolationException, ConcurrencyException)
+**Note:** Base classes (`AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository`), CQRS infrastructure (`Command`, `Query`, `Event`, buses, handler registry), and value object primitives (`ValueObject`, `Uuid`, `Money\Basic`) are all provided by the common libraries (`dranzd/common-event-sourcing`, `dranzd/common-cqrs`, `dranzd/common-valueobject`). **Do NOT re-implement them.**
+
 - [ ] Fix composer.json (autoload, dependencies, PHP 8.3)
+- [ ] Verify common library integration (common-event-sourcing, common-cqrs, common-valueobject)
+- [ ] Exception hierarchy (DomainException, AggregateNotFoundException, InvariantViolationException, ConcurrencyException)
+- [ ] DomainEventInterface marker for POS-specific events
+- [ ] Docker environment setup (Dockerfile, docker-compose.yml, utils script)
+- [ ] Quality tooling (PHPUnit, PHPStan, PHPCS configurations)
+- [ ] Write tests for exception hierarchy and library integration verification
 
 **Commit:**
 ```
-feat(foundation): implement shared kernel with base classes, event store, and CQRS bus
+feat(foundation): project setup with common library integration, exceptions, and quality tooling
 ```
 
 ---

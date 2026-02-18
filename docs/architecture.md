@@ -103,13 +103,22 @@ Concrete implementations of ports and technical concerns.
 
 **Note:** Repository and event store implementations are examples for testing. Consumers should implement their own repositories using proper event store libraries and handle event publishing according to their infrastructure choices.
 
-### 4. Shared Kernel (`src/Shared/`)
+### 4. Shared Kernel
 
-Common utilities and exceptions used across layers:
-- `DomainException`
-- `AggregateNotFoundException`
-- `ConcurrencyException`
-- `InvariantViolationException`
+The shared kernel consists of two parts:
+
+**Common Libraries (via Composer — do NOT re-implement):**
+- `dranzd/common-event-sourcing` — `AggregateRoot` (interface), `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore` (interface), `InMemoryEventStore`, `AggregateRootRepository` (interface)
+- `dranzd/common-cqrs` — `Command`, `AbstractCommand`, `Query`, `AbstractQuery`, `Event`, `AbstractEvent`, `SimpleCommandBus`, `SimpleQueryBus`, `SimpleEventBus`, `InMemoryHandlerRegistry`
+- `dranzd/common-valueobject` — `ValueObject` (interface), `Uuid`, `Money\Basic`, `Literal`, `Integer`, `Collection`, `DateTime`, `Actor`
+- `dranzd/common-domain-assert` — `Assertion`
+- `dranzd/common-utils` — `ArrayUtil`, `DateUtil`, `MoneyUtil`, `StringUtil`
+
+**POS-Specific (`src/Shared/Exception/`):**
+- `DomainException` — Base exception for all POS domain errors
+- `AggregateNotFoundException` — Aggregate not found in event store
+- `ConcurrencyException` — Optimistic concurrency conflict
+- `InvariantViolationException` — Business rule violation
 
 ---
 

@@ -135,18 +135,12 @@ storebunk-pos/
 │   │           ├── InMemoryShiftProjection.php
 │   │           └── InMemorySessionProjection.php
 │   │
-│   └── Shared/                              # Common utilities
-│       ├── Domain/
-│       │   ├── AggregateRoot.php
-│       │   ├── DomainEvent.php
-│       │   └── ValueObject.php
-│       ├── Exception/
-│       │   ├── DomainException.php
-│       │   ├── AggregateNotFoundException.php
-│       │   ├── ConcurrencyException.php
-│       │   └── InvariantViolationException.php
-│       └── Infrastructure/
-│           └── InMemoryEventStore.php
+│   └── Shared/                              # POS-specific shared utilities
+│       └── Exception/
+│           ├── DomainException.php
+│           ├── AggregateNotFoundException.php
+│           ├── ConcurrencyException.php
+│           └── InvariantViolationException.php
 │
 ├── tests/
 │   ├── Helpers/
@@ -219,9 +213,13 @@ storebunk-pos/
 - **Projections** build read models from events
 
 ### Shared Kernel
-- **Base Classes** for AggregateRoot, DomainEvent, ValueObject
-- **Exceptions** for domain errors
-- **Utilities** used across layers
+- **Base Classes** provided by common libraries (see Dependencies below):
+  - `dranzd/common-event-sourcing` — `AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository`
+  - `dranzd/common-cqrs` — `Command`, `AbstractCommand`, `Query`, `AbstractQuery`, `Event`, `AbstractEvent`, `SimpleCommandBus`, `SimpleQueryBus`, `SimpleEventBus`, `InMemoryHandlerRegistry`
+  - `dranzd/common-valueobject` — `ValueObject`, `Uuid`, `Money\Basic`, `Literal`, `Integer`, `Collection`, `DateTime`, `Actor`
+  - `dranzd/common-domain-assert` — `Assertion`
+  - `dranzd/common-utils` — `ArrayUtil`, `DateUtil`, `MoneyUtil`, `StringUtil`
+- **POS-specific Exceptions** for domain errors (`DomainException`, `AggregateNotFoundException`, `ConcurrencyException`, `InvariantViolationException`)
 
 ---
 

@@ -88,6 +88,34 @@ After implementation is complete:
 
 ## Critical Implementation Rules
 
+### Common Library Usage
+
+All POS aggregates, events, commands, queries, and value objects extend classes from the common libraries. **Do NOT re-implement base classes.**
+
+```php
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRoot;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRootTrait;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\Common\Domain\ValueObject\Identity\Uuid;
+use Dranzd\Common\Cqrs\Domain\Message\AbstractCommand;
+
+// Aggregate: implements AggregateRoot interface, uses AggregateRootTrait
+final class Shift implements AggregateRoot
+{
+    use AggregateRootTrait;
+    // ... business logic, NO public getters
+}
+
+// Event: extends AbstractAggregateEvent from common-event-sourcing
+final class ShiftOpened extends AbstractAggregateEvent { }
+
+// Value Object: extends Uuid from common-valueobject
+final class ShiftId extends Uuid { }
+
+// Command: extends AbstractCommand from common-cqrs
+final class OpenShiftCommand extends AbstractCommand { }
+```
+
 ### Aggregate Roots: NO Public Getters
 
 ```php
@@ -113,7 +141,7 @@ final class InMemoryShiftProjection implements ShiftReadModel
 $shift = Shift::open(...);
 $this->assertEquals('open', $shift->getStatus()->toString()); // BAD!
 
-// CORRECT: Testing via events
+// CORRECT: Testing via events (using popRecordedEvents from AggregateRootTrait)
 $shift = Shift::open(...);
 $events = $shift->popRecordedEvents();
 $event = $this->findEvent(ShiftOpened::class, $events);
