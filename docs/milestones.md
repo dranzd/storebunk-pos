@@ -1,18 +1,18 @@
 # Milestones
 
-## Phase 1: Foundation (Features 1001-1005)
+## Phase 1: Foundation (Features 1001-1005) ✓ COMPLETE
 
 **Goal:** Project setup, verify common library integration, POS-specific exceptions, Docker environment, quality tooling.
 
 **Note:** Base classes (`AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `AbstractAggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository`), CQRS infrastructure (`Command`, `Query`, `Event`, buses, handler registry), and value object primitives (`ValueObject`, `Uuid`, `Money\Basic`) are all provided by the common libraries (`dranzd/common-event-sourcing`, `dranzd/common-cqrs`, `dranzd/common-valueobject`). **Do NOT re-implement them.**
 
-- [ ] Fix composer.json (autoload, dependencies, PHP 8.3)
-- [ ] Verify common library integration (common-event-sourcing, common-cqrs, common-valueobject)
-- [ ] Exception hierarchy (DomainException, AggregateNotFoundException, InvariantViolationException, ConcurrencyException)
-- [ ] DomainEventInterface marker for POS-specific events
-- [ ] Docker environment setup (Dockerfile, docker-compose.yml, utils script)
-- [ ] Quality tooling (PHPUnit, PHPStan, PHPCS configurations)
-- [ ] Write tests for exception hierarchy and library integration verification
+- [x] Fix composer.json (autoload, dependencies, PHP 8.3)
+- [x] Verify common library integration (common-event-sourcing, common-cqrs, common-valueobject)
+- [x] Exception hierarchy (DomainException, AggregateNotFoundException, InvariantViolationException, ConcurrencyException)
+- [x] DomainEventInterface marker for POS-specific events
+- [x] Docker environment setup (Dockerfile, docker-compose.yml, utils script)
+- [x] Quality tooling (PHPUnit, PHPStan, PHPCS configurations)
+- [x] Write tests for exception hierarchy and library integration verification
 
 **Commit:**
 ```

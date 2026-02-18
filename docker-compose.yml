@@ -2,9 +2,21 @@ version: '3.9'
 
 services:
   php:
-    build: .
+    build:
+      context: .
+      args:
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+        - USER=${USER:-appuser}
     container_name: '${PROJECT_NAME}-php'
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - .:/app
+      - ~/.ssh:/home/${USER:-appuser}/.ssh:ro
     working_dir: /app
-    command: bash
+    environment:
+      - COMPOSER_HOME=/home/${USER:-appuser}/.composer
+      - GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+    tty: true
+    stdin_open: true

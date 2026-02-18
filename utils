@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-
-# Common Event Sourcing - Docker Management Script
+# Storebunk POS - Docker Management Script
 # Similar to Laravel Sail
-
 
 COMPOSE="docker-compose"
 
@@ -24,7 +22,7 @@ fi
 
 # Function to display help
 function display_help {
-    echo "${GREEN}Common Event Sourcing - Docker Management${NC}"
+    echo "${GREEN}Storebunk POS - Docker Management${NC}"
     echo
     echo "${YELLOW}Usage:${NC}"
     echo "  ./utils COMMAND [options] [arguments]"
@@ -35,6 +33,7 @@ function display_help {
     echo "  ${GREEN}restart${NC}         Restart the Docker containers"
     echo "  ${GREEN}build${NC}           Build the Docker containers"
     echo "  ${GREEN}rebuild${NC}         Rebuild the Docker containers from scratch"
+    echo "  ${GREEN}status${NC}          Check if Docker containers are running"
     echo "  ${GREEN}ps${NC}              Show container status"
     echo "  ${GREEN}logs${NC}            Show container logs"
     echo
@@ -151,6 +150,15 @@ elif [ "$1" == "rebuild" ]; then
     $COMPOSE up -d
     echo "${GREEN}Containers rebuilt successfully!${NC}"
 
+elif [ "$1" == "status" ]; then
+    if $COMPOSE ps 2>/dev/null | grep -q 'php.*Up'; then
+        echo "${GREEN}Docker containers are running.${NC}"
+        exit 0
+    else
+        echo "${RED}Docker containers are NOT running.${NC}"
+        echo "Run ${YELLOW}./utils up${NC} to start them."
+        exit 1
+    fi
 
 elif [ "$1" == "ps" ]; then
     $COMPOSE ps
