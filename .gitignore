@@ -3,3 +3,5 @@
 /.vscode
 /.env
 /.phpunit.result.cache
+/demo/data/demo-state.json
+/coverage
