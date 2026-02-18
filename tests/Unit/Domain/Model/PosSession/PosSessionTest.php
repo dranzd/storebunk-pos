@@ -175,6 +175,130 @@ final class PosSessionTest extends TestCase
         $session->end();
     }
 
+    public function test_it_can_initiate_checkout(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->popRecordedEvents();
+
+        $session->initiateCheckout();
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated::class, $events[0]);
+    }
+
+    public function test_it_cannot_initiate_checkout_without_active_order(): void
+    {
+        $session = $this->createStartedSession();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order to checkout');
+
+        $session->initiateCheckout();
+    }
+
+    public function test_it_cannot_initiate_checkout_from_non_building_state(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->initiateCheckout();
+        $session->completeOrder();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order to checkout');
+
+        $session->initiateCheckout();
+    }
+
+    public function test_it_can_request_payment(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->initiateCheckout();
+        $session->popRecordedEvents();
+
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 10000, 'currency' => 'USD']);
+        $session->requestPayment($amount, 'cash');
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested::class, $events[0]);
+    }
+
+    public function test_it_cannot_request_payment_without_active_order(): void
+    {
+        $session = $this->createStartedSession();
+        $session->popRecordedEvents();
+
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 10000, 'currency' => 'USD']);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order for payment');
+
+        $session->requestPayment($amount, 'cash');
+    }
+
+    public function test_it_can_complete_order(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->initiateCheckout();
+        $session->popRecordedEvents();
+
+        $session->completeOrder();
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted::class, $events[0]);
+    }
+
+    public function test_it_cannot_complete_order_without_active_order(): void
+    {
+        $session = $this->createStartedSession();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order to complete');
+
+        $session->completeOrder();
+    }
+
+    public function test_it_can_cancel_order(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->popRecordedEvents();
+
+        $session->cancelOrder('Customer changed mind');
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS::class, $events[0]);
+
+        $event = $events[0];
+        assert($event instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS);
+        $this->assertSame('Customer changed mind', $event->reason());
+    }
+
+    public function test_it_cannot_cancel_order_without_active_order(): void
+    {
+        $session = $this->createStartedSession();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order to cancel');
+
+        $session->cancelOrder('Test reason');
+    }
+
     public function test_it_can_be_reconstituted_from_history(): void
     {
         $sessionId = new SessionId();
@@ -192,6 +316,26 @@ final class PosSessionTest extends TestCase
         $this->assertSame($sessionId->toNative(), $session->getAggregateRootUuid());
         $this->assertSame(4, $session->getAggregateRootVersion());
         $this->assertEmpty($session->popRecordedEvents());
+    }
+
+    public function test_full_checkout_flow(): void
+    {
+        $sessionId = new SessionId();
+        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId());
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->initiateCheckout();
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 10000, 'currency' => 'USD']);
+        $session->requestPayment($amount, 'cash');
+        $session->completeOrder();
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(5, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted::class, $events[0]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted::class, $events[1]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated::class, $events[2]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested::class, $events[3]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted::class, $events[4]);
     }
 
     private function createStartedSession(): PosSession
