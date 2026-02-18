@@ -9,6 +9,7 @@ use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 
 final class StubOrderingService implements OrderingServiceInterface
 {
+    /** @var array<string, int> */
     private array $draftOrders = [];
     private array $confirmedOrders = [];
     private array $cancelledOrders = [];
@@ -16,7 +17,18 @@ final class StubOrderingService implements OrderingServiceInterface
 
     public function createDraftOrder(OrderId $orderId): void
     {
-        $this->draftOrders[$orderId->toNative()] = true;
+        $key = $orderId->toNative();
+        $this->draftOrders[$key] = ($this->draftOrders[$key] ?? 0) + 1;
+    }
+
+    public function draftOrderWasCreated(OrderId $orderId): bool
+    {
+        return ($this->draftOrders[$orderId->toNative()] ?? 0) > 0;
+    }
+
+    public function draftOrderCreationCount(OrderId $orderId): int
+    {
+        return $this->draftOrders[$orderId->toNative()] ?? 0;
     }
 
     public function confirmOrder(OrderId $orderId): void

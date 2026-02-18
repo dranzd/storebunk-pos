@@ -12,10 +12,13 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderParked;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
@@ -39,6 +42,8 @@ final class PosSession implements AggregateRoot
     private array $parkedOrderIds = [];
     /** @var OrderId[] */
     private array $inactiveOrderIds = [];
+    /** @var OrderId[] */
+    private array $pendingSyncOrderIds = [];
 
     final public static function start(
         SessionId $sessionId,
@@ -230,6 +235,55 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    final public function startNewOrderOffline(OrderId $orderId, string $commandId): void
+    {
+        if ($this->activeOrderId !== null) {
+            throw InvariantViolationException::withMessage(
+                'Cannot start new order when an order is already active'
+            );
+        }
+
+        $this->recordThat(
+            OrderCreatedOffline::occur($this->sessionId, $orderId, $commandId)
+        );
+    }
+
+    final public function markOrderPendingSync(OrderId $orderId): void
+    {
+        $isActive = $this->activeOrderId !== null && $this->activeOrderId->sameValueAs($orderId);
+
+        if (!$isActive) {
+            throw InvariantViolationException::withMessage(
+                'Can only mark the active order as pending sync'
+            );
+        }
+
+        $this->recordThat(
+            OrderMarkedPendingSync::occur($this->sessionId, $orderId)
+        );
+    }
+
+    final public function syncOrderOnline(OrderId $orderId): void
+    {
+        $isPending = false;
+        foreach ($this->pendingSyncOrderIds as $pendingId) {
+            if ($pendingId->sameValueAs($orderId)) {
+                $isPending = true;
+                break;
+            }
+        }
+
+        if (!$isPending) {
+            throw InvariantViolationException::withMessage(
+                'Order is not in pending sync list'
+            );
+        }
+
+        $this->recordThat(
+            OrderSyncedOnline::occur($this->sessionId, $orderId)
+        );
+    }
+
     final public function cancelOrder(string $reason): void
     {
         if ($this->activeOrderId === null) {
@@ -341,6 +395,27 @@ final class PosSession implements AggregateRoot
         $this->inactiveOrderIds = array_filter(
             $this->inactiveOrderIds,
             fn(OrderId $id) => !$id->sameValueAs($event->orderId())
+        );
+    }
+
+    private function applyOnOrderCreatedOffline(OrderCreatedOffline $event): void
+    {
+        $this->activeOrderId = $event->getOrderId();
+        $this->state = SessionState::Building;
+    }
+
+    private function applyOnOrderMarkedPendingSync(OrderMarkedPendingSync $event): void
+    {
+        $this->pendingSyncOrderIds[] = $event->getOrderId();
+        $this->activeOrderId = null;
+        $this->state = SessionState::Idle;
+    }
+
+    private function applyOnOrderSyncedOnline(OrderSyncedOnline $event): void
+    {
+        $this->pendingSyncOrderIds = array_filter(
+            $this->pendingSyncOrderIds,
+            fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
     }
 }
