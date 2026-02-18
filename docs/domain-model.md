@@ -129,6 +129,8 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `terminalId` | `TerminalId` (VO) | Terminal context |
 | `activeOrderId` | `?OrderId` (VO) | Currently active order (nullable) |
 | `parkedOrderIds` | `OrderId[]` | Orders parked for later |
+| `inactiveOrderIds` | `OrderId[]` | Orders deactivated due to TTL expiry |
+| `pendingSyncOrderIds` | `OrderId[]` | Offline orders awaiting sync |
 | `state` | `SessionState` (Enum) | Idle, Building, Checkout |
 
 #### Invariants
@@ -147,11 +149,14 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `StartNewOrder` | Create a new draft order and set as active |
 | `ParkOrder` | Move active order to parked list |
 | `ResumeOrder` | Move a parked order to active |
+| `ReactivateOrder` | Resume an inactive (TTL-expired) order after re-reservation |
 | `InitiateCheckout` | Transition session to Checkout state |
 | `RequestPayment` | Request payment from Payment BC |
 | `CompleteOrder` | Mark order as completed |
 | `CancelOrder` | Cancel the active order |
 | `EndSession` | End the session (shift closing) |
+| `StartNewOrderOffline` | Create a draft order while offline (queued for sync) |
+| `SyncOrderOnline` | Sync an offline-created order to Ordering BC on reconnect |
 
 #### Events
 
@@ -161,40 +166,62 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `NewOrderStarted` | A new draft order was created |
 | `OrderParked` | Active order was parked |
 | `OrderResumed` | A parked order was resumed |
+| `OrderDeactivated` | Active order was deactivated due to TTL expiry |
+| `OrderReactivated` | An inactive order was reactivated after successful re-reservation |
 | `CheckoutInitiated` | Checkout was triggered (Draft → Confirmed) |
 | `PaymentRequested` | Payment was requested from Payment BC |
 | `OrderCompleted` | Order was fully paid and completed |
 | `OrderCancelledViaPOS` | Order was cancelled from POS |
 | `SessionEnded` | Session was ended |
+| `OrderCreatedOffline` | Draft order created while offline (carries commandId for idempotency) |
+| `OrderMarkedPendingSync` | Offline order queued for sync on reconnection |
+| `OrderSyncedOnline` | Offline order successfully synced to Ordering BC |
 
 ---
 
 ## 2. Value Objects
 
-| Value Object | Description | Validation |
-|-------------|-------------|------------|
-| `TerminalId` | UUID for terminal | Non-empty UUID |
-| `ShiftId` | UUID for shift | Non-empty UUID |
-| `SessionId` | UUID for session | Non-empty UUID |
-| `CashierId` | UUID for cashier | Non-empty UUID |
-| `BranchId` | UUID for branch | Non-empty UUID |
-| `OrderId` | UUID for order (from Ordering BC) | Non-empty UUID |
-| `Money` | Monetary amount | Non-negative (or signed for variance), currency-aware |
-| `CashDrop` | Cash drop record | Amount > 0, reason required, timestamp, performedBy, approvedBy |
+| Value Object | Context | Description | Base |
+|-------------|---------|-------------|------|
+| `TerminalId` | Terminal | UUID for terminal | `Uuid` (common-valueobject) |
+| `BranchId` | Terminal | UUID for branch | `Uuid` (common-valueobject) |
+| `TerminalStatus` | Terminal | Enum: `Active`, `Disabled`, `Maintenance` | PHP Enum |
+| `ShiftId` | Shift | UUID for shift | `Uuid` (common-valueobject) |
+| `CashierId` | Shift | UUID for cashier | `Uuid` (common-valueobject) |
+| `ShiftStatus` | Shift | Enum: `Open`, `Closed`, `ForceClosed` | PHP Enum |
+| `CashDrop` | Shift | Cash drop record (amount + timestamp) | Value Object |
+| `SessionId` | PosSession | UUID for session | `Uuid` (common-valueobject) |
+| `OrderId` | PosSession | UUID for order reference | `Uuid` (common-valueobject) |
+| `SessionState` | PosSession | Enum: `Idle`, `Building`, `Checkout` | PHP Enum |
+| `OfflineMode` | PosSession | Offline mode flag/metadata | Value Object |
+| `Money` | Shared | Monetary amount (amount + currency) | `Money\Basic` (common-valueobject) |
 
 ---
 
-## 3. Enums
+## 3. Domain Services
+
+| Service | Location | Description |
+|---------|----------|-------------|
+| `DraftLifecycleService` | `Domain\Service\` | TTL checks: `shouldDeactivateOrder()` (15 min), `isOrderExpired()` (60 min) |
+| `MultiTerminalEnforcementService` | `Domain\Service\` | Enforces one-shift-per-terminal, one-terminal-per-cashier, order-terminal binding |
+| `PendingSyncQueue` | `Domain\Service\` | Tracks offline orders awaiting sync; supports idempotency via commandId |
+| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
+| `InventoryServiceInterface` | `Domain\Service\` | Port: `convertSoftReservationToHard`, `releaseReservation`, `deductInventory`, `attemptReReservation` |
+| `PaymentServiceInterface` | `Domain\Service\` | Port: `requestPaymentAuthorization`, `applyPayment` |
+
+---
+
+## 4. Enums
 
 | Enum | Values | Description |
 |------|--------|-------------|
 | `TerminalStatus` | `Active`, `Disabled`, `Maintenance` | Terminal lifecycle states |
-| `ShiftStatus` | `Open`, `Closed`, `ForcedClosed` | Shift lifecycle states |
+| `ShiftStatus` | `Open`, `Closed`, `ForceClosed` | Shift lifecycle states |
 | `SessionState` | `Idle`, `Building`, `Checkout` | Session UI lifecycle |
 
 ---
 
-## 4. Order Lifecycle in POS Context
+## 5. Order Lifecycle in POS Context
 
 POS interacts with SalesOrder states managed by the Ordering BC. POS does NOT own the order aggregate — it orchestrates transitions.
 

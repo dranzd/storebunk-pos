@@ -6,134 +6,147 @@
 storebunk-pos/
 ├── src/
 │   ├── Domain/                              # Core business logic
-│   │   ├── Model/                           # Domain models
+│   │   ├── Event/
+│   │   │   └── DomainEventInterface.php     # POS marker interface for domain events
+│   │   │
+│   │   ├── Model/                           # Domain models (per-context)
 │   │   │   ├── Terminal/
 │   │   │   │   ├── Terminal.php             # Aggregate Root
 │   │   │   │   ├── ValueObject/
 │   │   │   │   │   ├── TerminalId.php
+│   │   │   │   │   ├── BranchId.php
 │   │   │   │   │   └── TerminalStatus.php   # Enum: Active, Disabled, Maintenance
-│   │   │   │   └── Event/
-│   │   │   │       ├── TerminalRegistered.php
-│   │   │   │       ├── TerminalActivated.php
-│   │   │   │       ├── TerminalDisabled.php
-│   │   │   │       └── TerminalMaintenanceSet.php
+│   │   │   │   ├── Event/
+│   │   │   │   │   ├── TerminalRegistered.php
+│   │   │   │   │   ├── TerminalActivated.php
+│   │   │   │   │   ├── TerminalDisabled.php
+│   │   │   │   │   └── TerminalMaintenanceSet.php
+│   │   │   │   └── Repository/
+│   │   │   │       └── TerminalRepositoryInterface.php
 │   │   │   │
 │   │   │   ├── Shift/
 │   │   │   │   ├── Shift.php                # Aggregate Root
 │   │   │   │   ├── ValueObject/
 │   │   │   │   │   ├── ShiftId.php
 │   │   │   │   │   ├── CashierId.php
-│   │   │   │   │   ├── BranchId.php
-│   │   │   │   │   ├── Money.php
 │   │   │   │   │   ├── CashDrop.php
-│   │   │   │   │   └── ShiftStatus.php      # Enum: Open, Closed, ForcedClosed
-│   │   │   │   └── Event/
-│   │   │   │       ├── ShiftOpened.php
-│   │   │   │       ├── ShiftClosed.php
-│   │   │   │       ├── ShiftForceClosed.php
-│   │   │   │       └── CashDropRecorded.php
+│   │   │   │   │   └── ShiftStatus.php      # Enum: Open, Closed, ForceClosed
+│   │   │   │   ├── Event/
+│   │   │   │   │   ├── ShiftOpened.php
+│   │   │   │   │   ├── ShiftClosed.php
+│   │   │   │   │   ├── ShiftForceClosed.php
+│   │   │   │   │   └── CashDropRecorded.php
+│   │   │   │   └── Repository/
+│   │   │   │       └── ShiftRepositoryInterface.php
 │   │   │   │
 │   │   │   └── PosSession/
 │   │   │       ├── PosSession.php           # Aggregate Root
 │   │   │       ├── ValueObject/
 │   │   │       │   ├── SessionId.php
 │   │   │       │   ├── OrderId.php
-│   │   │       │   └── SessionState.php     # Enum: Idle, Building, Checkout
-│   │   │       └── Event/
-│   │   │           ├── SessionStarted.php
-│   │   │           ├── NewOrderStarted.php
-│   │   │           ├── OrderParked.php
-│   │   │           ├── OrderResumed.php
-│   │   │           ├── CheckoutInitiated.php
-│   │   │           ├── PaymentRequested.php
-│   │   │           ├── OrderCompleted.php
-│   │   │           ├── OrderCancelledViaPOS.php
-│   │   │           └── SessionEnded.php
-│   │   │
-│   │   ├── Repository/                      # Repository interfaces (Ports)
-│   │   │   ├── TerminalRepositoryInterface.php
-│   │   │   ├── ShiftRepositoryInterface.php
-│   │   │   └── PosSessionRepositoryInterface.php
-│   │   │
-│   │   ├── ReadModel/                       # CQRS read model interfaces
-│   │   │   ├── TerminalReadModel.php
-│   │   │   ├── ShiftReadModel.php
-│   │   │   └── SessionReadModel.php
+│   │   │       │   ├── SessionState.php     # Enum: Idle, Building, Checkout
+│   │   │       │   └── OfflineMode.php
+│   │   │       ├── Event/
+│   │   │       │   ├── SessionStarted.php
+│   │   │       │   ├── NewOrderStarted.php
+│   │   │       │   ├── OrderParked.php
+│   │   │       │   ├── OrderResumed.php
+│   │   │       │   ├── OrderDeactivated.php
+│   │   │       │   ├── OrderReactivated.php
+│   │   │       │   ├── CheckoutInitiated.php
+│   │   │       │   ├── PaymentRequested.php
+│   │   │       │   ├── OrderCompleted.php
+│   │   │       │   ├── OrderCancelledViaPOS.php
+│   │   │       │   ├── SessionEnded.php
+│   │   │       │   ├── OrderCreatedOffline.php
+│   │   │       │   ├── OrderMarkedPendingSync.php
+│   │   │       │   └── OrderSyncedOnline.php
+│   │   │       └── Repository/
+│   │   │           └── PosSessionRepositoryInterface.php
 │   │   │
 │   │   └── Service/                         # Domain service interfaces (Ports to other BCs)
 │   │       ├── OrderingServiceInterface.php
 │   │       ├── InventoryServiceInterface.php
-│   │       └── PaymentServiceInterface.php
+│   │       ├── PaymentServiceInterface.php
+│   │       ├── DraftLifecycleService.php
+│   │       ├── MultiTerminalEnforcementService.php
+│   │       └── PendingSyncQueue.php
 │   │
 │   ├── Application/                         # Use cases and orchestration
-│   │   ├── Command/                         # Write operations (CQRS)
-│   │   │   ├── Terminal/
-│   │   │   │   ├── RegisterTerminalCommand.php
-│   │   │   │   ├── RegisterTerminalHandler.php
-│   │   │   │   ├── ActivateTerminalCommand.php
-│   │   │   │   ├── ActivateTerminalHandler.php
-│   │   │   │   ├── DisableTerminalCommand.php
-│   │   │   │   └── DisableTerminalHandler.php
-│   │   │   ├── Shift/
-│   │   │   │   ├── OpenShiftCommand.php
-│   │   │   │   ├── OpenShiftHandler.php
-│   │   │   │   ├── CloseShiftCommand.php
-│   │   │   │   ├── CloseShiftHandler.php
-│   │   │   │   ├── ForceCloseShiftCommand.php
-│   │   │   │   ├── ForceCloseShiftHandler.php
-│   │   │   │   ├── RecordCashDropCommand.php
-│   │   │   │   └── RecordCashDropHandler.php
-│   │   │   └── Session/
-│   │   │       ├── StartSessionCommand.php
-│   │   │       ├── StartSessionHandler.php
-│   │   │       ├── StartNewOrderCommand.php
-│   │   │       ├── StartNewOrderHandler.php
-│   │   │       ├── ParkOrderCommand.php
-│   │   │       ├── ParkOrderHandler.php
-│   │   │       ├── ResumeOrderCommand.php
-│   │   │       ├── ResumeOrderHandler.php
-│   │   │       ├── InitiateCheckoutCommand.php
-│   │   │       ├── InitiateCheckoutHandler.php
-│   │   │       ├── RequestPaymentCommand.php
-│   │   │       ├── RequestPaymentHandler.php
-│   │   │       ├── CompleteOrderCommand.php
-│   │   │       ├── CompleteOrderHandler.php
-│   │   │       ├── CancelOrderCommand.php
-│   │   │       └── CancelOrderHandler.php
+│   │   ├── Shared/
+│   │   │   └── IdempotencyRegistry.php      # Command idempotency tracking
 │   │   │
-│   │   ├── Query/                           # Read operations (CQRS)
-│   │   │   ├── Terminal/
-│   │   │   │   ├── GetTerminalQuery.php
-│   │   │   │   └── GetTerminalHandler.php
-│   │   │   ├── Shift/
-│   │   │   │   ├── GetShiftQuery.php
-│   │   │   │   ├── GetShiftHandler.php
-│   │   │   │   ├── GetShiftCashSummaryQuery.php
-│   │   │   │   └── GetShiftCashSummaryHandler.php
-│   │   │   └── Session/
-│   │   │       ├── GetActiveSessionQuery.php
-│   │   │       ├── GetActiveSessionHandler.php
-│   │   │       ├── ListOpenOrdersQuery.php
-│   │   │       └── ListOpenOrdersHandler.php
+│   │   ├── Terminal/
+│   │   │   ├── Command/
+│   │   │   │   ├── RegisterTerminal.php
+│   │   │   │   ├── ActivateTerminal.php
+│   │   │   │   ├── DisableTerminal.php
+│   │   │   │   ├── SetTerminalMaintenance.php
+│   │   │   │   └── Handler/
+│   │   │   │       ├── RegisterTerminalHandler.php
+│   │   │   │       ├── ActivateTerminalHandler.php
+│   │   │   │       ├── DisableTerminalHandler.php
+│   │   │   │       └── SetTerminalMaintenanceHandler.php
+│   │   │   └── ReadModel/
+│   │   │       └── TerminalReadModelInterface.php
 │   │   │
-│   │   └── EventHandler/                    # Cross-aggregate event reactions
-│   │       ├── OnCheckoutInitiated.php
-│   │       ├── OnOrderCompleted.php
-│   │       └── OnOrderCancelled.php
+│   │   ├── Shift/
+│   │   │   ├── Command/
+│   │   │   │   ├── OpenShift.php
+│   │   │   │   ├── CloseShift.php
+│   │   │   │   ├── ForceCloseShift.php
+│   │   │   │   ├── RecordCashDrop.php
+│   │   │   │   └── Handler/
+│   │   │   │       ├── OpenShiftHandler.php
+│   │   │   │       ├── CloseShiftHandler.php
+│   │   │   │       ├── ForceCloseShiftHandler.php
+│   │   │   │       └── RecordCashDropHandler.php
+│   │   │   └── ReadModel/
+│   │   │       └── ShiftReadModelInterface.php
+│   │   │
+│   │   └── PosSession/
+│   │       ├── Command/
+│   │       │   ├── StartSession.php
+│   │       │   ├── StartNewOrder.php
+│   │       │   ├── ParkOrder.php
+│   │       │   ├── ResumeOrder.php
+│   │       │   ├── ReactivateOrder.php
+│   │       │   ├── InitiateCheckout.php
+│   │       │   ├── RequestPayment.php
+│   │       │   ├── CompleteOrder.php
+│   │       │   ├── CancelOrder.php
+│   │       │   ├── EndSession.php
+│   │       │   ├── StartNewOrderOffline.php
+│   │       │   ├── SyncOrderOnline.php
+│   │       │   └── Handler/
+│   │       │       ├── StartSessionHandler.php
+│   │       │       ├── StartNewOrderHandler.php
+│   │       │       ├── ParkOrderHandler.php
+│   │       │       ├── ResumeOrderHandler.php
+│   │       │       ├── ReactivateOrderHandler.php
+│   │       │       ├── InitiateCheckoutHandler.php
+│   │       │       ├── RequestPaymentHandler.php
+│   │       │       ├── CompleteOrderHandler.php
+│   │       │       ├── CancelOrderHandler.php
+│   │       │       ├── EndSessionHandler.php
+│   │       │       ├── StartNewOrderOfflineHandler.php
+│   │       │       └── SyncOrderOnlineHandler.php
+│   │       └── ReadModel/                   # (reserved for session read model interface)
 │   │
-│   ├── Infrastructure/                      # Technical implementations
-│   │   └── Persistence/
-│   │       ├── EventStore/
-│   │       │   ├── EventStoreInterface.php
-│   │       │   └── InMemoryEventStore.php
+│   ├── Infrastructure/                      # Technical implementations (per-context)
+│   │   ├── Terminal/
+│   │   │   ├── Repository/
+│   │   │   │   └── InMemoryTerminalRepository.php
+│   │   │   └── ReadModel/
+│   │   │       └── InMemoryTerminalReadModel.php
+│   │   ├── Shift/
+│   │   │   ├── Repository/
+│   │   │   │   └── InMemoryShiftRepository.php
+│   │   │   └── ReadModel/                   # (reserved for shift read model impl)
+│   │   └── PosSession/
 │   │       ├── Repository/
-│   │       │   ├── InMemoryTerminalRepository.php
-│   │       │   ├── InMemoryShiftRepository.php
-│   │       │   └── InMemorySessionRepository.php
-│   │       └── ReadModel/
-│   │           ├── InMemoryTerminalProjection.php
-│   │           ├── InMemoryShiftProjection.php
-│   │           └── InMemorySessionProjection.php
+│   │       │   └── InMemoryPosSessionRepository.php
+│   │       └── ReadModel/                   # (reserved for session read model impl)
 │   │
 │   └── Shared/                              # POS-specific shared utilities
 │       └── Exception/
@@ -143,22 +156,41 @@ storebunk-pos/
 │           └── InvariantViolationException.php
 │
 ├── tests/
-│   ├── Helpers/
-│   │   ├── EventAssertions.php              # Trait for asserting events
-│   │   └── SimpleContainer.php              # Minimal PSR-11 container for testing
+│   ├── Stub/
+│   │   └── Service/
+│   │       ├── StubOrderingService.php
+│   │       ├── StubInventoryService.php
+│   │       └── StubPaymentService.php
 │   ├── Unit/
-│   │   └── Domain/
-│   │       └── Model/
-│   │           ├── Terminal/
-│   │           │   └── TerminalTest.php
-│   │           ├── Shift/
-│   │           │   └── ShiftTest.php
-│   │           └── PosSession/
-│   │               └── PosSessionTest.php
-│   └── Integration/
-│       ├── ShiftLifecycleTest.php
-│       ├── CheckoutFlowTest.php
-│       └── CashHandlingTest.php
+│   │   ├── Application/
+│   │   │   └── Shared/
+│   │   │       └── IdempotencyRegistryTest.php
+│   │   ├── Domain/
+│   │   │   ├── Model/
+│   │   │   │   ├── Terminal/
+│   │   │   │   │   └── TerminalTest.php
+│   │   │   │   ├── Shift/
+│   │   │   │   │   └── ShiftTest.php
+│   │   │   │   └── PosSession/
+│   │   │   │       ├── PosSessionTest.php
+│   │   │   │       └── PosSessionOfflineTest.php
+│   │   │   └── Service/
+│   │   │       └── MultiTerminalEnforcementServiceTest.php
+│   │   └── Infrastructure/
+│   │       └── Terminal/
+│   │           ├── InMemoryTerminalRepositoryTest.php
+│   │           └── InMemoryTerminalReadModelTest.php
+│   ├── Integration/
+│   │   ├── CommonLibraryIntegrationTest.php
+│   │   ├── ConcurrencyIntegrationTest.php
+│   │   ├── DraftLifecycleIntegrationTest.php
+│   │   └── OfflineSyncIntegrationTest.php
+│   └── Shared/
+│       └── Exception/
+│           ├── DomainExceptionTest.php
+│           ├── AggregateNotFoundExceptionTest.php
+│           ├── ConcurrencyExceptionTest.php
+│           └── InvariantViolationExceptionTest.php
 │
 ├── docs/
 │   ├── README.md                            # Documentation index
@@ -169,11 +201,11 @@ storebunk-pos/
 │   ├── core_design.md                       # Architectural principles
 │   ├── technical_design.md                  # Implementation details
 │   ├── milestones.md                        # Phased roadmap with commit messages
-│   ├── tasks.md                             # Active task tracking
+│   ├── demo.md                              # Demo CLI specification
 │   ├── agent_workflow.md                    # AI agent guidelines
-│   ├── features/                            # Feature specifications
+│   ├── features/
 │   │   └── README.md                        # Feature index with status tracking
-│   └── raw-discussions/                     # Raw design discussions
+│   └── raw-discussions/
 │       └── 20260218-0324.md                 # Initial POS concept discussion
 │
 ├── .windsurf/
@@ -182,6 +214,8 @@ storebunk-pos/
 │
 ├── composer.json
 ├── phpunit.xml
+├── phpstan.neon
+├── phpcs.xml
 ├── Dockerfile
 ├── docker-compose.yml
 ├── utils                                    # Docker management script
@@ -226,22 +260,29 @@ storebunk-pos/
 ## Naming Conventions
 
 ### Files
-- **Aggregates**: `{Name}.php` (e.g., `Shift.php`)
-- **Value Objects**: `{Name}.php` (e.g., `ShiftId.php`, `Money.php`)
-- **Enums**: `{Name}.php` (e.g., `ShiftStatus.php`)
+- **Aggregates**: `{Name}.php` (e.g., `Shift.php`, `Terminal.php`)
+- **Value Objects**: `{Name}.php` (e.g., `ShiftId.php`, `CashDrop.php`)
+- **Enums**: `{Name}.php` (e.g., `ShiftStatus.php`, `SessionState.php`)
 - **Events**: `{ActionPastTense}.php` (e.g., `ShiftOpened.php`, `CashDropRecorded.php`)
-- **Commands**: `{Action}{Entity}Command.php` (e.g., `OpenShiftCommand.php`)
-- **Handlers**: `{Action}{Entity}Handler.php` (e.g., `OpenShiftHandler.php`)
-- **Queries**: `{Action}{Entity}Query.php` (e.g., `GetShiftQuery.php`)
-- **Interfaces**: `{Name}Interface.php` (e.g., `ShiftRepositoryInterface.php`)
-- **Read Models**: `{Name}ReadModel.php` (e.g., `ShiftReadModel.php`)
-- **Projections**: `InMemory{Name}Projection.php` (e.g., `InMemoryShiftProjection.php`)
+- **Commands**: `{ActionEntity}.php` — no `Command` suffix (e.g., `OpenShift.php`, `StartSession.php`)
+- **Handlers**: `{ActionEntity}Handler.php` (e.g., `OpenShiftHandler.php`, `StartSessionHandler.php`)
+- **Interfaces**: `{Name}Interface.php` (e.g., `ShiftRepositoryInterface.php`, `TerminalReadModelInterface.php`)
+- **Read Model Implementations**: `InMemory{Name}ReadModel.php` (e.g., `InMemoryTerminalReadModel.php`)
+- **Repository Implementations**: `InMemory{Name}Repository.php` (e.g., `InMemoryTerminalRepository.php`)
+- **Stubs**: `Stub{Name}.php` in `tests/Stub/` (e.g., `StubOrderingService.php`)
 
 ### Namespaces
-- Domain: `Dranzd\StorebunkPos\Domain\{Layer}\{Context}`
-- Application: `Dranzd\StorebunkPos\Application\{Type}\{UseCase}`
-- Infrastructure: `Dranzd\StorebunkPos\Infrastructure\{Technology}`
-- Shared: `Dranzd\StorebunkPos\Shared\{Layer}`
+- Domain Model: `Dranzd\StorebunkPos\Domain\Model\{Context}\`
+- Domain Events: `Dranzd\StorebunkPos\Domain\Model\{Context}\Event\`
+- Domain Value Objects: `Dranzd\StorebunkPos\Domain\Model\{Context}\ValueObject\`
+- Domain Repository Interfaces: `Dranzd\StorebunkPos\Domain\Model\{Context}\Repository\`
+- Domain Services: `Dranzd\StorebunkPos\Domain\Service\`
+- Application Commands: `Dranzd\StorebunkPos\Application\{Context}\Command\`
+- Application Handlers: `Dranzd\StorebunkPos\Application\{Context}\Command\Handler\`
+- Application Read Models: `Dranzd\StorebunkPos\Application\{Context}\ReadModel\`
+- Infrastructure: `Dranzd\StorebunkPos\Infrastructure\{Context}\{Layer}\`
+- Shared Exceptions: `Dranzd\StorebunkPos\Shared\Exception\`
+- Test Stubs: `Dranzd\StorebunkPos\Tests\Stub\Service\`
 
 ---
 

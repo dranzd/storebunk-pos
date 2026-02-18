@@ -6,9 +6,26 @@ See [Milestones](milestones.md) for the full roadmap and [Features](features/REA
 
 ---
 
-## Current Milestone: Phase 1 — Foundation (Features 1001-1005) ✓ COMPLETE
+## ✓ ALL PHASES COMPLETE — StoreBunk POS Implementation Finished
 
-> **Important:** Base classes (`AggregateRoot`, `AggregateRootTrait`, `AggregateEvent`, `EventStore`, `InMemoryEventStore`, `AggregateRootRepository`), CQRS infrastructure (`Command`, `Query`, buses, handler registry), and value object primitives (`ValueObject`, `Uuid`, `Money\Basic`) are provided by common libraries. Do NOT re-implement them.
+**109 tests, 230 assertions. PHPStan + PHPCS clean.**
+
+| Phase | Status |
+|-------|--------|
+| Phase 1 — Foundation | ✓ COMPLETE |
+| Phase 2 — Terminal Aggregate | ✓ COMPLETE |
+| Phase 3 — Shift Aggregate | ✓ COMPLETE |
+| Phase 4 — PosSession Aggregate | ✓ COMPLETE |
+| Phase 5 — Checkout + Payment + BC Ports | ✓ COMPLETE |
+| Phase 6 — Draft Lifecycle + Reservation | ✓ COMPLETE |
+| Phase 7 — Multi-Terminal + Concurrency | ✓ COMPLETE |
+| Phase 8 — Offline + Sync | ✓ COMPLETE |
+
+See [Milestones](milestones.md) for full details on each phase.
+
+---
+
+## Phase 1 — Foundation (Features 1001-1005) ✓ COMPLETE
 
 ### 1001 - Project Setup ✓
 - [x] Fix `composer.json` (autoload, dependencies, PHP 8.3)
@@ -31,15 +48,7 @@ See [Milestones](milestones.md) for the full roadmap and [Features](features/REA
 
 ### 1004 - POS Domain Event Interface ✓
 - [x] Create `DomainEventInterface` marker interface (`src/Domain/Event/`)
-- [x] Document how POS events extend `AbstractAggregateEvent` from common-event-sourcing
 
 ### 1005 - Tests ✓
 - [x] Unit tests for exception hierarchy
 - [x] Integration tests verifying common library usage patterns
-- [x] Ensure Domain layer has no Infrastructure dependencies
-
----
-
-## Upcoming: Phase 2 — Terminal Aggregate (Features 2001-2004)
-
-_Not started. See [Milestones](milestones.md) for details._

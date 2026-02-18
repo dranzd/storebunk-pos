@@ -25,6 +25,9 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[Tasks](tasks.md)** — Active task tracking
 - **[Feature Specifications](features/README.md)** — Phased implementation checklist with status tracking
 
+### Demo
+- **[Demo CLI Specification](demo.md)** — Demo CLI design, commands, and scenario specifications (spec only — no implementation yet)
+
 ### Process & Guidelines
 - **[Agent Workflow](agent_workflow.md)** — Guidelines for AI assistants contributing to this project
 

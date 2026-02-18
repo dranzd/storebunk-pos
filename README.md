@@ -2,6 +2,7 @@
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.3-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](CHANGELOG.md)
 
 > **POS is the operational execution layer that enforces discipline, protects integrity, and coordinates business truth across retail transactions — without owning any of it.**
 
@@ -97,17 +98,26 @@ cd storebunk-pos
 
 ## Domain Events
 
-**Emits:**
-- `ShiftOpened` / `ShiftClosed` / `ShiftForceClosed`
-- `CashDropRecorded`
-- `CheckoutInitiated`
-- `OrderCompleted` / `OrderCancelledViaPOS`
-- `PaymentRequested`
+**Terminal:**
+- `TerminalRegistered` / `TerminalActivated` / `TerminalDisabled` / `TerminalMaintenanceSet`
 
-**Reacts to (from other domains):**
-- Ordering BC — Order state changes
-- Inventory BC — Reservation expiration
-- Payment BC — Authorization results
+**Shift:**
+- `ShiftOpened` / `ShiftClosed` / `ShiftForceClosed` / `CashDropRecorded`
+
+**PosSession (online):**
+- `SessionStarted` / `SessionEnded`
+- `NewOrderStarted` / `OrderParked` / `OrderResumed`
+- `OrderDeactivated` / `OrderReactivated`
+- `CheckoutInitiated` / `PaymentRequested`
+- `OrderCompleted` / `OrderCancelledViaPOS`
+
+**PosSession (offline/sync):**
+- `OrderCreatedOffline` / `OrderMarkedPendingSync` / `OrderSyncedOnline`
+
+**Reacts to (from other domains via service ports):**
+- Ordering BC — via `OrderingServiceInterface`
+- Inventory BC — via `InventoryServiceInterface`
+- Payment BC — via `PaymentServiceInterface`
 
 ## Development
 
@@ -135,6 +145,7 @@ For detailed documentation, see the [docs](docs/) directory:
 - **[Folder Structure](docs/folder-structure.md)** — Complete directory reference
 - **[Milestones](docs/milestones.md)** — Phased roadmap with commit messages
 - **[Feature Specifications](docs/features/README.md)** — Implementation checklist with status
+- **[Demo CLI Specification](docs/demo.md)** — Demo CLI design and scenario specifications
 
 ## Context Boundaries
 
