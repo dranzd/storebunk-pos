@@ -41,6 +41,7 @@ final class CashDrop implements ValueObject
             && $this->recordedAt == $other->recordedAt;
     }
 
+    /** @return array{amount: array<string, mixed>, recorded_at: string} */
     final public function toNative(): array
     {
         return [
@@ -49,6 +50,7 @@ final class CashDrop implements ValueObject
         ];
     }
 
+    /** @param array{amount: array<string, mixed>, recorded_at: string} $native */
     final public static function fromNative(array $native): self
     {
         return new self(

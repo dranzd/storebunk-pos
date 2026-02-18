@@ -9,7 +9,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 interface PosSessionRepositoryInterface
 {
-    public function store(PosSession $session): void;
+    public function store(PosSession $session, ?int $expectedVersion = null): void;
 
     public function load(SessionId $sessionId): PosSession;
 }

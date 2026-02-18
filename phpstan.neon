@@ -4,7 +4,6 @@ parameters:
         - src
     excludePaths:
         - tests
-    checkMissingIterableValueType: false
     ignoreErrors:
         # Event sourcing patterns - apply methods called via naming convention by AggregateRootTrait
         - '#Method .+::applyOn.+\(\) is unused\.#'

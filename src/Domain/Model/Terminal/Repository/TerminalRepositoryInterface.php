@@ -9,7 +9,7 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 interface TerminalRepositoryInterface
 {
-    public function store(Terminal $terminal): void;
+    public function store(Terminal $terminal, ?int $expectedVersion = null): void;
 
     public function load(TerminalId $terminalId): Terminal;
 }
