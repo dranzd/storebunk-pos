@@ -338,6 +338,97 @@ final class PosSessionTest extends TestCase
         $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted::class, $events[4]);
     }
 
+    public function test_it_can_deactivate_order(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->popRecordedEvents();
+
+        $session->deactivateOrder('TTL expired');
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated::class, $events[0]);
+
+        $event = $events[0];
+        assert($event instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated);
+        $this->assertSame('TTL expired', $event->reason());
+    }
+
+    public function test_it_cannot_deactivate_order_without_active_order(): void
+    {
+        $session = $this->createStartedSession();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('No active order to deactivate');
+
+        $session->deactivateOrder('TTL expired');
+    }
+
+    public function test_it_can_reactivate_deactivated_order(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->deactivateOrder('TTL expired');
+        $session->popRecordedEvents();
+
+        $session->reactivateOrder($orderId);
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated::class, $events[0]);
+    }
+
+    public function test_it_cannot_reactivate_order_when_order_is_active(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId1 = new OrderId();
+        $orderId2 = new OrderId();
+        $session->startNewOrder($orderId1);
+        $session->deactivateOrder('TTL expired');
+        $session->startNewOrder($orderId2);
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot reactivate order when an order is already active');
+
+        $session->reactivateOrder($orderId1);
+    }
+
+    public function test_it_cannot_reactivate_order_that_is_not_deactivated(): void
+    {
+        $session = $this->createStartedSession();
+        $orderId = new OrderId();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Order is not in inactive list');
+
+        $session->reactivateOrder($orderId);
+    }
+
+    public function test_full_draft_lifecycle_flow(): void
+    {
+        $sessionId = new SessionId();
+        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId());
+        $orderId = new OrderId();
+        $session->startNewOrder($orderId);
+        $session->deactivateOrder('TTL expired');
+        $session->reactivateOrder($orderId);
+        $session->initiateCheckout();
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(5, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted::class, $events[0]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted::class, $events[1]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated::class, $events[2]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated::class, $events[3]);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated::class, $events[4]);
+    }
+
     private function createStartedSession(): PosSession
     {
         return PosSession::start(

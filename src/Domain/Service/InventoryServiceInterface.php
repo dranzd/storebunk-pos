@@ -13,4 +13,6 @@ interface InventoryServiceInterface
     public function releaseReservation(OrderId $orderId): void;
 
     public function deductInventory(OrderId $orderId): void;
+
+    public function attemptReReservation(OrderId $orderId): bool;
 }

@@ -12,6 +12,7 @@ final class StubInventoryService implements InventoryServiceInterface
     private array $softReservations = [];
     private array $hardReservations = [];
     private array $deductedInventory = [];
+    private bool $reReservationResult = true;
 
     public function convertSoftReservationToHard(OrderId $orderId): void
     {
@@ -31,6 +32,15 @@ final class StubInventoryService implements InventoryServiceInterface
         $this->deductedInventory[$orderId->toNative()] = true;
     }
 
+    public function attemptReReservation(OrderId $orderId): bool
+    {
+        if ($this->reReservationResult) {
+            $this->softReservations[$orderId->toNative()] = true;
+        }
+
+        return $this->reReservationResult;
+    }
+
     public function createSoftReservation(OrderId $orderId): void
     {
         $this->softReservations[$orderId->toNative()] = true;
@@ -44,5 +54,15 @@ final class StubInventoryService implements InventoryServiceInterface
     public function isInventoryDeducted(OrderId $orderId): bool
     {
         return isset($this->deductedInventory[$orderId->toNative()]);
+    }
+
+    public function setReReservationResult(bool $result): void
+    {
+        $this->reReservationResult = $result;
+    }
+
+    public function hasSoftReservation(OrderId $orderId): bool
+    {
+        return isset($this->softReservations[$orderId->toNative()]);
     }
 }

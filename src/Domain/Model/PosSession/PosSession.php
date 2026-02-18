@@ -12,7 +12,9 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderParked;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
@@ -35,6 +37,8 @@ final class PosSession implements AggregateRoot
     private ?OrderId $activeOrderId = null;
     /** @var OrderId[] */
     private array $parkedOrderIds = [];
+    /** @var OrderId[] */
+    private array $inactiveOrderIds = [];
 
     final public static function start(
         SessionId $sessionId,
@@ -181,6 +185,51 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    final public function deactivateOrder(string $reason): void
+    {
+        if ($this->activeOrderId === null) {
+            throw InvariantViolationException::withMessage('No active order to deactivate');
+        }
+
+        $this->recordThat(
+            OrderDeactivated::occur(
+                $this->sessionId,
+                $this->activeOrderId,
+                $reason,
+                new DateTimeImmutable()
+            )
+        );
+    }
+
+    final public function reactivateOrder(OrderId $orderId): void
+    {
+        if ($this->activeOrderId !== null) {
+            throw InvariantViolationException::withMessage(
+                'Cannot reactivate order when an order is already active'
+            );
+        }
+
+        $isInactive = false;
+        foreach ($this->inactiveOrderIds as $inactiveOrderId) {
+            if ($inactiveOrderId->sameValueAs($orderId)) {
+                $isInactive = true;
+                break;
+            }
+        }
+
+        if (!$isInactive) {
+            throw InvariantViolationException::withMessage('Order is not in inactive list');
+        }
+
+        $this->recordThat(
+            OrderReactivated::occur(
+                $this->sessionId,
+                $orderId,
+                new DateTimeImmutable()
+            )
+        );
+    }
+
     final public function cancelOrder(string $reason): void
     {
         if ($this->activeOrderId === null) {
@@ -275,5 +324,23 @@ final class PosSession implements AggregateRoot
     {
         $this->activeOrderId = null;
         $this->state = SessionState::Idle;
+    }
+
+    private function applyOnOrderDeactivated(OrderDeactivated $event): void
+    {
+        $this->inactiveOrderIds[] = $event->orderId();
+        $this->activeOrderId = null;
+        $this->state = SessionState::Idle;
+    }
+
+    private function applyOnOrderReactivated(OrderReactivated $event): void
+    {
+        $this->activeOrderId = $event->orderId();
+        $this->state = SessionState::Building;
+
+        $this->inactiveOrderIds = array_filter(
+            $this->inactiveOrderIds,
+            fn(OrderId $id) => !$id->sameValueAs($event->orderId())
+        );
     }
 }
