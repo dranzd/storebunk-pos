@@ -5,3 +5,10 @@ parameters:
     excludePaths:
         - tests
     checkMissingIterableValueType: false
+    ignoreErrors:
+        # Event sourcing patterns - apply methods called via naming convention by AggregateRootTrait
+        - '#Method .+::applyOn.+\(\) is unused\.#'
+        # Event sourcing patterns - properties are write-only (no public getters in CQRS)
+        - '#Property .+::\$.+ is never read, only written\.#'
+        # Common library trait method returns base interface type
+        - '#Method .+::load\(\) should return .+ but returns .+AggregateRoot\.#'
