@@ -42,7 +42,8 @@
     ],
     "autoload": {
         "psr-4": {
-            "Dranzd\\StorebunkPos\\": "src/"
+            "Dranzd\\StorebunkPos\\": "src/",
+            "Dranzd\\StorebunkPos\\Demo\\Cli\\": "demo/cli/"
         }
     },
     "autoload-dev": {

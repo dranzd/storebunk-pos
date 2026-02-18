@@ -1,0 +1,102 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\Output;
+
+$container = require __DIR__ . '/bootstrap.php';
+
+$commandBus        = $container['commandBus'];
+$eventStore        = $container['eventStore'];
+$terminalReadModel = $container['terminalReadModel'];
+$orderingService   = $container['orderingService'];
+$paymentService    = $container['paymentService'];
+$stateStore        = $container['stateStore'];
+
+global $eventStore;
+
+require __DIR__ . '/cli/services/terminal.php';
+require __DIR__ . '/cli/services/shift.php';
+require __DIR__ . '/cli/services/session.php';
+
+if ($argc < 2) {
+    Output::banner('StoreBunk POS Demo CLI');
+    Output::info('Available services:');
+    Output::blank();
+    Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, get, list)');
+    Output::info('  shift      - Manage cashier shifts (open, close, force-close, cash-drop)');
+    Output::info('  session    - Manage POS sessions (start, new-order, park, resume, checkout, pay, complete, cancel, end)');
+    Output::info('               Offline: new-order-offline, sync');
+    Output::blank();
+    Output::usage('./demo <service> <subcommand> [options]');
+    Output::blank();
+    Output::info('Examples:');
+    Output::info('  ./demo terminal register --name="POS-01"');
+    Output::info('  ./demo shift open --opening-cash=50000');
+    Output::info('  ./demo session start');
+    Output::info('  ./demo session new-order');
+    Output::blank();
+    Output::info('State file: ' . $stateStore->filePath());
+    Output::info('Run "./demo state clear" to reset all state.');
+    Output::blank();
+    exit(0);
+}
+
+$service = $argv[1];
+$args    = new CliArgs(array_slice($argv, 2));
+
+if ($service === 'state') {
+    $subcommand = $args->positional(0);
+    if ($subcommand === 'clear') {
+        $stateStore->clear();
+        Output::success('State cleared.');
+        Output::info('File: ' . $stateStore->filePath());
+    } elseif ($subcommand === 'show') {
+        $data = json_encode(
+            json_decode(file_get_contents($stateStore->filePath()), true),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
+        Output::section('Current State');
+        echo $data . "\n";
+    } else {
+        Output::error("Unknown state subcommand: {$subcommand}");
+        Output::usage('./demo state <clear|show>');
+        exit(1);
+    }
+    exit(0);
+}
+
+$subcommand = $args->positional(0);
+if ($subcommand === '') {
+    Output::error("Missing subcommand for service: {$service}");
+    exit(1);
+}
+
+try {
+    switch ($service) {
+        case 'terminal':
+            handleTerminal($commandBus, $terminalReadModel, $stateStore, $subcommand, $args);
+            break;
+        case 'shift':
+            handleShift($commandBus, $stateStore, $subcommand, $args);
+            break;
+        case 'session':
+            handleSession($commandBus, $stateStore, $orderingService, $paymentService, $subcommand, $args);
+            break;
+        default:
+            Output::error("Unknown service: {$service}");
+            Output::usage('./demo <terminal|shift|session|state> <subcommand> [options]');
+            exit(1);
+    }
+} catch (Throwable $e) {
+    Output::blank();
+    Output::error('Unexpected error: ' . $e->getMessage());
+    Output::info('File: ' . $e->getFile() . ':' . $e->getLine());
+    if (getenv('DEBUG') === '1') {
+        Output::blank();
+        echo $e->getTraceAsString() . "\n";
+    }
+    exit(1);
+}
