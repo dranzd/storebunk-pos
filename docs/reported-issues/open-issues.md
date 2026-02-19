@@ -12,7 +12,7 @@ _(none)_
 
 #### 🟠 High
 
-- [ ] **[6003](6000-bc-integration/6003-draft-order-missing-context.md)** — `createDraftOrder()` accepts no customer or branch context; adapter must fabricate `customerId`
+_(none)_
 
 #### 🟡 Medium
 

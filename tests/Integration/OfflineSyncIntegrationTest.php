@@ -110,7 +110,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(new SyncOrderOnline($sessionId, $orderId));
+        $syncHandler(new SyncOrderOnline($sessionId, $orderId, 'branch-uuid-1'));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());
         $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
@@ -143,7 +143,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncCommand = new SyncOrderOnline($sessionId, $orderId);
+        $syncCommand = new SyncOrderOnline($sessionId, $orderId, 'branch-uuid-1');
         $syncHandler($syncCommand);
         $syncHandler($syncCommand);
 
@@ -187,11 +187,11 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(new SyncOrderOnline($sessionId, $orderId1));
+        $syncHandler(new SyncOrderOnline($sessionId, $orderId1, 'branch-uuid-1'));
 
         $this->assertSame(1, $this->pendingSyncQueue->count());
 
-        $syncHandler(new SyncOrderOnline($sessionId, $orderId2));
+        $syncHandler(new SyncOrderOnline($sessionId, $orderId2, 'branch-uuid-1'));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());
     }

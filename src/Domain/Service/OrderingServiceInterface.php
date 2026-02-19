@@ -8,7 +8,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 
 interface OrderingServiceInterface
 {
-    public function createDraftOrder(OrderId $orderId): void;
+    public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void;
 
     public function confirmOrder(OrderId $orderId): void;
 

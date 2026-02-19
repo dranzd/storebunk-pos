@@ -1,10 +1,10 @@
 # 6003 — `createDraftOrder()` accepts no customer or branch context
 
 **Type:** Design Gap
-**Status:** Open
+**Status:** Resolved
 **Severity:** High
 **Reported:** 2026-02-19
-**Resolved:**
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Service/OrderingServiceInterface.php`
 - `src/Application/PosSession/Command/Handler/AddOrderLineHandler.php`
@@ -91,8 +91,6 @@ Files to change:
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** fix/6003-draft-order-context
+**Summary:** Implemented Option B. Created `DraftOrderContext` DTO in `src/Domain/Service/` with `branchId` (required) and `customerId` (optional, null = walk-in). Updated `OrderingServiceInterface::createDraftOrder()` to accept the DTO as a second parameter. Added `branchId` and `customerId` to `SyncOrderOnline` command. Updated `SyncOrderOnlineHandler` to build `DraftOrderContext` from command fields. Updated `StubOrderingService` and all integration test call sites. All 121 tests pass.
