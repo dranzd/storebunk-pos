@@ -21,7 +21,7 @@ final class SyncOrderOnlineHandler
     ) {
     }
 
-    public function __invoke(SyncOrderOnline $command): void
+    final public function __invoke(SyncOrderOnline $command): void
     {
         $commandId = $command->getMessageUuid();
 

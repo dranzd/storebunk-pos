@@ -2,7 +2,7 @@
     "name": "dranzd/storebunk-pos",
     "description": "POS Domain library for StoreBunk Multi-Retail Platform - manages terminal lifecycle, cashier shifts, checkout orchestration, payment delegation, and operational cash tracking",
     "type": "library",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "license": "MIT",
     "require": {
         "php": "^8.3",

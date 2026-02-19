@@ -19,12 +19,12 @@ final class StartNewOrderOffline extends AbstractCommand
         parent::__construct('', self::MESSAGE_NAME, []);
     }
 
-    public function sessionId(): SessionId
+    final public function sessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    public function orderId(): OrderId
+    final public function orderId(): OrderId
     {
         return $this->orderId;
     }

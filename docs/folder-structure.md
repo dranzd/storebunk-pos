@@ -69,7 +69,9 @@ storebunk-pos/
 │   │       ├── InventoryServiceInterface.php
 │   │       ├── PaymentServiceInterface.php
 │   │       ├── DraftLifecycleService.php
+│   │       ├── DraftOrderContext.php
 │   │       ├── MultiTerminalEnforcementService.php
+│   │       ├── ShiftClosePolicy.php
 │   │       └── PendingSyncQueue.php
 │   │
 │   ├── Application/                         # Use cases and orchestration
@@ -111,6 +113,7 @@ storebunk-pos/
 │   │       │   ├── ParkOrder.php
 │   │       │   ├── ResumeOrder.php
 │   │       │   ├── ReactivateOrder.php
+│   │       │   ├── DeactivateOrder.php
 │   │       │   ├── InitiateCheckout.php
 │   │       │   ├── RequestPayment.php
 │   │       │   ├── CompleteOrder.php
@@ -124,6 +127,7 @@ storebunk-pos/
 │   │       │       ├── ParkOrderHandler.php
 │   │       │       ├── ResumeOrderHandler.php
 │   │       │       ├── ReactivateOrderHandler.php
+│   │       │       ├── DeactivateOrderHandler.php
 │   │       │       ├── InitiateCheckoutHandler.php
 │   │       │       ├── RequestPaymentHandler.php
 │   │       │       ├── CompleteOrderHandler.php
@@ -131,7 +135,8 @@ storebunk-pos/
 │   │       │       ├── EndSessionHandler.php
 │   │       │       ├── StartNewOrderOfflineHandler.php
 │   │       │       └── SyncOrderOnlineHandler.php
-│   │       └── ReadModel/                   # (reserved for session read model interface)
+│   │       └── ReadModel/
+│   │           └── PosSessionReadModelInterface.php
 │   │
 │   ├── Infrastructure/                      # Technical implementations (per-context)
 │   │   ├── Terminal/
@@ -146,7 +151,8 @@ storebunk-pos/
 │   │   └── PosSession/
 │   │       ├── Repository/
 │   │       │   └── InMemoryPosSessionRepository.php
-│   │       └── ReadModel/                   # (reserved for session read model impl)
+│   │       └── ReadModel/
+│   │           └── InMemoryPosSessionReadModel.php
 │   │
 │   └── Shared/                              # POS-specific shared utilities
 │       └── Exception/
@@ -175,7 +181,15 @@ storebunk-pos/
 │   │   │   │       ├── PosSessionTest.php
 │   │   │   │       └── PosSessionOfflineTest.php
 │   │   │   └── Service/
-│   │   │       └── MultiTerminalEnforcementServiceTest.php
+│   │   │       ├── MultiTerminalEnforcementServiceTest.php
+│   │   │       └── ShiftClosePolicyTest.php
+│   │   ├── Application/
+│   │   │   ├── PosSession/
+│   │   │   │   └── Handler/
+│   │   │   │       └── DeactivateOrderHandlerTest.php
+│   │   │   └── Shift/
+│   │   │       └── Handler/
+│   │   │           └── CloseShiftHandlerTest.php
 │   │   └── Infrastructure/
 │   │       └── Terminal/
 │   │           ├── InMemoryTerminalRepositoryTest.php
@@ -205,6 +219,17 @@ storebunk-pos/
 │   ├── agent_workflow.md                    # AI agent guidelines
 │   ├── features/
 │   │   └── README.md                        # Feature index with status tracking
+│   ├── reported-issues/                     # Issue tracking system
+│   │   ├── README.md                        # Issue standards and template
+│   │   ├── open-issues.md                   # Active issues checklist
+│   │   ├── 2000-terminal/
+│   │   ├── 3000-shift/
+│   │   ├── 6000-bc-integration/
+│   │   ├── 8000-concurrency/
+│   │   └── 9000-offline-sync/
+│   ├── library-feedback/                    # Common library feedback tracking
+│   │   ├── README.md
+│   │   └── open-feedback.md
 │   └── raw-discussions/
 │       └── 20260218-0324.md                 # Initial POS concept discussion
 │

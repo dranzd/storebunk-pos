@@ -69,7 +69,7 @@ This directory contains detailed implementation plans for each core feature of t
 | ID | Feature | Status | Priority | Description |
 |----|---------|--------|----------|-------------|
 | 6001 | OrderingServiceInterface | **Completed** | **Critical** | `createDraftOrder`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
-| 6002 | InventoryServiceInterface | **Completed** | **Critical** | `convertSoftReservationToHard`, `releaseReservation`, `deductInventory`, `attemptReReservation` |
+| 6002 | InventoryServiceInterface | **Completed** | **Critical** | `confirmReservation`, `releaseReservation`, `fulfillOrderReservation`, `attemptReReservation` |
 | 6003 | PaymentServiceInterface | **Completed** | **Critical** | `requestPaymentAuthorization`, `applyPayment` |
 | 6004 | Stub Service Adapters | **Completed** | **High** | `StubOrderingService`, `StubInventoryService`, `StubPaymentService` in `tests/Stub/` |
 

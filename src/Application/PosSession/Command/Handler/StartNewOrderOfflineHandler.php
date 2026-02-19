@@ -18,7 +18,7 @@ final class StartNewOrderOfflineHandler
     ) {
     }
 
-    public function __invoke(StartNewOrderOffline $command): void
+    final public function __invoke(StartNewOrderOffline $command): void
     {
         $commandId = $command->getMessageUuid();
 

@@ -150,6 +150,7 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `ParkOrder` | Move active order to parked list |
 | `ResumeOrder` | Move a parked order to active |
 | `ReactivateOrder` | Resume an inactive (TTL-expired) order after re-reservation |
+| `DeactivateOrder` | Deactivate the active order due to TTL expiry |
 | `InitiateCheckout` | Transition session to Checkout state |
 | `RequestPayment` | Request payment from Payment BC |
 | `CompleteOrder` | Mark order as completed |
@@ -205,9 +206,11 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `DraftLifecycleService` | `Domain\Service\` | TTL checks: `shouldDeactivateOrder()` (15 min), `isOrderExpired()` (60 min) |
 | `MultiTerminalEnforcementService` | `Domain\Service\` | Enforces one-shift-per-terminal, one-terminal-per-cashier, order-terminal binding |
 | `PendingSyncQueue` | `Domain\Service\` | Tracks offline orders awaiting sync; supports idempotency via commandId |
-| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
-| `InventoryServiceInterface` | `Domain\Service\` | Port: `convertSoftReservationToHard`, `releaseReservation`, `deductInventory`, `attemptReReservation` |
+| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder(OrderId, DraftOrderContext)`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
+| `InventoryServiceInterface` | `Domain\Service\` | Port: `confirmReservation`, `releaseReservation`, `fulfillOrderReservation`, `attemptReReservation` |
 | `PaymentServiceInterface` | `Domain\Service\` | Port: `requestPaymentAuthorization`, `applyPayment` |
+| `ShiftClosePolicy` | `Domain\Service\` | Enforces invariant: shift cannot close if active POS sessions exist |
+| `DraftOrderContext` | `Domain\Service\` | DTO carrying `branchId` and optional `customerId` for draft order creation |
 
 ---
 
@@ -361,11 +364,10 @@ Offline orders marked as `PendingSync`. Upon reconnection, replay commands with 
 ```php
 interface OrderingServiceInterface
 {
-    public function createDraftOrder(OrderId $orderId, ShiftId $shiftId, TerminalId $terminalId): void;
+    public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void;
     public function confirmOrder(OrderId $orderId): void;
     public function cancelOrder(OrderId $orderId, string $reason): void;
-    public function applyPayment(OrderId $orderId, Money $amount, string $method): void;
-    public function completeOrder(OrderId $orderId): void;
+    public function isOrderFullyPaid(OrderId $orderId): bool;
 }
 ```
 
@@ -374,10 +376,10 @@ interface OrderingServiceInterface
 ```php
 interface InventoryServiceInterface
 {
-    public function reserveSoft(OrderId $orderId, array $items): void;
-    public function convertToHardReservation(OrderId $orderId): void;
+    public function confirmReservation(OrderId $orderId): void;
     public function releaseReservation(OrderId $orderId): void;
-    public function reReserveAll(OrderId $orderId, array $items): bool;
+    public function fulfillOrderReservation(OrderId $orderId): void;
+    public function attemptReReservation(OrderId $orderId): bool;
 }
 ```
 
@@ -386,7 +388,8 @@ interface InventoryServiceInterface
 ```php
 interface PaymentServiceInterface
 {
-    public function requestAuthorization(OrderId $orderId, Money $amount, string $method): PaymentResult;
+    public function requestPaymentAuthorization(OrderId $orderId, Money $amount, string $paymentMethod): bool;
+    public function applyPayment(OrderId $orderId, Money $amount, string $paymentMethod): void;
 }
 ```
 

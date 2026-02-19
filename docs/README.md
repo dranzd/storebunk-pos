@@ -28,6 +28,11 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 ### Demo
 - **[Demo CLI Specification](demo.md)** — Demo CLI design, commands, and scenario specifications (spec only — no implementation yet)
 
+### Quality & Issue Tracking
+- **[Reported Issues](reported-issues/README.md)** — Issue tracking system with standards, template, and resolution workflow
+- **[Open Issues](reported-issues/open-issues.md)** — Active issues checklist
+- **[Library Feedback](library-feedback/README.md)** — Common library feedback tracking
+
 ### Process & Guidelines
 - **[Agent Workflow](agent_workflow.md)** — Guidelines for AI assistants contributing to this project
 
