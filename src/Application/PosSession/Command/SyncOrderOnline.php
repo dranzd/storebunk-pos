@@ -21,22 +21,22 @@ final class SyncOrderOnline extends AbstractCommand
         parent::__construct('', self::MESSAGE_NAME, []);
     }
 
-    final public function getSessionId(): SessionId
+    final public function sessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function getOrderId(): OrderId
+    final public function orderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function getBranchId(): string
+    final public function branchId(): string
     {
         return $this->branchId;
     }
 
-    final public function getCustomerId(): ?string
+    final public function customerId(): ?string
     {
         return $this->customerId;
     }

@@ -43,7 +43,7 @@ final class PosSessionOfflineTest extends TestCase
         $this->assertInstanceOf(OrderCreatedOffline::class, $events[0]);
         /** @var OrderCreatedOffline $event */
         $event = $events[0];
-        $this->assertSame($commandId, $event->getCommandId());
+        $this->assertSame($commandId, $event->commandId());
     }
 
     public function test_cannot_start_offline_order_when_order_is_active(): void

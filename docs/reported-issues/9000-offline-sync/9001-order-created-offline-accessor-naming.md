@@ -1,10 +1,10 @@
 # 9001 — Offline events use `get`-prefixed accessors, inconsistent with convention
 
-**Type:** Improvement  
-**Status:** Open  
-**Severity:** Low  
-**Reported:** 2026-02-19  
-**Resolved:**  
+**Type:** Improvement
+**Status:** Open
+**Severity:** Low
+**Reported:** 2026-02-19
+**Resolved:**
 **Affects:**
 - `src/Domain/Model/PosSession/Event/OrderCreatedOffline.php`
 - `src/Domain/Model/PosSession/Event/OrderMarkedPendingSync.php`
@@ -73,18 +73,14 @@ Update all internal call sites:
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
-
-**Decision:**  
-**Preferred Option:**  
-**Notes:**
+**Decision:** Standardize on no-prefix accessors for both events and commands (e.g. `sessionId()`, `orderId()`). No `get` prefix anywhere.
+**Preferred Option:** Recommended action
+**Notes:** This confirms the existing codebase convention. The three offline events were the outliers.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**  
-**Commit/PR:**  
-**Summary:**
+**Resolved:** 2026-02-20
+**Commit/PR:** fix/9001-event-accessor-naming
+**Summary:** Removed `get`-prefix from all three offline event classes (`OrderCreatedOffline`, `OrderMarkedPendingSync`, `OrderSyncedOnline`) and their command counterparts (`StartNewOrderOffline`, `SyncOrderOnline`). Updated all call sites in `PosSession.php`, `StartNewOrderOfflineHandler`, `SyncOrderOnlineHandler`, and `PosSessionOfflineTest`. All 121 tests pass.

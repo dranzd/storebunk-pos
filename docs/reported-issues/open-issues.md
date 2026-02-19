@@ -20,4 +20,4 @@ _(none)_
 
 #### 🔵 Low
 
-- [ ] **[9001](9000-offline-sync/9001-order-created-offline-accessor-naming.md)** — `OrderCreatedOffline`, `OrderMarkedPendingSync`, `OrderSyncedOnline` events use `get`-prefixed accessors (`getSessionId()`, `getOrderId()`), inconsistent with the no-prefix convention used by all other events
+_(none)_

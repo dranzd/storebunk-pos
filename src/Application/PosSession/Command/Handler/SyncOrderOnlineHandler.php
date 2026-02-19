@@ -29,16 +29,16 @@ final class SyncOrderOnlineHandler
             return;
         }
 
-        $session = $this->sessionRepository->load($command->getSessionId());
-        $session->syncOrderOnline($command->getOrderId());
+        $session = $this->sessionRepository->load($command->sessionId());
+        $session->syncOrderOnline($command->orderId());
         $this->sessionRepository->store($session);
 
         $this->orderingService->createDraftOrder(
-            $command->getOrderId(),
-            new DraftOrderContext($command->getBranchId(), $command->getCustomerId())
+            $command->orderId(),
+            new DraftOrderContext($command->branchId(), $command->customerId())
         );
 
-        $this->pendingSyncQueue->dequeueByOrderId($command->getOrderId());
+        $this->pendingSyncQueue->dequeueByOrderId($command->orderId());
         $this->idempotencyRegistry->markAsProcessed($commandId);
     }
 }
