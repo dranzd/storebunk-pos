@@ -14,6 +14,15 @@ final class TerminalDisabled extends AbstractAggregateEvent implements DomainEve
     private TerminalId $terminalId;
     private DateTimeImmutable $disabledAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->disabledAt = new DateTimeImmutable($array['payload']['disabled_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         TerminalId $terminalId,
         DateTimeImmutable $disabledAt

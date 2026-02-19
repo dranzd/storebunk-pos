@@ -16,6 +16,16 @@ final class OrderCreatedOffline extends AbstractAggregateEvent implements Domain
     private OrderId $orderId;
     private string $commandId;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->commandId = $array['payload']['command_id'];
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

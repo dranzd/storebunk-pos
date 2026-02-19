@@ -17,6 +17,17 @@ final class OrderCancelledViaPOS extends AbstractAggregateEvent implements Domai
     private string $reason;
     private DateTimeImmutable $cancelledAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->reason = $array['payload']['reason'];
+        $event->cancelledAt = new DateTimeImmutable($array['payload']['cancelled_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

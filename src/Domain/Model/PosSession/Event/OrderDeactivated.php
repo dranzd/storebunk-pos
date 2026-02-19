@@ -17,6 +17,17 @@ final class OrderDeactivated extends AbstractAggregateEvent implements DomainEve
     private string $reason;
     private DateTimeImmutable $deactivatedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->reason = $array['payload']['reason'];
+        $event->deactivatedAt = new DateTimeImmutable($array['payload']['deactivated_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

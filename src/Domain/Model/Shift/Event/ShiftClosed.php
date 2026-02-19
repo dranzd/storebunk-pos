@@ -18,6 +18,18 @@ final class ShiftClosed extends AbstractAggregateEvent implements DomainEventInt
     private Money $varianceAmount;
     private DateTimeImmutable $closedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
+        $event->declaredClosingCashAmount = Money::fromArray($array['payload']['declared_closing_cash_amount']);
+        $event->expectedCashAmount = Money::fromArray($array['payload']['expected_cash_amount']);
+        $event->varianceAmount = Money::fromArray($array['payload']['variance_amount']);
+        $event->closedAt = new DateTimeImmutable($array['payload']['closed_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         ShiftId $shiftId,
         Money $declaredClosingCashAmount,

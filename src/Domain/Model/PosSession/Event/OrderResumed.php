@@ -16,6 +16,16 @@ final class OrderResumed extends AbstractAggregateEvent implements DomainEventIn
     private OrderId $orderId;
     private DateTimeImmutable $resumedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->resumedAt = new DateTimeImmutable($array['payload']['resumed_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

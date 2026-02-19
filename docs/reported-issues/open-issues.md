@@ -8,7 +8,7 @@ When an issue is resolved, remove its line from this file and mark the issue fil
 
 #### 🔴 Critical
 
-- [ ] **[2001](2000-terminal/2001-terminal-events-missing-fromarray.md)** — Terminal events missing `fromArray()` — aggregate reconstitution fails; all status transition commands throw `TypeError` at runtime
+_(none)_
 
 #### 🟠 High
 

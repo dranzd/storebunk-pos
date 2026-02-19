@@ -16,6 +16,17 @@ final class ShiftForceClosed extends AbstractAggregateEvent implements DomainEve
     private string $reason;
     private DateTimeImmutable $forceClosedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
+        $event->supervisorId = $array['payload']['supervisor_id'];
+        $event->reason = $array['payload']['reason'];
+        $event->forceClosedAt = new DateTimeImmutable($array['payload']['force_closed_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         ShiftId $shiftId,
         string $supervisorId,

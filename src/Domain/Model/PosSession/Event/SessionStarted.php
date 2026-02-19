@@ -18,6 +18,17 @@ final class SessionStarted extends AbstractAggregateEvent implements DomainEvent
     private TerminalId $terminalId;
     private DateTimeImmutable $startedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->startedAt = new DateTimeImmutable($array['payload']['started_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         ShiftId $shiftId,

@@ -16,6 +16,16 @@ final class OrderParked extends AbstractAggregateEvent implements DomainEventInt
     private OrderId $orderId;
     private DateTimeImmutable $parkedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->parkedAt = new DateTimeImmutable($array['payload']['parked_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

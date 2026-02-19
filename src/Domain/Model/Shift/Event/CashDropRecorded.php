@@ -16,6 +16,16 @@ final class CashDropRecorded extends AbstractAggregateEvent implements DomainEve
     private Money $amount;
     private DateTimeImmutable $recordedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
+        $event->amount = Money::fromArray($array['payload']['amount']);
+        $event->recordedAt = new DateTimeImmutable($array['payload']['recorded_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         ShiftId $shiftId,
         Money $amount,
