@@ -400,13 +400,13 @@ final class PosSession implements AggregateRoot
 
     private function applyOnOrderCreatedOffline(OrderCreatedOffline $event): void
     {
-        $this->activeOrderId = $event->getOrderId();
+        $this->activeOrderId = $event->orderId();
         $this->state = SessionState::Building;
     }
 
     private function applyOnOrderMarkedPendingSync(OrderMarkedPendingSync $event): void
     {
-        $this->pendingSyncOrderIds[] = $event->getOrderId();
+        $this->pendingSyncOrderIds[] = $event->orderId();
         $this->activeOrderId = null;
         $this->state = SessionState::Idle;
     }
@@ -415,7 +415,7 @@ final class PosSession implements AggregateRoot
     {
         $this->pendingSyncOrderIds = array_filter(
             $this->pendingSyncOrderIds,
-            fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
+            fn(OrderId $id) => !$id->sameValueAs($event->orderId())
         );
     }
 }

@@ -26,17 +26,17 @@ final class StartNewOrderOfflineHandler
             return;
         }
 
-        if ($this->pendingSyncQueue->hasByOrderId($command->getOrderId())) {
+        if ($this->pendingSyncQueue->hasByOrderId($command->orderId())) {
             return;
         }
 
-        $session = $this->sessionRepository->load($command->getSessionId());
-        $session->startNewOrderOffline($command->getOrderId(), $commandId);
+        $session = $this->sessionRepository->load($command->sessionId());
+        $session->startNewOrderOffline($command->orderId(), $commandId);
         $this->sessionRepository->store($session);
 
         $this->pendingSyncQueue->enqueue(
-            $command->getSessionId(),
-            $command->getOrderId(),
+            $command->sessionId(),
+            $command->orderId(),
             $commandId
         );
 

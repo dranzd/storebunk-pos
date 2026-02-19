@@ -51,12 +51,12 @@ final class OrderMarkedPendingSync extends AbstractAggregateEvent implements Dom
         return new DateTimeImmutable();
     }
 
-    final public function getSessionId(): SessionId
+    final public function sessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function getOrderId(): OrderId
+    final public function orderId(): OrderId
     {
         return $this->orderId;
     }
