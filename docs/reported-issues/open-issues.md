@@ -12,7 +12,6 @@ _(none)_
 
 #### 🟠 High
 
-- [ ] **[3001](3000-shift/3001-shift-close-no-session-guard.md)** — `CloseShift` dispatches unconditionally — no active session guard; shift can close with unresolved orders
 - [ ] **[6003](6000-bc-integration/6003-draft-order-missing-context.md)** — `createDraftOrder()` accepts no customer or branch context; adapter must fabricate `customerId`
 
 #### 🟡 Medium
