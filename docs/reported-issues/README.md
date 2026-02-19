@@ -127,6 +127,66 @@ _(Filled in when resolved)_
 
 ---
 
+## Resolution Workflow
+
+Every issue fix follows this workflow. See `.windsurf/workflows/branch-protection.md` for the full branch protection rules.
+
+### 1 — Branch
+
+Before writing any code, create a dedicated branch:
+
+```
+git checkout -b fix/<issue-id>-<short-description>
+```
+
+Example: `fix/8001-multi-terminal-stateless`
+
+### 2 — Implement & Document
+
+- Make all code changes
+- Update the issue file: set `**Status:** Resolved`, `**Resolved:** YYYY-MM-DD`, fill `## Resolution`
+- Remove the issue from `open-issues.md`
+
+### 3 — Commit
+
+Once all tests pass, commit with this structured message format:
+
+```
+fix(<issue-id>): <short human-readable description>
+
+Resolves reported issue #<issue-id>.
+<One or two sentences describing what changed and why.>
+```
+
+Example:
+
+```
+fix(8001): make MultiTerminalEnforcementService stateless
+
+Resolves reported issue #8001.
+Removed in-memory state arrays and mutation methods. Assert methods now
+accept read-model-sourced state as arguments so invariants are enforced
+across HTTP requests and processes.
+```
+
+### 4 — Confirm
+
+Run the full test suite. All tests must pass before a merge is suggested.
+
+### 5 — Merge Suggestion
+
+After owner confirmation, the following merge commands are suggested (owner executes):
+
+```
+git checkout main
+git merge --no-ff fix/<issue-id>-<short-description> -m "fix(<issue-id>): <description>"
+git branch -d fix/<issue-id>-<short-description>
+```
+
+The merge is **never executed automatically** — it is always presented as a suggestion for the owner to approve.
+
+---
+
 ## Status Values
 
 | Status | Meaning |
