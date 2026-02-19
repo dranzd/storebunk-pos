@@ -20,7 +20,17 @@ interface InventoryServiceInterface
 
     public function releaseReservation(OrderId $orderId): void;
 
-    public function deductInventory(OrderId $orderId): void;
+    /**
+     * Signal to the inventory BC that stock for this order has been consumed (goods left the store).
+     *
+     * Adapter note: The inventory BC does not have a direct "deduct stock" command. The correct
+     * mapping is to call ReservationManager::fulfillReservation(ReservationId) for each active
+     * reservation associated with this order. The adapter must first resolve
+     * OrderId → ReservationId(s) via a read model query (e.g.
+     * ReservationManager::getActiveReservationsByReference()). Fulfilling a reservation transitions
+     * its state from Active → Fulfilled, which is the inventory BC's model for stock consumption.
+     */
+    public function fulfillOrderReservation(OrderId $orderId): void;
 
     public function attemptReReservation(OrderId $orderId): bool;
 }
