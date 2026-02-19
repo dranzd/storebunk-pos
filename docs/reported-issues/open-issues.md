@@ -16,7 +16,6 @@ _(none)_
 
 #### 🟡 Medium
 
-- [ ] **[6001](6000-bc-integration/6001-convert-soft-reservation-to-hard.md)** — `InventoryServiceInterface::convertSoftReservationToHard()` has no mapping in the inventory BC; adapter is a permanent no-op until interface is redesigned
 - [ ] **[6002](6000-bc-integration/6002-deduct-inventory-mapping.md)** — `InventoryServiceInterface::deductInventory()` name is misleading; actual inventory BC operation is `fulfillReservation()` — adapter mapping is undocumented
 
 #### 🔵 Low

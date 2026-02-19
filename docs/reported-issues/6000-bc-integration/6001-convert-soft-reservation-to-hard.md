@@ -1,10 +1,10 @@
 # 6001 — `convertSoftReservationToHard()` has no inventory BC mapping
 
-**Type:** Improvement  
-**Status:** Open  
-**Severity:** Medium  
-**Reported:** 2026-02-19  
-**Resolved:**  
+**Type:** Improvement
+**Status:** Resolved
+**Severity:** Medium
+**Reported:** 2026-02-19
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Service/InventoryServiceInterface.php`
 - `src/Application/PosSession/Command/Handler/InitiateCheckoutHandler.php`
@@ -52,10 +52,10 @@ The POS domain invented a soft/hard reservation distinction that does not exist 
 
 ## Recommended Action
 
-**Option A (preferred) — Rename to reflect intent, document no-op:**  
+**Option A (preferred) — Rename to reflect intent, document no-op:**
 Rename `convertSoftReservationToHard()` to `confirmReservation()`. Add a PHPDoc comment on the interface stating that the adapter is intentionally a no-op until the inventory BC exposes a matching operation. This makes the intent clear without inventing inventory concepts.
 
-**Option B — Remove the method:**  
+**Option B — Remove the method:**
 If the POS domain decides that checkout confirmation is fully handled by `OrderingServiceInterface::confirmOrder()` (already called in the same handler at line 31), remove `convertSoftReservationToHard()` entirely. The inventory BC does not need a separate signal at checkout time.
 
 **Option B is architecturally cleaner** — the inventory reservation was created at draft time and will be fulfilled at order completion. There is no inventory-side action needed at checkout.
@@ -71,8 +71,19 @@ Files to change under either option:
 
 > _(Owner fills in this section before implementation begins)_
 
-**Decision:**  
-**Preferred Option:**  
+**Decision:**
+The idea that this is a library and is framework agnostic  and  no knowledge of other libraries is
+correct and it only needs to know of the concept of reservations.  Now if the name do not match with
+the inventory library that the consumer use, this library do not care about that.  But we will rename
+our methods or classes that reflects our design intention.  If the inventory library has a different
+name for the same concept, it is up to the consumer to map it.
+
+For this issue I think both are correct but I will go with Option A for the reason that we do not
+assume what the consumer has.  If it has auto confirmaton on order complete or not we do not know that.
+So we will provide a method that can be called to confirm the reservation if the consumer needs it.
+We do NEED to make it clear that this is a no-op in the adapter.
+
+**Preferred Option:**
 **Notes:**
 
 ---
@@ -81,6 +92,6 @@ Files to change under either option:
 
 _(Filled in when resolved)_
 
-**Resolved:**  
-**Commit/PR:**  
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** `hotfix/issues`
+**Summary:** Renamed `convertSoftReservationToHard()` to `confirmReservation()` in `InventoryServiceInterface`. Added PHPDoc on the interface explicitly stating the adapter is intentionally a no-op until the inventory BC exposes a matching operation, and that mapping is the consumer's responsibility. Updated `InitiateCheckoutHandler` call site and `StubInventoryService` (renamed method and internal array from `hardReservations` to `confirmedReservations`, renamed `hasHardReservation()` to `hasConfirmedReservation()`).

@@ -29,7 +29,7 @@ final class InitiateCheckoutHandler
         if ($checkoutEvent instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated) {
             $orderId = $checkoutEvent->orderId();
             $this->orderingService->confirmOrder($orderId);
-            $this->inventoryService->convertSoftReservationToHard($orderId);
+            $this->inventoryService->confirmReservation($orderId);
         }
 
         $this->sessionRepository->store($session);

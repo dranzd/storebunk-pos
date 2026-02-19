@@ -10,25 +10,25 @@ use Dranzd\StorebunkPos\Domain\Service\InventoryServiceInterface;
 final class StubInventoryService implements InventoryServiceInterface
 {
     private array $softReservations = [];
-    private array $hardReservations = [];
+    private array $confirmedReservations = [];
     private array $deductedInventory = [];
     private bool $reReservationResult = true;
 
-    public function convertSoftReservationToHard(OrderId $orderId): void
+    public function confirmReservation(OrderId $orderId): void
     {
         unset($this->softReservations[$orderId->toNative()]);
-        $this->hardReservations[$orderId->toNative()] = true;
+        $this->confirmedReservations[$orderId->toNative()] = true;
     }
 
     public function releaseReservation(OrderId $orderId): void
     {
         unset($this->softReservations[$orderId->toNative()]);
-        unset($this->hardReservations[$orderId->toNative()]);
+        unset($this->confirmedReservations[$orderId->toNative()]);
     }
 
     public function deductInventory(OrderId $orderId): void
     {
-        unset($this->hardReservations[$orderId->toNative()]);
+        unset($this->confirmedReservations[$orderId->toNative()]);
         $this->deductedInventory[$orderId->toNative()] = true;
     }
 
@@ -46,9 +46,9 @@ final class StubInventoryService implements InventoryServiceInterface
         $this->softReservations[$orderId->toNative()] = true;
     }
 
-    public function hasHardReservation(OrderId $orderId): bool
+    public function hasConfirmedReservation(OrderId $orderId): bool
     {
-        return isset($this->hardReservations[$orderId->toNative()]);
+        return isset($this->confirmedReservations[$orderId->toNative()]);
     }
 
     public function isInventoryDeducted(OrderId $orderId): bool
