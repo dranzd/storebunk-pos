@@ -35,7 +35,7 @@ final class CompleteOrderHandler
                 throw InvariantViolationException::withMessage('Order is not fully paid');
             }
 
-            $this->inventoryService->deductInventory($orderId);
+            $this->inventoryService->fulfillOrderReservation($orderId);
         }
 
         $this->sessionRepository->store($session);

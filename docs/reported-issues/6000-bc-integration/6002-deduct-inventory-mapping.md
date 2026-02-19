@@ -1,10 +1,10 @@
 # 6002 — `deductInventory()` name misleading, mapping unclear
 
-**Type:** Improvement  
-**Status:** Open  
-**Severity:** Medium  
-**Reported:** 2026-02-19  
-**Resolved:**  
+**Type:** Improvement
+**Status:** Resolved
+**Severity:** Medium
+**Reported:** 2026-02-19
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Service/InventoryServiceInterface.php`
 - `src/Application/PosSession/Command/Handler/CompleteOrderHandler.php`
@@ -63,16 +63,14 @@ Files to change:
 
 > _(Owner fills in this section before implementation begins)_
 
-**Decision:**  
-**Preferred Option:**  
+**Decision:**
+**Preferred Option:**  Recommended action
 **Notes:**
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**  
-**Commit/PR:**  
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** fix/6002-rename-deduct-inventory
+**Summary:** Renamed `deductInventory()` to `fulfillOrderReservation()` across `InventoryServiceInterface`, `CompleteOrderHandler`, and `StubInventoryService`. Added PHPDoc on the interface method documenting the adapter contract: resolve `OrderId → ReservationId(s)` via read model, then call `ReservationManager::fulfillReservation()` for each. Renamed stub helper `isInventoryDeducted()` to `isReservationFulfilled()` for consistency. All 121 tests pass.

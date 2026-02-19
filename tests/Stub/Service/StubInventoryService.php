@@ -11,7 +11,7 @@ final class StubInventoryService implements InventoryServiceInterface
 {
     private array $softReservations = [];
     private array $confirmedReservations = [];
-    private array $deductedInventory = [];
+    private array $fulfilledReservations = [];
     private bool $reReservationResult = true;
 
     public function confirmReservation(OrderId $orderId): void
@@ -26,10 +26,10 @@ final class StubInventoryService implements InventoryServiceInterface
         unset($this->confirmedReservations[$orderId->toNative()]);
     }
 
-    public function deductInventory(OrderId $orderId): void
+    final public function fulfillOrderReservation(OrderId $orderId): void
     {
         unset($this->confirmedReservations[$orderId->toNative()]);
-        $this->deductedInventory[$orderId->toNative()] = true;
+        $this->fulfilledReservations[$orderId->toNative()] = true;
     }
 
     public function attemptReReservation(OrderId $orderId): bool
@@ -51,9 +51,9 @@ final class StubInventoryService implements InventoryServiceInterface
         return isset($this->confirmedReservations[$orderId->toNative()]);
     }
 
-    public function isInventoryDeducted(OrderId $orderId): bool
+    final public function isReservationFulfilled(OrderId $orderId): bool
     {
-        return isset($this->deductedInventory[$orderId->toNative()]);
+        return isset($this->fulfilledReservations[$orderId->toNative()]);
     }
 
     public function setReReservationResult(bool $result): void

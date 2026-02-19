@@ -16,7 +16,7 @@ _(none)_
 
 #### 🟡 Medium
 
-- [ ] **[6002](6000-bc-integration/6002-deduct-inventory-mapping.md)** — `InventoryServiceInterface::deductInventory()` name is misleading; actual inventory BC operation is `fulfillReservation()` — adapter mapping is undocumented
+_(none)_
 
 #### 🔵 Low
 
