@@ -22,6 +22,19 @@ final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInt
     private Money $openingCashAmount;
     private DateTimeImmutable $openedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->branchId = BranchId::fromNative($array['payload']['branch_id']);
+        $event->cashierId = CashierId::fromNative($array['payload']['cashier_id']);
+        $event->openingCashAmount = Money::fromArray($array['payload']['opening_cash_amount']);
+        $event->openedAt = new DateTimeImmutable($array['payload']['opened_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         ShiftId $shiftId,
         TerminalId $terminalId,

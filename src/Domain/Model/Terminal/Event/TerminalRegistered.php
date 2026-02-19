@@ -17,6 +17,17 @@ final class TerminalRegistered extends AbstractAggregateEvent implements DomainE
     private string $name;
     private DateTimeImmutable $registeredAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->branchId = BranchId::fromNative($array['payload']['branch_id']);
+        $event->name = $array['payload']['name'];
+        $event->registeredAt = new DateTimeImmutable($array['payload']['registered_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         TerminalId $terminalId,
         BranchId $branchId,

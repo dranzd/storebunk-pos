@@ -1,10 +1,10 @@
 # 2001 — Terminal events missing `fromArray()` — aggregate reconstitution fails
 
 **Type:** Bug
-**Status:** Open
+**Status:** Resolved
 **Severity:** Critical
 **Reported:** 2026-02-19
-**Resolved:**
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Model/Terminal/Event/TerminalRegistered.php`
 - `src/Domain/Model/Terminal/Event/TerminalActivated.php`
@@ -103,8 +103,6 @@ Files to change:
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** fix/2001-terminal-events-fromarray
+**Summary:** Added `fromArray(array $array): static` overrides to all 22 domain event classes across Terminal (4), Shift (4), and PosSession (14) aggregates. Each override calls `parent::fromArray($array)` to restore the envelope then reads from `$array['payload']` to restore all typed private properties. All 112 tests pass.

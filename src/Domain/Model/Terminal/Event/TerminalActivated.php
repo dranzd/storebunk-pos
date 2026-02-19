@@ -14,6 +14,15 @@ final class TerminalActivated extends AbstractAggregateEvent implements DomainEv
     private TerminalId $terminalId;
     private DateTimeImmutable $activatedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->activatedAt = new DateTimeImmutable($array['payload']['activated_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         TerminalId $terminalId,
         DateTimeImmutable $activatedAt

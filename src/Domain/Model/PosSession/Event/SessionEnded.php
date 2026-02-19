@@ -14,6 +14,15 @@ final class SessionEnded extends AbstractAggregateEvent implements DomainEventIn
     private SessionId $sessionId;
     private DateTimeImmutable $endedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->endedAt = new DateTimeImmutable($array['payload']['ended_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         DateTimeImmutable $endedAt

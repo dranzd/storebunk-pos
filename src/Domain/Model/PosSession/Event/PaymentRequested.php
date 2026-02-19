@@ -19,6 +19,18 @@ final class PaymentRequested extends AbstractAggregateEvent implements DomainEve
     private string $paymentMethod;
     private DateTimeImmutable $requestedAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
+        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
+        $event->amount = Money::fromArray($array['payload']['amount']);
+        $event->paymentMethod = $array['payload']['payment_method'];
+        $event->requestedAt = new DateTimeImmutable($array['payload']['requested_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,

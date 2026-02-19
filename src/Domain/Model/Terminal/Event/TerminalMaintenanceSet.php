@@ -14,6 +14,15 @@ final class TerminalMaintenanceSet extends AbstractAggregateEvent implements Dom
     private TerminalId $terminalId;
     private DateTimeImmutable $maintenanceSetAt;
 
+    final public static function fromArray(array $array): static
+    {
+        $event = parent::fromArray($array);
+        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
+        $event->maintenanceSetAt = new DateTimeImmutable($array['payload']['maintenance_set_at']);
+
+        return $event;
+    }
+
     final public static function occur(
         TerminalId $terminalId,
         DateTimeImmutable $maintenanceSetAt
