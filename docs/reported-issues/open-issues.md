@@ -8,11 +8,12 @@ When an issue is resolved, remove its line from this file and mark the issue fil
 
 #### 🔴 Critical
 
-_(none)_
+- [ ] **[2001](2000-terminal/2001-terminal-events-missing-fromarray.md)** — Terminal events missing `fromArray()` — aggregate reconstitution fails; all status transition commands throw `TypeError` at runtime
 
 #### 🟠 High
 
-_(none)_
+- [ ] **[3001](3000-shift/3001-shift-close-no-session-guard.md)** — `CloseShift` dispatches unconditionally — no active session guard; shift can close with unresolved orders
+- [ ] **[6003](6000-bc-integration/6003-draft-order-missing-context.md)** — `createDraftOrder()` accepts no customer or branch context; adapter must fabricate `customerId`
 
 #### 🟡 Medium
 
