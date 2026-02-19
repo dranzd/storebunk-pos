@@ -10,10 +10,13 @@ use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRootTrait;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalActivated;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDisabled;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalMaintenanceSet;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalReassigned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRegistered;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRenamed;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalStatus;
+use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 final class Terminal implements AggregateRoot
 {
@@ -60,6 +63,34 @@ final class Terminal implements AggregateRoot
         );
     }
 
+    final public function rename(string $newName): void
+    {
+        if ($this->name === $newName) {
+            throw InvariantViolationException::withMessage('New name is the same as the current name');
+        }
+
+        $this->recordThat(
+            TerminalRenamed::occur($this->terminalId, $this->name, $newName, new DateTimeImmutable())
+        );
+    }
+
+    final public function reassign(BranchId $newBranchId): void
+    {
+        if ($this->status->isActive()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot reassign an active terminal; disable or set to maintenance first'
+            );
+        }
+
+        if ($this->branchId->sameValueAs($newBranchId)) {
+            throw InvariantViolationException::withMessage('New branch is the same as the current branch');
+        }
+
+        $this->recordThat(
+            TerminalReassigned::occur($this->terminalId, $this->branchId, $newBranchId, new DateTimeImmutable())
+        );
+    }
+
     final public function getAggregateRootUuid(): string
     {
         return $this->terminalId->toNative();
@@ -87,5 +118,15 @@ final class Terminal implements AggregateRoot
     private function applyOnTerminalMaintenanceSet(TerminalMaintenanceSet $event): void
     {
         $this->status = TerminalStatus::Maintenance;
+    }
+
+    private function applyOnTerminalRenamed(TerminalRenamed $event): void
+    {
+        $this->name = $event->newName();
+    }
+
+    private function applyOnTerminalReassigned(TerminalReassigned $event): void
+    {
+        $this->branchId = $event->newBranchId();
     }
 }
