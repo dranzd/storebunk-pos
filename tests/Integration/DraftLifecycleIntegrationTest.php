@@ -48,6 +48,11 @@ final class DraftLifecycleIntegrationTest extends TestCase
             {
                 return [];
             }
+
+            public function findActiveByShiftId(string $shiftId): array
+            {
+                return [];
+            }
         };
         $stubCommandBus = new class implements CommandBus {
             public function dispatch(object $command): void {}

@@ -1,10 +1,10 @@
 # 3001 — `CloseShift` dispatches unconditionally — no active session guard
 
 **Type:** Missing Feature
-**Status:** Open
+**Status:** Resolved
 **Severity:** High
 **Reported:** 2026-02-19
-**Resolved:**
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Model/Shift/Shift.php`
 - `src/Application/Shift/Command/Handler/CloseShiftHandler.php`
@@ -106,8 +106,6 @@ Files to change:
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** fix/3001-shift-close-policy
+**Summary:** Implemented Option B. Created `ShiftClosePolicy` domain service with `assertCanClose(ShiftId, array $activeSessionIds): void`. Added `findActiveByShiftId(string $shiftId): array` to `PosSessionReadModelInterface`. Created `InMemoryPosSessionReadModel` infrastructure class projecting session lifecycle events. Updated `CloseShiftHandler` to inject both dependencies and call the policy guard before dispatch. All 121 tests pass.

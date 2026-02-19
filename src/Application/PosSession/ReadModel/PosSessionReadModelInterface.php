@@ -17,4 +17,12 @@ interface PosSessionReadModelInterface
      * @return array<int, array{session_id: string, last_activity_at: \DateTimeImmutable}>
      */
     public function getSessionsWithActiveOrder(): array;
+
+    /**
+     * Return the session IDs of all sessions that are still active (not ended)
+     * for the given shift.
+     *
+     * @return array<int, string>
+     */
+    public function findActiveByShiftId(string $shiftId): array;
 }
