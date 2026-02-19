@@ -18,6 +18,9 @@ final class ShiftClosed extends AbstractAggregateEvent implements DomainEventInt
     private Money $varianceAmount;
     private DateTimeImmutable $closedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

@@ -8,9 +8,11 @@ use DateTimeImmutable;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRoot;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRootTrait;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalActivated;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDisabled;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalMaintenanceSet;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalReassigned;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRegistered;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRenamed;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
@@ -44,6 +46,10 @@ final class Terminal implements AggregateRoot
 
     final public function activate(): void
     {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Cannot activate a decommissioned terminal');
+        }
+
         $this->recordThat(
             TerminalActivated::occur($this->terminalId, new DateTimeImmutable())
         );
@@ -51,6 +57,10 @@ final class Terminal implements AggregateRoot
 
     final public function disable(): void
     {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Cannot disable a decommissioned terminal');
+        }
+
         $this->recordThat(
             TerminalDisabled::occur($this->terminalId, new DateTimeImmutable())
         );
@@ -58,13 +68,49 @@ final class Terminal implements AggregateRoot
 
     final public function setMaintenance(): void
     {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Cannot set a decommissioned terminal to maintenance');
+        }
+
         $this->recordThat(
             TerminalMaintenanceSet::occur($this->terminalId, new DateTimeImmutable())
         );
     }
 
+    final public function decommission(string $reason): void
+    {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Terminal is already decommissioned');
+        }
+
+        if ($this->status->isActive()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot decommission an active terminal; disable or set to maintenance first'
+            );
+        }
+
+        $this->recordThat(
+            TerminalDecommissioned::occur($this->terminalId, $reason, new DateTimeImmutable())
+        );
+    }
+
+    final public function recommission(string $reason): void
+    {
+        if (!$this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Terminal is not decommissioned');
+        }
+
+        $this->recordThat(
+            TerminalRecommissioned::occur($this->terminalId, $reason, new DateTimeImmutable())
+        );
+    }
+
     final public function rename(string $newName): void
     {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Cannot rename a decommissioned terminal');
+        }
+
         if ($this->name === $newName) {
             throw InvariantViolationException::withMessage('New name is the same as the current name');
         }
@@ -76,6 +122,10 @@ final class Terminal implements AggregateRoot
 
     final public function reassign(BranchId $newBranchId): void
     {
+        if ($this->status->isDecommissioned()) {
+            throw InvariantViolationException::withMessage('Cannot reassign a decommissioned terminal');
+        }
+
         if ($this->status->isActive()) {
             throw InvariantViolationException::withMessage(
                 'Cannot reassign an active terminal; disable or set to maintenance first'
@@ -128,5 +178,15 @@ final class Terminal implements AggregateRoot
     private function applyOnTerminalReassigned(TerminalReassigned $event): void
     {
         $this->branchId = $event->newBranchId();
+    }
+
+    private function applyOnTerminalDecommissioned(TerminalDecommissioned $event): void
+    {
+        $this->status = TerminalStatus::Decommissioned;
+    }
+
+    private function applyOnTerminalRecommissioned(TerminalRecommissioned $event): void
+    {
+        $this->status = TerminalStatus::Disabled;
     }
 }

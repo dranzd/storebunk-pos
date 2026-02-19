@@ -11,6 +11,7 @@ enum TerminalStatus: string
     case Active = 'active';
     case Disabled = 'disabled';
     case Maintenance = 'maintenance';
+    case Decommissioned = 'decommissioned';
 
     final public function isActive(): bool
     {
@@ -25,6 +26,11 @@ enum TerminalStatus: string
     final public function isMaintenance(): bool
     {
         return $this === self::Maintenance;
+    }
+
+    final public function isDecommissioned(): bool
+    {
+        return $this === self::Decommissioned;
     }
 
     final public static function fromString(string $status): self

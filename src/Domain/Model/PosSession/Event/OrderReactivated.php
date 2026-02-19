@@ -16,6 +16,9 @@ final class OrderReactivated extends AbstractAggregateEvent implements DomainEve
     private OrderId $orderId;
     private DateTimeImmutable $reactivatedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

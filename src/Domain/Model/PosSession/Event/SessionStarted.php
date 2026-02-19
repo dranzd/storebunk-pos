@@ -18,6 +18,9 @@ final class SessionStarted extends AbstractAggregateEvent implements DomainEvent
     private TerminalId $terminalId;
     private DateTimeImmutable $startedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

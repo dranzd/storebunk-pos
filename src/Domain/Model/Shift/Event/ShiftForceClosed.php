@@ -16,6 +16,9 @@ final class ShiftForceClosed extends AbstractAggregateEvent implements DomainEve
     private string $reason;
     private DateTimeImmutable $forceClosedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

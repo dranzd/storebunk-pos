@@ -15,6 +15,9 @@ final class OrderSyncedOnline extends AbstractAggregateEvent implements DomainEv
     private SessionId $sessionId;
     private OrderId $orderId;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

@@ -9,10 +9,11 @@ use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class TerminalMaintenanceSet extends AbstractAggregateEvent implements DomainEventInterface
+final class TerminalDecommissioned extends AbstractAggregateEvent implements DomainEventInterface
 {
     private TerminalId $terminalId;
-    private DateTimeImmutable $maintenanceSetAt;
+    private string $reason;
+    private DateTimeImmutable $decommissionedAt;
 
     /**
      * @param array<string, mixed> $array
@@ -21,38 +22,42 @@ final class TerminalMaintenanceSet extends AbstractAggregateEvent implements Dom
     {
         $event = parent::fromArray($array);
         $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->maintenanceSetAt = new DateTimeImmutable($array['payload']['maintenance_set_at']);
+        $event->reason = $array['payload']['reason'];
+        $event->decommissionedAt = new DateTimeImmutable($array['payload']['decommissioned_at']);
 
         return $event;
     }
 
     final public static function occur(
         TerminalId $terminalId,
-        DateTimeImmutable $maintenanceSetAt
+        string $reason,
+        DateTimeImmutable $decommissionedAt
     ): self {
         $event = new self();
         $event->terminalId = $terminalId;
-        $event->maintenanceSetAt = $maintenanceSetAt;
+        $event->reason = $reason;
+        $event->decommissionedAt = $decommissionedAt;
 
         return $event;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.terminal.maintenance_set';
+        return 'storebunk.pos.terminal.decommissioned';
     }
 
     final public function toArray(): array
     {
         return [
             'terminal_id' => $this->terminalId->toNative(),
-            'maintenance_set_at' => $this->maintenanceSetAt->format(DATE_ATOM),
+            'reason' => $this->reason,
+            'decommissioned_at' => $this->decommissionedAt->format(DATE_ATOM),
         ];
     }
 
     final public function occurredAt(): DateTimeImmutable
     {
-        return $this->maintenanceSetAt;
+        return $this->decommissionedAt;
     }
 
     final public function terminalId(): TerminalId
@@ -60,8 +65,13 @@ final class TerminalMaintenanceSet extends AbstractAggregateEvent implements Dom
         return $this->terminalId;
     }
 
-    final public function maintenanceSetAt(): DateTimeImmutable
+    final public function reason(): string
     {
-        return $this->maintenanceSetAt;
+        return $this->reason;
+    }
+
+    final public function decommissionedAt(): DateTimeImmutable
+    {
+        return $this->decommissionedAt;
     }
 }

@@ -16,6 +16,9 @@ final class CashDropRecorded extends AbstractAggregateEvent implements DomainEve
     private Money $amount;
     private DateTimeImmutable $recordedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

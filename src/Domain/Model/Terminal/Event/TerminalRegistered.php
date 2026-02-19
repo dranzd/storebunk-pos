@@ -17,6 +17,9 @@ final class TerminalRegistered extends AbstractAggregateEvent implements DomainE
     private string $name;
     private DateTimeImmutable $registeredAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

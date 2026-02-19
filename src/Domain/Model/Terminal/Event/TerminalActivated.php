@@ -14,6 +14,9 @@ final class TerminalActivated extends AbstractAggregateEvent implements DomainEv
     private TerminalId $terminalId;
     private DateTimeImmutable $activatedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

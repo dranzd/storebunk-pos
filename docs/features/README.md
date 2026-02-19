@@ -31,6 +31,10 @@ This directory contains detailed implementation plans for each core feature of t
 | 2002 | Terminal Commands and Handlers | **Completed** | **Critical** | `RegisterTerminal`, `ActivateTerminal`, `DisableTerminal`, `SetTerminalMaintenance` |
 | 2003 | Terminal Events | **Completed** | **Critical** | `TerminalRegistered`, `TerminalActivated`, `TerminalDisabled`, `TerminalMaintenanceSet` |
 | 2004 | Terminal Repository and Projection | **Completed** | **High** | `TerminalRepositoryInterface` + `InMemoryTerminalRepository` + `InMemoryTerminalReadModel` |
+| 2005 | Terminal Rename | **Completed** | **High** | `RenameTerminal` command + handler; `TerminalRenamed` event (carries oldName, newName); allowed in any non-Decommissioned status |
+| 2006 | Terminal Branch Reassignment | **Completed** | **High** | `ReassignTerminal` command + handler; `TerminalReassigned` event (carries oldBranchId, newBranchId); requires Disabled or Maintenance |
+| 2007 | Terminal Decommission | **Completed** | **High** | `DecommissionTerminal` command + handler; `TerminalDecommissioned` event; `Decommissioned` status added to enum; blocks all further transitions |
+| 2008 | Terminal Recommission | **Completed** | **High** | `RecommissionTerminal` command + handler; `TerminalRecommissioned` event; restores terminal to Disabled (requires explicit activate to go live) |
 
 ### 3000 Series - Shift Aggregate
 
@@ -314,18 +318,18 @@ feat(offline): implement offline draft creation and sync queue
 
 ### Overall Progress
 
-- **Total Features:** 37
-- **Completed:** 37
+- **Total Features:** 41
+- **Completed:** 41
 - **In Progress:** 0
 - **Not Started:** 0
-- **Completion:** 100% ✓ — v1.0.0 ready
+- **Completion:** 100% ✓ — v1.1.0 ready
 
 ### By Series
 
 | Series | Name | Total | Completed | Progress |
 |--------|------|-------|-----------|----------|
 | 1000 | Foundation | 5 | 5 | 100% ✓ |
-| 2000 | Terminal | 4 | 4 | 100% ✓ |
+| 2000 | Terminal | 8 | 8 | 100% ✓ |
 | 3000 | Shift | 7 | 7 | 100% ✓ |
 | 4000 | PosSession | 5 | 5 | 100% ✓ |
 | 5000 | Checkout/Payment | 5 | 5 | 100% ✓ |
@@ -351,5 +355,5 @@ All v1 features are complete. For future contributions:
 
 ---
 
-**Last Updated:** February 18, 2026
-**Version:** v1.0.0 — All 37 features complete
+**Last Updated:** February 20, 2026
+**Version:** v1.1.0 — All 41 features complete

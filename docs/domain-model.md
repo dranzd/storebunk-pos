@@ -17,7 +17,7 @@ Represents a registered POS device.
 | `terminalId` | `TerminalId` (VO) | Unique identifier |
 | `branchId` | `BranchId` (VO) | Branch this terminal belongs to |
 | `name` | `string` | Human-readable terminal name |
-| `status` | `TerminalStatus` (Enum) | Active, Disabled, Maintenance |
+| `status` | `TerminalStatus` (Enum) | Active, Disabled, Maintenance, Decommissioned |
 | `registeredAt` | `DateTimeImmutable` | When the terminal was registered |
 
 #### Invariants
@@ -25,6 +25,10 @@ Represents a registered POS device.
 - Terminal belongs to exactly one branch.
 - Terminal can have only one open shift at a time.
 - Terminal must be Active to open a shift.
+- A Decommissioned terminal cannot transition to any other status directly; it must be recommissioned first.
+- Decommission requires the terminal to be Disabled or Maintenance (cannot decommission an Active terminal).
+- Reassignment to another branch requires the terminal to be Disabled or Maintenance.
+- Rename is allowed in any non-Decommissioned status.
 
 #### Commands
 
@@ -34,6 +38,10 @@ Represents a registered POS device.
 | `ActivateTerminal` | Set terminal status to Active |
 | `DisableTerminal` | Set terminal status to Disabled |
 | `SetTerminalMaintenance` | Set terminal to Maintenance mode |
+| `RenameTerminal` | Update the terminal's human-readable name |
+| `ReassignTerminal` | Move terminal to a different branch (requires Disabled or Maintenance) |
+| `DecommissionTerminal` | Permanently retire the terminal with a reason (requires Disabled or Maintenance) |
+| `RecommissionTerminal` | Restore a decommissioned terminal to Disabled status with a reason |
 
 #### Events
 
@@ -43,6 +51,10 @@ Represents a registered POS device.
 | `TerminalActivated` | Terminal was activated |
 | `TerminalDisabled` | Terminal was disabled |
 | `TerminalMaintenanceSet` | Terminal entered maintenance mode |
+| `TerminalRenamed` | Terminal name was updated (carries oldName and newName) |
+| `TerminalReassigned` | Terminal was moved to a different branch (carries oldBranchId and newBranchId) |
+| `TerminalDecommissioned` | Terminal was permanently retired (carries reason) |
+| `TerminalRecommissioned` | Decommissioned terminal was restored to Disabled status (carries reason) |
 
 ---
 
@@ -186,7 +198,7 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 |-------------|---------|-------------|------|
 | `TerminalId` | Terminal | UUID for terminal | `Uuid` (common-valueobject) |
 | `BranchId` | Terminal | UUID for branch | `Uuid` (common-valueobject) |
-| `TerminalStatus` | Terminal | Enum: `Active`, `Disabled`, `Maintenance` | PHP Enum |
+| `TerminalStatus` | Terminal | Enum: `Active`, `Disabled`, `Maintenance`, `Decommissioned` | PHP Enum |
 | `ShiftId` | Shift | UUID for shift | `Uuid` (common-valueobject) |
 | `CashierId` | Shift | UUID for cashier | `Uuid` (common-valueobject) |
 | `ShiftStatus` | Shift | Enum: `Open`, `Closed`, `ForceClosed` | PHP Enum |
@@ -218,7 +230,7 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 
 | Enum | Values | Description |
 |------|--------|-------------|
-| `TerminalStatus` | `Active`, `Disabled`, `Maintenance` | Terminal lifecycle states |
+| `TerminalStatus` | `Active`, `Disabled`, `Maintenance`, `Decommissioned` | Terminal lifecycle states |
 | `ShiftStatus` | `Open`, `Closed`, `ForceClosed` | Shift lifecycle states |
 | `SessionState` | `Idle`, `Building`, `Checkout` | Session UI lifecycle |
 
@@ -422,6 +434,10 @@ interface PaymentServiceInterface
 | `TerminalActivated` | terminalId |
 | `TerminalDisabled` | terminalId |
 | `TerminalMaintenanceSet` | terminalId |
+| `TerminalRenamed` | terminalId, oldName, newName |
+| `TerminalReassigned` | terminalId, oldBranchId, newBranchId |
+| `TerminalDecommissioned` | terminalId, reason |
+| `TerminalRecommissioned` | terminalId, reason |
 
 ### Shift Events
 

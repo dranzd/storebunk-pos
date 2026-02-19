@@ -22,6 +22,9 @@ final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInt
     private Money $openingCashAmount;
     private DateTimeImmutable $openedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

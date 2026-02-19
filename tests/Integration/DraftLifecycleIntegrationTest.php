@@ -54,8 +54,11 @@ final class DraftLifecycleIntegrationTest extends TestCase
                 return [];
             }
         };
-        $stubCommandBus = new class implements CommandBus {
-            public function dispatch(object $command): void {}
+        $stubCommandBus = new class implements CommandBus
+        {
+            public function dispatch(object $command): void
+            {
+            }
         };
 
         $this->lifecycleService = new DraftLifecycleService($stubReadModel, $stubCommandBus);

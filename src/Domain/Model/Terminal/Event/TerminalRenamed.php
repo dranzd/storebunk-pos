@@ -16,6 +16,9 @@ final class TerminalRenamed extends AbstractAggregateEvent implements DomainEven
     private string $newName;
     private DateTimeImmutable $renamedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

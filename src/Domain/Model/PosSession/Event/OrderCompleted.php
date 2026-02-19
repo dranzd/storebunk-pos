@@ -16,6 +16,9 @@ final class OrderCompleted extends AbstractAggregateEvent implements DomainEvent
     private OrderId $orderId;
     private DateTimeImmutable $completedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

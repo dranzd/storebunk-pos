@@ -19,6 +19,9 @@ final class PaymentRequested extends AbstractAggregateEvent implements DomainEve
     private string $paymentMethod;
     private DateTimeImmutable $requestedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

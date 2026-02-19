@@ -15,12 +15,16 @@ storebunk-pos/
 │   │   │   │   ├── ValueObject/
 │   │   │   │   │   ├── TerminalId.php
 │   │   │   │   │   ├── BranchId.php
-│   │   │   │   │   └── TerminalStatus.php   # Enum: Active, Disabled, Maintenance
+│   │   │   │   │   └── TerminalStatus.php   # Enum: Active, Disabled, Maintenance, Decommissioned
 │   │   │   │   ├── Event/
 │   │   │   │   │   ├── TerminalRegistered.php
 │   │   │   │   │   ├── TerminalActivated.php
 │   │   │   │   │   ├── TerminalDisabled.php
-│   │   │   │   │   └── TerminalMaintenanceSet.php
+│   │   │   │   │   ├── TerminalMaintenanceSet.php
+│   │   │   │   │   ├── TerminalRenamed.php
+│   │   │   │   │   ├── TerminalReassigned.php
+│   │   │   │   │   ├── TerminalDecommissioned.php
+│   │   │   │   │   └── TerminalRecommissioned.php
 │   │   │   │   └── Repository/
 │   │   │   │       └── TerminalRepositoryInterface.php
 │   │   │   │
@@ -84,11 +88,19 @@ storebunk-pos/
 │   │   │   │   ├── ActivateTerminal.php
 │   │   │   │   ├── DisableTerminal.php
 │   │   │   │   ├── SetTerminalMaintenance.php
+│   │   │   │   ├── RenameTerminal.php
+│   │   │   │   ├── ReassignTerminal.php
+│   │   │   │   ├── DecommissionTerminal.php
+│   │   │   │   ├── RecommissionTerminal.php
 │   │   │   │   └── Handler/
 │   │   │   │       ├── RegisterTerminalHandler.php
 │   │   │   │       ├── ActivateTerminalHandler.php
 │   │   │   │       ├── DisableTerminalHandler.php
-│   │   │   │       └── SetTerminalMaintenanceHandler.php
+│   │   │   │       ├── SetTerminalMaintenanceHandler.php
+│   │   │   │       ├── RenameTerminalHandler.php
+│   │   │   │       ├── ReassignTerminalHandler.php
+│   │   │   │       ├── DecommissionTerminalHandler.php
+│   │   │   │       └── RecommissionTerminalHandler.php
 │   │   │   └── ReadModel/
 │   │   │       └── TerminalReadModelInterface.php
 │   │   │

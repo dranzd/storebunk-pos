@@ -14,6 +14,9 @@ final class SessionEnded extends AbstractAggregateEvent implements DomainEventIn
     private SessionId $sessionId;
     private DateTimeImmutable $endedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

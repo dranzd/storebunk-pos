@@ -16,6 +16,9 @@ final class OrderParked extends AbstractAggregateEvent implements DomainEventInt
     private OrderId $orderId;
     private DateTimeImmutable $parkedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

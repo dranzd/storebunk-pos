@@ -17,6 +17,9 @@ final class TerminalReassigned extends AbstractAggregateEvent implements DomainE
     private BranchId $newBranchId;
     private DateTimeImmutable $reassignedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

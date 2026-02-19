@@ -87,8 +87,12 @@ final class InMemoryPosSessionReadModel implements PosSessionReadModelInterface
         }
     }
 
+    /**
+     * @return array<int, array{session_id: string, last_activity_at: \DateTimeImmutable}>
+     */
     final public function getSessionsWithActiveOrder(): array
     {
+        /** @var array<int, array{session_id: string, last_activity_at: \DateTimeImmutable}> */
         return array_values(
             array_filter(
                 $this->sessions,

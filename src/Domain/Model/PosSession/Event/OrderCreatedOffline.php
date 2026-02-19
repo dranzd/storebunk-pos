@@ -16,6 +16,9 @@ final class OrderCreatedOffline extends AbstractAggregateEvent implements Domain
     private OrderId $orderId;
     private string $commandId;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);

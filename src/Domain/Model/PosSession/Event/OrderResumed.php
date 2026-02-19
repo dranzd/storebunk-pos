@@ -16,6 +16,9 @@ final class OrderResumed extends AbstractAggregateEvent implements DomainEventIn
     private OrderId $orderId;
     private DateTimeImmutable $resumedAt;
 
+    /**
+     * @param array<string, mixed> $array
+     */
     final public static function fromArray(array $array): static
     {
         $event = parent::fromArray($array);
