@@ -1,10 +1,10 @@
 # 8001 — `MultiTerminalEnforcementService` uses in-memory state, cannot enforce across requests
 
-**Type:** Architecture  
-**Status:** Open  
-**Severity:** Critical  
-**Reported:** 2026-02-19  
-**Resolved:**  
+**Type:** Architecture
+**Status:** Resolved
+**Severity:** Critical
+**Reported:** 2026-02-19
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Domain/Service/MultiTerminalEnforcementService.php`
 - `tests/Unit/Domain/Service/MultiTerminalEnforcementServiceTest.php`
@@ -55,7 +55,7 @@ The service was designed for unit-testability (in-memory state is easy to set up
 
 ## Recommended Action
 
-**Option A (preferred) — Stateless service with injected data:**  
+**Option A (preferred) — Stateless service with injected data:**
 Change the assert methods to accept current state as arguments rather than reading from internal arrays:
 
 ```php
@@ -66,10 +66,10 @@ public function assertOrderBelongsToTerminal(OrderId $orderId, TerminalId $termi
 
 The adapter layer queries the read model and passes the data in. The service becomes a pure invariant checker with no mutable state. The mutation methods (`registerOpenShift`, etc.) are removed — state is owned by the read model projections.
 
-**Option B — Extract an interface, provide two implementations:**  
+**Option B — Extract an interface, provide two implementations:**
 Define `MultiTerminalEnforcementServiceInterface` as a port. Keep the in-memory implementation for tests. Add a read-model-backed implementation for production that queries `ShiftReadModelInterface` and a session read model on each call.
 
-**Option C — Move enforcement into command handlers:**  
+**Option C — Move enforcement into command handlers:**
 Remove the domain service entirely. Move enforcement logic directly into `OpenShiftHandler` and `StartNewOrderHandler` using `ShiftReadModelInterface`. Simpler but loses the centralized domain expression of the invariant.
 
 **Recommended: Option A.** It preserves the domain service concept, keeps invariant logic centralized and testable, and requires minimal structural change. Tests must be updated to pass state arrays as arguments instead of calling register/bind methods.
@@ -85,9 +85,10 @@ Files to change:
 
 > _(Owner fills in this section before implementation begins)_
 
-**Decision:**  
-**Preferred Option:**  
-**Notes:**
+**Decision:**
+**Preferred Option:**  Your recommendation, Option A.
+**Notes:** Any implementation that is used for testing and is actually used by consumers should have
+this kind of implementation.  The implementation details goes to the Infrastructure layer.
 
 ---
 
@@ -95,6 +96,6 @@ Files to change:
 
 _(Filled in when resolved)_
 
-**Resolved:**  
-**Commit/PR:**  
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** `hotfix/issues`
+**Summary:** Redesigned `MultiTerminalEnforcementService` to be a stateless pure invariant checker. All three assert methods now accept read-model-sourced state arrays as arguments (`$openShiftsByTerminal`, `$activeTerminalByCashier`, `$orderTerminalBinding`). All mutation methods (`registerOpenShift`, `unregisterOpenShift`, `bindOrderToTerminal`, `unbindOrder`) and private state arrays were removed. Tests updated to pass state inline. Infrastructure adapters are responsible for querying the read model and supplying state on each call.

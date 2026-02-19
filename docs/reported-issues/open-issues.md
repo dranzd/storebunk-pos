@@ -8,7 +8,7 @@ When an issue is resolved, remove its line from this file and mark the issue fil
 
 #### 🔴 Critical
 
-- [ ] **[8001](8000-concurrency/8001-multi-terminal-enforcement-in-memory.md)** — `MultiTerminalEnforcementService` uses in-memory PHP arrays; invariants (one cashier/one terminal per shift) are completely unenforced across HTTP requests or processes
+_(none)_
 
 #### 🟠 High
 
