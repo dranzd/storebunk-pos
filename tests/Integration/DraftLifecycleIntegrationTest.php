@@ -12,6 +12,8 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\StartSessionHandl
 use Dranzd\StorebunkPos\Application\PosSession\Command\ReactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
+use Dranzd\Common\Cqrs\Application\Command\Bus as CommandBus;
+use Dranzd\StorebunkPos\Application\PosSession\ReadModel\PosSessionReadModelInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
@@ -40,7 +42,18 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $this->sessionRepository = new InMemoryPosSessionRepository($eventStore);
         $this->inventoryService = new StubInventoryService();
         $this->orderingService = new StubOrderingService();
-        $this->lifecycleService = new DraftLifecycleService($this->sessionRepository);
+
+        $stubReadModel = new class implements PosSessionReadModelInterface {
+            public function getSessionsWithActiveOrder(): array
+            {
+                return [];
+            }
+        };
+        $stubCommandBus = new class implements CommandBus {
+            public function dispatch(object $command): void {}
+        };
+
+        $this->lifecycleService = new DraftLifecycleService($stubReadModel, $stubCommandBus);
     }
 
     public function test_full_draft_lifecycle_with_deactivation_and_reactivation(): void

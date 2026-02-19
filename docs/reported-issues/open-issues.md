@@ -12,7 +12,7 @@ _(none)_
 
 #### 🟠 High
 
-- [ ] **[9002](9000-offline-sync/9002-deactivate-order-command-missing.md)** — `DeactivateOrder` CQRS command and handler are missing; `DraftLifecycleService::checkAndDeactivateInactiveOrders()` is an empty stub — 15-min soft-deactivation cannot be triggered
+_(none)_
 
 #### 🟡 Medium
 

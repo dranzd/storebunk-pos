@@ -1,10 +1,10 @@
 # 9002 — `DeactivateOrder` CQRS command and handler are missing
 
-**Type:** Missing Feature  
-**Status:** Open  
-**Severity:** High  
-**Reported:** 2026-02-19  
-**Resolved:**  
+**Type:** Missing Feature
+**Status:** Resolved
+**Severity:** High
+**Reported:** 2026-02-19
+**Resolved:** 2026-02-19
 **Affects:**
 - `src/Application/PosSession/Command/` — `DeactivateOrder.php` does not exist
 - `src/Application/PosSession/Command/Handler/` — `DeactivateOrderHandler.php` does not exist
@@ -53,10 +53,10 @@ The domain aggregate method and event were implemented, but the application laye
 
 Add the missing application layer components:
 
-**1. Create `src/Application/PosSession/Command/DeactivateOrder.php`**  
+**1. Create `src/Application/PosSession/Command/DeactivateOrder.php`**
 Follow the same pattern as `CancelOrder.php`. Requires `SessionId` and a `string $reason`.
 
-**2. Create `src/Application/PosSession/Command/Handler/DeactivateOrderHandler.php`**  
+**2. Create `src/Application/PosSession/Command/Handler/DeactivateOrderHandler.php`**
 Follow the same pattern as `CancelOrderHandler.php`:
 - Load session via `PosSessionRepositoryInterface`
 - Call `$session->deactivateOrder($command->reason())`
@@ -64,7 +64,7 @@ Follow the same pattern as `CancelOrderHandler.php`:
 
 No BC port calls are needed — deactivation is a POS-internal state transition. The inventory reservation is not released at deactivation (it is released only on cancel or at the 60-min hard-cancel). This matches the design intent: deactivated orders can be reactivated via `ReactivateOrder`.
 
-**3. Implement `DraftLifecycleService::checkAndDeactivateInactiveOrders()`**  
+**3. Implement `DraftLifecycleService::checkAndDeactivateInactiveOrders()`**
 This method needs a read model dependency to find sessions with active orders and their last-activity timestamps. Options:
 - Inject a `PosSessionReadModelInterface` (or equivalent) that can return sessions with active orders older than the TTL threshold
 - For each qualifying session/order, dispatch a `DeactivateOrder` command via the command bus
@@ -84,8 +84,8 @@ Files to modify:
 
 > _(Owner fills in this section before implementation begins)_
 
-**Decision:**  
-**Preferred Option:**  
+**Decision:**  Proceed with the recommendation.
+**Preferred Option:**
 **Notes:**
 
 ---
@@ -94,6 +94,6 @@ Files to modify:
 
 _(Filled in when resolved)_
 
-**Resolved:**  
-**Commit/PR:**  
-**Summary:**
+**Resolved:** 2026-02-19
+**Commit/PR:** `hotfix/issues`
+**Summary:** Created `DeactivateOrder` command and `DeactivateOrderHandler` following the `CancelOrder`/`CancelOrderHandler` pattern. Created `PosSessionReadModelInterface` with `getSessionsWithActiveOrder()` in `src/Application/PosSession/ReadModel/`. Implemented `DraftLifecycleService::checkAndDeactivateInactiveOrders()` and `checkAndCancelExpiredOrders()` — both inject `PosSessionReadModelInterface` and `CommandBus` (port), query sessions with active orders, and dispatch the appropriate command for each qualifying session. Updated `DraftLifecycleIntegrationTest` to use the new constructor. Added `DeactivateOrderHandlerTest` with 3 cases (happy path, idle-after-deactivation, no-active-order throws).
