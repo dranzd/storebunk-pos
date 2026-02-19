@@ -7,6 +7,7 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Service\DraftOrderContext;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 
@@ -32,7 +33,10 @@ final class SyncOrderOnlineHandler
         $session->syncOrderOnline($command->getOrderId());
         $this->sessionRepository->store($session);
 
-        $this->orderingService->createDraftOrder($command->getOrderId());
+        $this->orderingService->createDraftOrder(
+            $command->getOrderId(),
+            new DraftOrderContext($command->getBranchId(), $command->getCustomerId())
+        );
 
         $this->pendingSyncQueue->dequeueByOrderId($command->getOrderId());
         $this->idempotencyRegistry->markAsProcessed($commandId);
