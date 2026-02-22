@@ -6,6 +6,7 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 
 use Dranzd\StorebunkPos\Application\PosSession\Command\RequestPayment;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Service\PaymentServiceInterface;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
@@ -20,30 +21,29 @@ final class RequestPaymentHandler
     final public function __invoke(RequestPayment $command): void
     {
         $session = $this->sessionRepository->load($command->sessionId());
+        $orderId = $session->activeOrderId();
 
-        $session->requestPayment($command->amount(), $command->paymentMethod());
-
-        $events = $session->popRecordedEvents();
-        $paymentEvent = end($events);
-
-        if ($paymentEvent instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested) {
+        if ($orderId instanceof OrderId) {
             $authorized = $this->paymentService->requestPaymentAuthorization(
-                $paymentEvent->orderId(),
-                $paymentEvent->amount(),
-                $paymentEvent->paymentMethod()
+                $orderId,
+                $command->amount(),
+                $command->paymentMethod()
             );
 
             if (!$authorized) {
                 throw InvariantViolationException::withMessage('Payment authorization failed');
             }
-
-            $this->paymentService->applyPayment(
-                $paymentEvent->orderId(),
-                $paymentEvent->amount(),
-                $paymentEvent->paymentMethod()
-            );
         }
 
+        $session->requestPayment($command->amount(), $command->paymentMethod());
         $this->sessionRepository->store($session);
+
+        if ($orderId instanceof OrderId) {
+            $this->paymentService->applyPayment(
+                $orderId,
+                $command->amount(),
+                $command->paymentMethod()
+            );
+        }
     }
 }

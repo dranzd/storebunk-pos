@@ -6,6 +6,7 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Service\InventoryServiceInterface;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
@@ -22,22 +23,17 @@ final class CompleteOrderHandler
     final public function __invoke(CompleteOrder $command): void
     {
         $session = $this->sessionRepository->load($command->sessionId());
+        $orderId = $session->activeOrderId();
 
-        $session->completeOrder();
-
-        $events = $session->popRecordedEvents();
-        $completedEvent = end($events);
-
-        if ($completedEvent instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted) {
-            $orderId = $completedEvent->orderId();
-
-            if (!$this->orderingService->isOrderFullyPaid($orderId)) {
-                throw InvariantViolationException::withMessage('Order is not fully paid');
-            }
-
-            $this->inventoryService->fulfillOrderReservation($orderId);
+        if ($orderId instanceof OrderId && !$this->orderingService->isOrderFullyPaid($orderId)) {
+            throw InvariantViolationException::withMessage('Order is not fully paid');
         }
 
+        $session->completeOrder();
         $this->sessionRepository->store($session);
+
+        if ($orderId instanceof OrderId) {
+            $this->inventoryService->fulfillOrderReservation($orderId);
+        }
     }
 }
