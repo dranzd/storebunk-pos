@@ -6,6 +6,7 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 
 use Dranzd\StorebunkPos\Application\PosSession\Command\InitiateCheckout;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Service\InventoryServiceInterface;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 
@@ -21,17 +22,14 @@ final class InitiateCheckoutHandler
     final public function __invoke(InitiateCheckout $command): void
     {
         $session = $this->sessionRepository->load($command->sessionId());
+        $orderId = $session->activeOrderId();
+
         $session->initiateCheckout();
+        $this->sessionRepository->store($session);
 
-        $events = $session->popRecordedEvents();
-        $checkoutEvent = end($events);
-
-        if ($checkoutEvent instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\CheckoutInitiated) {
-            $orderId = $checkoutEvent->orderId();
+        if ($orderId instanceof OrderId) {
             $this->orderingService->confirmOrder($orderId);
             $this->inventoryService->confirmReservation($orderId);
         }
-
-        $this->sessionRepository->store($session);
     }
 }

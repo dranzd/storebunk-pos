@@ -316,6 +316,11 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    final public function activeOrderId(): ?OrderId
+    {
+        return $this->activeOrderId;
+    }
+
     final public function getAggregateRootUuid(): string
     {
         return $this->sessionId->toNative();
