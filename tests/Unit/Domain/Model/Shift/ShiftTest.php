@@ -36,11 +36,11 @@ final class ShiftTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof ShiftOpened);
-        $this->assertTrue($event->shiftId()->sameValueAs($shiftId));
-        $this->assertTrue($event->terminalId()->sameValueAs($terminalId));
-        $this->assertTrue($event->branchId()->sameValueAs($branchId));
-        $this->assertTrue($event->cashierId()->sameValueAs($cashierId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->openedAt());
+        $this->assertTrue($event->getShiftId()->sameValueAs($shiftId));
+        $this->assertTrue($event->getTerminalId()->sameValueAs($terminalId));
+        $this->assertTrue($event->getBranchId()->sameValueAs($branchId));
+        $this->assertTrue($event->getCashierId()->sameValueAs($cashierId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getOpenedAt());
     }
 
     public function test_it_can_be_closed(): void
@@ -57,7 +57,7 @@ final class ShiftTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof ShiftClosed);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->closedAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getClosedAt());
     }
 
     public function test_it_cannot_close_if_not_open(): void
@@ -86,9 +86,9 @@ final class ShiftTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof ShiftForceClosed);
-        $this->assertSame('supervisor-123', $event->supervisorId());
-        $this->assertSame('Emergency closure', $event->reason());
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->forceClosedAt());
+        $this->assertSame('supervisor-123', $event->getSupervisorId());
+        $this->assertSame('Emergency closure', $event->getReason());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getForceClosedAt());
     }
 
     public function test_it_can_record_cash_drop(): void
@@ -105,7 +105,7 @@ final class ShiftTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof CashDropRecorded);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->recordedAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getRecordedAt());
     }
 
     public function test_it_cannot_record_cash_drop_on_closed_shift(): void

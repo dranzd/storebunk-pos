@@ -67,22 +67,22 @@ final class SessionStarted extends AbstractAggregateEvent implements DomainEvent
         return $this->startedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function shiftId(): ShiftId
+    final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function startedAt(): DateTimeImmutable
+    final public function getStartedAt(): DateTimeImmutable
     {
         return $this->startedAt;
     }

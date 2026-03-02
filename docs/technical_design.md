@@ -45,6 +45,9 @@ POS aggregates implement `AggregateRoot` and use `AggregateRootTrait` from `comm
 - **Immutability**: All Value Objects and Events are immutable.
 - **No Public Getters on Aggregates**: All reads go through CQRS projections.
 - **PHPDoc**: All public methods must have PHPDoc blocks.
+- **Event Accessor Naming**: All domain event getter methods use the `get` prefix (e.g., `getTerminalId()`, `getShiftId()`). Boolean accessors use the `is` prefix (e.g., `isActive()`). See [ADR-001](adr/001-event-getter-prefix.md) for the full rationale.
+- **Event Properties**: All domain event properties are `private` (never `public readonly`) to avoid PHPStan `property.readOnlyAssignNotInConstructor` errors. See [ADR-001](adr/001-event-getter-prefix.md).
+- **`final` Methods**: All public methods on concrete classes are declared `final` by default.
 
 ## Namespace Convention
 

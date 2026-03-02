@@ -19,18 +19,18 @@ final class InMemoryTerminalReadModel implements TerminalReadModelInterface
 
     final public function onTerminalRegistered(TerminalRegistered $event): void
     {
-        $this->terminals[$event->terminalId()->toNative()] = [
-            'terminal_id' => $event->terminalId()->toNative(),
-            'branch_id' => $event->branchId()->toNative(),
-            'name' => $event->name(),
+        $this->terminals[$event->getTerminalId()->toNative()] = [
+            'terminal_id' => $event->getTerminalId()->toNative(),
+            'branch_id' => $event->getBranchId()->toNative(),
+            'name' => $event->getName(),
             'status' => 'active',
-            'registered_at' => $event->registeredAt()->format(DATE_ATOM),
+            'registered_at' => $event->getRegisteredAt()->format(DATE_ATOM),
         ];
     }
 
     final public function onTerminalActivated(TerminalActivated $event): void
     {
-        $terminalId = $event->terminalId()->toNative();
+        $terminalId = $event->getTerminalId()->toNative();
         if (isset($this->terminals[$terminalId])) {
             $this->terminals[$terminalId]['status'] = 'active';
         }
@@ -38,7 +38,7 @@ final class InMemoryTerminalReadModel implements TerminalReadModelInterface
 
     final public function onTerminalDisabled(TerminalDisabled $event): void
     {
-        $terminalId = $event->terminalId()->toNative();
+        $terminalId = $event->getTerminalId()->toNative();
         if (isset($this->terminals[$terminalId])) {
             $this->terminals[$terminalId]['status'] = 'disabled';
         }
@@ -46,7 +46,7 @@ final class InMemoryTerminalReadModel implements TerminalReadModelInterface
 
     final public function onTerminalMaintenanceSet(TerminalMaintenanceSet $event): void
     {
-        $terminalId = $event->terminalId()->toNative();
+        $terminalId = $event->getTerminalId()->toNative();
         if (isset($this->terminals[$terminalId])) {
             $this->terminals[$terminalId]['status'] = 'maintenance';
         }

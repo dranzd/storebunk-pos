@@ -141,30 +141,30 @@ final class Shift implements AggregateRoot
 
     private function applyOnShiftOpened(ShiftOpened $event): void
     {
-        $this->shiftId = $event->shiftId();
-        $this->terminalId = $event->terminalId();
-        $this->branchId = $event->branchId();
-        $this->cashierId = $event->cashierId();
-        $this->openingCashAmount = $event->openingCashAmount();
+        $this->shiftId = $event->getShiftId();
+        $this->terminalId = $event->getTerminalId();
+        $this->branchId = $event->getBranchId();
+        $this->cashierId = $event->getCashierId();
+        $this->openingCashAmount = $event->getOpeningCashAmount();
         $this->status = ShiftStatus::Open;
-        $this->openedAt = $event->openedAt();
+        $this->openedAt = $event->getOpenedAt();
     }
 
     private function applyOnShiftClosed(ShiftClosed $event): void
     {
         $this->status = ShiftStatus::Closed;
-        $this->declaredClosingCashAmount = $event->declaredClosingCashAmount();
-        $this->closedAt = $event->closedAt();
+        $this->declaredClosingCashAmount = $event->getDeclaredClosingCashAmount();
+        $this->closedAt = $event->getClosedAt();
     }
 
     private function applyOnShiftForceClosed(ShiftForceClosed $event): void
     {
         $this->status = ShiftStatus::ForceClosed;
-        $this->closedAt = $event->forceClosedAt();
+        $this->closedAt = $event->getForceClosedAt();
     }
 
     private function applyOnCashDropRecorded(CashDropRecorded $event): void
     {
-        $this->cashDrops[] = CashDrop::record($event->amount(), $event->recordedAt());
+        $this->cashDrops[] = CashDrop::record($event->getAmount(), $event->getRecordedAt());
     }
 }

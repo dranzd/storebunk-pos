@@ -66,22 +66,22 @@ final class TerminalRegistered extends AbstractAggregateEvent implements DomainE
         return $this->registeredAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function branchId(): BranchId
+    final public function getBranchId(): BranchId
     {
         return $this->branchId;
     }
 
-    final public function name(): string
+    final public function getName(): string
     {
         return $this->name;
     }
 
-    final public function registeredAt(): DateTimeImmutable
+    final public function getRegisteredAt(): DateTimeImmutable
     {
         return $this->registeredAt;
     }

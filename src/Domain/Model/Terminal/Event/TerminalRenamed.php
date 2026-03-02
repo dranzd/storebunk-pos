@@ -65,22 +65,22 @@ final class TerminalRenamed extends AbstractAggregateEvent implements DomainEven
         return $this->renamedAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function oldName(): string
+    final public function getOldName(): string
     {
         return $this->oldName;
     }
 
-    final public function newName(): string
+    final public function getNewName(): string
     {
         return $this->newName;
     }
 
-    final public function renamedAt(): DateTimeImmutable
+    final public function getRenamedAt(): DateTimeImmutable
     {
         return $this->renamedAt;
     }

@@ -34,10 +34,10 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof SessionStarted);
-        $this->assertTrue($event->sessionId()->sameValueAs($sessionId));
-        $this->assertTrue($event->shiftId()->sameValueAs($shiftId));
-        $this->assertTrue($event->terminalId()->sameValueAs($terminalId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->startedAt());
+        $this->assertTrue($event->getSessionId()->sameValueAs($sessionId));
+        $this->assertTrue($event->getShiftId()->sameValueAs($shiftId));
+        $this->assertTrue($event->getTerminalId()->sameValueAs($terminalId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getStartedAt());
     }
 
     public function test_it_can_start_new_order(): void
@@ -54,8 +54,8 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof NewOrderStarted);
-        $this->assertTrue($event->orderId()->sameValueAs($orderId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->startedAt());
+        $this->assertTrue($event->getOrderId()->sameValueAs($orderId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getStartedAt());
     }
 
     public function test_it_cannot_start_new_order_when_order_is_active(): void
@@ -85,8 +85,8 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof OrderParked);
-        $this->assertTrue($event->orderId()->sameValueAs($orderId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->parkedAt());
+        $this->assertTrue($event->getOrderId()->sameValueAs($orderId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getParkedAt());
     }
 
     public function test_it_cannot_park_order_when_no_active_order(): void
@@ -116,8 +116,8 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof OrderResumed);
-        $this->assertTrue($event->orderId()->sameValueAs($orderId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->resumedAt());
+        $this->assertTrue($event->getOrderId()->sameValueAs($orderId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getResumedAt());
     }
 
     public function test_it_cannot_resume_order_when_order_is_active(): void
@@ -160,7 +160,7 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof SessionEnded);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->endedAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getEndedAt());
     }
 
     public function test_it_cannot_end_session_with_active_order(): void
@@ -285,7 +285,7 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS);
-        $this->assertSame('Customer changed mind', $event->reason());
+        $this->assertSame('Customer changed mind', $event->getReason());
     }
 
     public function test_it_cannot_cancel_order_without_active_order(): void
@@ -353,7 +353,7 @@ final class PosSessionTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated);
-        $this->assertSame('TTL expired', $event->reason());
+        $this->assertSame('TTL expired', $event->getReason());
     }
 
     public function test_it_cannot_deactivate_order_without_active_order(): void

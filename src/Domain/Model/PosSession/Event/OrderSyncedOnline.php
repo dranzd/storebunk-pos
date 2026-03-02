@@ -54,12 +54,12 @@ final class OrderSyncedOnline extends AbstractAggregateEvent implements DomainEv
         return new DateTimeImmutable();
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }

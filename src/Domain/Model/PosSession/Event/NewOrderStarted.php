@@ -61,17 +61,17 @@ final class NewOrderStarted extends AbstractAggregateEvent implements DomainEven
         return $this->startedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function startedAt(): DateTimeImmutable
+    final public function getStartedAt(): DateTimeImmutable
     {
         return $this->startedAt;
     }

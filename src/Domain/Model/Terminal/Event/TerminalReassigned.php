@@ -66,22 +66,22 @@ final class TerminalReassigned extends AbstractAggregateEvent implements DomainE
         return $this->reassignedAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function oldBranchId(): BranchId
+    final public function getOldBranchId(): BranchId
     {
         return $this->oldBranchId;
     }
 
-    final public function newBranchId(): BranchId
+    final public function getNewBranchId(): BranchId
     {
         return $this->newBranchId;
     }
 
-    final public function reassignedAt(): DateTimeImmutable
+    final public function getReassignedAt(): DateTimeImmutable
     {
         return $this->reassignedAt;
     }

@@ -60,17 +60,17 @@ final class TerminalRecommissioned extends AbstractAggregateEvent implements Dom
         return $this->recommissionedAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function reason(): string
+    final public function getReason(): string
     {
         return $this->reason;
     }
 
-    final public function recommissionedAt(): DateTimeImmutable
+    final public function getRecommissionedAt(): DateTimeImmutable
     {
         return $this->recommissionedAt;
     }

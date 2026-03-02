@@ -72,27 +72,27 @@ final class PaymentRequested extends AbstractAggregateEvent implements DomainEve
         return $this->requestedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function amount(): Money
+    final public function getAmount(): Money
     {
         return $this->amount;
     }
 
-    final public function paymentMethod(): string
+    final public function getPaymentMethod(): string
     {
         return $this->paymentMethod;
     }
 
-    final public function requestedAt(): DateTimeImmutable
+    final public function getRequestedAt(): DateTimeImmutable
     {
         return $this->requestedAt;
     }

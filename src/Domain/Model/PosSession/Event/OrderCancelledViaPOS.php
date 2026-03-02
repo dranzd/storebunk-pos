@@ -66,22 +66,22 @@ final class OrderCancelledViaPOS extends AbstractAggregateEvent implements Domai
         return $this->cancelledAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function reason(): string
+    final public function getReason(): string
     {
         return $this->reason;
     }
 
-    final public function cancelledAt(): DateTimeImmutable
+    final public function getCancelledAt(): DateTimeImmutable
     {
         return $this->cancelledAt;
     }

@@ -61,17 +61,17 @@ final class OrderResumed extends AbstractAggregateEvent implements DomainEventIn
         return $this->resumedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function resumedAt(): DateTimeImmutable
+    final public function getResumedAt(): DateTimeImmutable
     {
         return $this->resumedAt;
     }

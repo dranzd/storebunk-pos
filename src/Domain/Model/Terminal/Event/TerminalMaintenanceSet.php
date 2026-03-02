@@ -55,12 +55,12 @@ final class TerminalMaintenanceSet extends AbstractAggregateEvent implements Dom
         return $this->maintenanceSetAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function maintenanceSetAt(): DateTimeImmutable
+    final public function getMaintenanceSetAt(): DateTimeImmutable
     {
         return $this->maintenanceSetAt;
     }

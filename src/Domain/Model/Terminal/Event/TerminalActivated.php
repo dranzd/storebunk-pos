@@ -55,12 +55,12 @@ final class TerminalActivated extends AbstractAggregateEvent implements DomainEv
         return $this->activatedAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function activatedAt(): DateTimeImmutable
+    final public function getActivatedAt(): DateTimeImmutable
     {
         return $this->activatedAt;
     }

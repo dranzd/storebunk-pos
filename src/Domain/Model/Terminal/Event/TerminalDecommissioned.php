@@ -60,17 +60,17 @@ final class TerminalDecommissioned extends AbstractAggregateEvent implements Dom
         return $this->decommissionedAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function reason(): string
+    final public function getReason(): string
     {
         return $this->reason;
     }
 
-    final public function decommissionedAt(): DateTimeImmutable
+    final public function getDecommissionedAt(): DateTimeImmutable
     {
         return $this->decommissionedAt;
     }

@@ -61,17 +61,17 @@ final class OrderParked extends AbstractAggregateEvent implements DomainEventInt
         return $this->parkedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function parkedAt(): DateTimeImmutable
+    final public function getParkedAt(): DateTimeImmutable
     {
         return $this->parkedAt;
     }

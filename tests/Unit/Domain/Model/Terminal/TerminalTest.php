@@ -35,10 +35,10 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalRegistered);
-        $this->assertTrue($event->terminalId()->sameValueAs($terminalId));
-        $this->assertTrue($event->branchId()->sameValueAs($branchId));
-        $this->assertSame($name, $event->name());
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->registeredAt());
+        $this->assertTrue($event->getTerminalId()->sameValueAs($terminalId));
+        $this->assertTrue($event->getBranchId()->sameValueAs($branchId));
+        $this->assertSame($name, $event->getName());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getRegisteredAt());
     }
 
     public function test_it_can_be_activated(): void
@@ -54,7 +54,7 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalActivated);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->activatedAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getActivatedAt());
     }
 
     public function test_it_can_be_disabled(): void
@@ -70,7 +70,7 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalDisabled);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->disabledAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getDisabledAt());
     }
 
     public function test_it_can_be_set_to_maintenance(): void
@@ -86,7 +86,7 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalMaintenanceSet);
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->maintenanceSetAt());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getMaintenanceSetAt());
     }
 
     public function test_it_can_be_reconstituted_from_history(): void
@@ -123,9 +123,9 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalRenamed);
-        $this->assertSame('Test Terminal', $event->oldName());
-        $this->assertSame('Counter A', $event->newName());
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->renamedAt());
+        $this->assertSame('Test Terminal', $event->getOldName());
+        $this->assertSame('Counter A', $event->getNewName());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getRenamedAt());
     }
 
     public function test_rename_rejects_same_name(): void
@@ -161,9 +161,9 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalReassigned);
-        $this->assertTrue($event->oldBranchId()->sameValueAs($originalBranchId));
-        $this->assertTrue($event->newBranchId()->sameValueAs($newBranchId));
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->reassignedAt());
+        $this->assertTrue($event->getOldBranchId()->sameValueAs($originalBranchId));
+        $this->assertTrue($event->getNewBranchId()->sameValueAs($newBranchId));
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getReassignedAt());
     }
 
     public function test_reassign_rejects_active_terminal(): void
@@ -206,8 +206,8 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalDecommissioned);
-        $this->assertSame('Hardware failure', $event->reason());
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->decommissionedAt());
+        $this->assertSame('Hardware failure', $event->getReason());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getDecommissionedAt());
     }
 
     public function test_it_can_be_decommissioned_from_maintenance(): void
@@ -255,8 +255,8 @@ final class TerminalTest extends TestCase
 
         $event = $events[0];
         assert($event instanceof TerminalRecommissioned);
-        $this->assertSame('Returned to service', $event->reason());
-        $this->assertInstanceOf(DateTimeImmutable::class, $event->recommissionedAt());
+        $this->assertSame('Returned to service', $event->getReason());
+        $this->assertInstanceOf(DateTimeImmutable::class, $event->getRecommissionedAt());
     }
 
     public function test_recommission_rejects_non_decommissioned_terminal(): void

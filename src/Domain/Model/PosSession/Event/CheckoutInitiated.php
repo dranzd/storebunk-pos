@@ -61,17 +61,17 @@ final class CheckoutInitiated extends AbstractAggregateEvent implements DomainEv
         return $this->initiatedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function initiatedAt(): DateTimeImmutable
+    final public function getInitiatedAt(): DateTimeImmutable
     {
         return $this->initiatedAt;
     }

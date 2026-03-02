@@ -66,18 +66,23 @@ final class OrderDeactivated extends AbstractAggregateEvent implements DomainEve
         return $this->deactivatedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function reason(): string
+    final public function getReason(): string
     {
         return $this->reason;
+    }
+
+    final public function getDeactivatedAt(): DateTimeImmutable
+    {
+        return $this->deactivatedAt;
     }
 }

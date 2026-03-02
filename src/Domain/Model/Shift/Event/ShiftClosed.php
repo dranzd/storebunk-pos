@@ -71,27 +71,27 @@ final class ShiftClosed extends AbstractAggregateEvent implements DomainEventInt
         return $this->closedAt;
     }
 
-    final public function shiftId(): ShiftId
+    final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
     }
 
-    final public function declaredClosingCashAmount(): Money
+    final public function getDeclaredClosingCashAmount(): Money
     {
         return $this->declaredClosingCashAmount;
     }
 
-    final public function expectedCashAmount(): Money
+    final public function getExpectedCashAmount(): Money
     {
         return $this->expectedCashAmount;
     }
 
-    final public function varianceAmount(): Money
+    final public function getVarianceAmount(): Money
     {
         return $this->varianceAmount;
     }
 
-    final public function closedAt(): DateTimeImmutable
+    final public function getClosedAt(): DateTimeImmutable
     {
         return $this->closedAt;
     }

@@ -328,33 +328,33 @@ final class PosSession implements AggregateRoot
 
     private function applyOnSessionStarted(SessionStarted $event): void
     {
-        $this->sessionId = $event->sessionId();
-        $this->shiftId = $event->shiftId();
-        $this->terminalId = $event->terminalId();
+        $this->sessionId = $event->getSessionId();
+        $this->shiftId = $event->getShiftId();
+        $this->terminalId = $event->getTerminalId();
         $this->state = SessionState::Idle;
     }
 
     private function applyOnNewOrderStarted(NewOrderStarted $event): void
     {
-        $this->activeOrderId = $event->orderId();
+        $this->activeOrderId = $event->getOrderId();
         $this->state = SessionState::Building;
     }
 
     private function applyOnOrderParked(OrderParked $event): void
     {
-        $this->parkedOrderIds[] = $event->orderId();
+        $this->parkedOrderIds[] = $event->getOrderId();
         $this->activeOrderId = null;
         $this->state = SessionState::Idle;
     }
 
     private function applyOnOrderResumed(OrderResumed $event): void
     {
-        $this->activeOrderId = $event->orderId();
+        $this->activeOrderId = $event->getOrderId();
         $this->state = SessionState::Building;
 
         $this->parkedOrderIds = array_filter(
             $this->parkedOrderIds,
-            fn(OrderId $id) => !$id->sameValueAs($event->orderId())
+            fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
     }
 
@@ -387,31 +387,31 @@ final class PosSession implements AggregateRoot
 
     private function applyOnOrderDeactivated(OrderDeactivated $event): void
     {
-        $this->inactiveOrderIds[] = $event->orderId();
+        $this->inactiveOrderIds[] = $event->getOrderId();
         $this->activeOrderId = null;
         $this->state = SessionState::Idle;
     }
 
     private function applyOnOrderReactivated(OrderReactivated $event): void
     {
-        $this->activeOrderId = $event->orderId();
+        $this->activeOrderId = $event->getOrderId();
         $this->state = SessionState::Building;
 
         $this->inactiveOrderIds = array_filter(
             $this->inactiveOrderIds,
-            fn(OrderId $id) => !$id->sameValueAs($event->orderId())
+            fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
     }
 
     private function applyOnOrderCreatedOffline(OrderCreatedOffline $event): void
     {
-        $this->activeOrderId = $event->orderId();
+        $this->activeOrderId = $event->getOrderId();
         $this->state = SessionState::Building;
     }
 
     private function applyOnOrderMarkedPendingSync(OrderMarkedPendingSync $event): void
     {
-        $this->pendingSyncOrderIds[] = $event->orderId();
+        $this->pendingSyncOrderIds[] = $event->getOrderId();
         $this->activeOrderId = null;
         $this->state = SessionState::Idle;
     }
@@ -420,7 +420,7 @@ final class PosSession implements AggregateRoot
     {
         $this->pendingSyncOrderIds = array_filter(
             $this->pendingSyncOrderIds,
-            fn(OrderId $id) => !$id->sameValueAs($event->orderId())
+            fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
     }
 }

@@ -65,22 +65,22 @@ final class ShiftForceClosed extends AbstractAggregateEvent implements DomainEve
         return $this->forceClosedAt;
     }
 
-    final public function shiftId(): ShiftId
+    final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
     }
 
-    final public function supervisorId(): string
+    final public function getSupervisorId(): string
     {
         return $this->supervisorId;
     }
 
-    final public function reason(): string
+    final public function getReason(): string
     {
         return $this->reason;
     }
 
-    final public function forceClosedAt(): DateTimeImmutable
+    final public function getForceClosedAt(): DateTimeImmutable
     {
         return $this->forceClosedAt;
     }

@@ -61,17 +61,17 @@ final class OrderCreatedOffline extends AbstractAggregateEvent implements Domain
         return new DateTimeImmutable();
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function commandId(): string
+    final public function getCommandId(): string
     {
         return $this->commandId;
     }

@@ -148,11 +148,11 @@ final class Terminal implements AggregateRoot
 
     private function applyOnTerminalRegistered(TerminalRegistered $event): void
     {
-        $this->terminalId = $event->terminalId();
-        $this->branchId = $event->branchId();
-        $this->name = $event->name();
+        $this->terminalId = $event->getTerminalId();
+        $this->branchId = $event->getBranchId();
+        $this->name = $event->getName();
         $this->status = TerminalStatus::Active;
-        $this->registeredAt = $event->registeredAt();
+        $this->registeredAt = $event->getRegisteredAt();
     }
 
     private function applyOnTerminalActivated(TerminalActivated $event): void
@@ -172,12 +172,12 @@ final class Terminal implements AggregateRoot
 
     private function applyOnTerminalRenamed(TerminalRenamed $event): void
     {
-        $this->name = $event->newName();
+        $this->name = $event->getNewName();
     }
 
     private function applyOnTerminalReassigned(TerminalReassigned $event): void
     {
-        $this->branchId = $event->newBranchId();
+        $this->branchId = $event->getNewBranchId();
     }
 
     private function applyOnTerminalDecommissioned(TerminalDecommissioned $event): void

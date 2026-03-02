@@ -61,17 +61,17 @@ final class CashDropRecorded extends AbstractAggregateEvent implements DomainEve
         return $this->recordedAt;
     }
 
-    final public function shiftId(): ShiftId
+    final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
     }
 
-    final public function amount(): Money
+    final public function getAmount(): Money
     {
         return $this->amount;
     }
 
-    final public function recordedAt(): DateTimeImmutable
+    final public function getRecordedAt(): DateTimeImmutable
     {
         return $this->recordedAt;
     }

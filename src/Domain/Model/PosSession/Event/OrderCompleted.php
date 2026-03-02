@@ -61,17 +61,17 @@ final class OrderCompleted extends AbstractAggregateEvent implements DomainEvent
         return $this->completedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function orderId(): OrderId
+    final public function getOrderId(): OrderId
     {
         return $this->orderId;
     }
 
-    final public function completedAt(): DateTimeImmutable
+    final public function getCompletedAt(): DateTimeImmutable
     {
         return $this->completedAt;
     }

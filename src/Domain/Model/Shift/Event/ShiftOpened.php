@@ -79,32 +79,32 @@ final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInt
         return $this->openedAt;
     }
 
-    final public function shiftId(): ShiftId
+    final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function branchId(): BranchId
+    final public function getBranchId(): BranchId
     {
         return $this->branchId;
     }
 
-    final public function cashierId(): CashierId
+    final public function getCashierId(): CashierId
     {
         return $this->cashierId;
     }
 
-    final public function openingCashAmount(): Money
+    final public function getOpeningCashAmount(): Money
     {
         return $this->openingCashAmount;
     }
 
-    final public function openedAt(): DateTimeImmutable
+    final public function getOpenedAt(): DateTimeImmutable
     {
         return $this->openedAt;
     }

@@ -55,12 +55,12 @@ final class SessionEnded extends AbstractAggregateEvent implements DomainEventIn
         return $this->endedAt;
     }
 
-    final public function sessionId(): SessionId
+    final public function getSessionId(): SessionId
     {
         return $this->sessionId;
     }
 
-    final public function endedAt(): DateTimeImmutable
+    final public function getEndedAt(): DateTimeImmutable
     {
         return $this->endedAt;
     }

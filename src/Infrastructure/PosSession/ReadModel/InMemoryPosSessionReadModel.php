@@ -22,68 +22,68 @@ final class InMemoryPosSessionReadModel implements PosSessionReadModelInterface
 
     final public function onSessionStarted(SessionStarted $event): void
     {
-        $this->sessions[$event->sessionId()->toNative()] = [
-            'session_id'       => $event->sessionId()->toNative(),
-            'shift_id'         => $event->shiftId()->toNative(),
-            'terminal_id'      => $event->terminalId()->toNative(),
+        $this->sessions[$event->getSessionId()->toNative()] = [
+            'session_id'       => $event->getSessionId()->toNative(),
+            'shift_id'         => $event->getShiftId()->toNative(),
+            'terminal_id'      => $event->getTerminalId()->toNative(),
             'active_order_id'  => null,
-            'last_activity_at' => $event->startedAt(),
+            'last_activity_at' => $event->getStartedAt(),
             'ended'            => false,
         ];
     }
 
     final public function onNewOrderStarted(NewOrderStarted $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
-            $this->sessions[$sessionId]['active_order_id']  = $event->orderId()->toNative();
-            $this->sessions[$sessionId]['last_activity_at'] = $event->startedAt();
+            $this->sessions[$sessionId]['active_order_id']  = $event->getOrderId()->toNative();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getStartedAt();
         }
     }
 
     final public function onOrderParked(OrderParked $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
             $this->sessions[$sessionId]['active_order_id']  = null;
-            $this->sessions[$sessionId]['last_activity_at'] = $event->parkedAt();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getParkedAt();
         }
     }
 
     final public function onOrderResumed(OrderResumed $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
-            $this->sessions[$sessionId]['active_order_id']  = $event->orderId()->toNative();
-            $this->sessions[$sessionId]['last_activity_at'] = $event->resumedAt();
+            $this->sessions[$sessionId]['active_order_id']  = $event->getOrderId()->toNative();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getResumedAt();
         }
     }
 
     final public function onOrderCompleted(OrderCompleted $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
             $this->sessions[$sessionId]['active_order_id']  = null;
-            $this->sessions[$sessionId]['last_activity_at'] = $event->completedAt();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getCompletedAt();
         }
     }
 
     final public function onOrderCancelledViaPOS(OrderCancelledViaPOS $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
             $this->sessions[$sessionId]['active_order_id']  = null;
-            $this->sessions[$sessionId]['last_activity_at'] = $event->cancelledAt();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getCancelledAt();
         }
     }
 
     final public function onSessionEnded(SessionEnded $event): void
     {
-        $sessionId = $event->sessionId()->toNative();
+        $sessionId = $event->getSessionId()->toNative();
         if (isset($this->sessions[$sessionId])) {
             $this->sessions[$sessionId]['ended']            = true;
             $this->sessions[$sessionId]['active_order_id']  = null;
-            $this->sessions[$sessionId]['last_activity_at'] = $event->endedAt();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getEndedAt();
         }
     }
 

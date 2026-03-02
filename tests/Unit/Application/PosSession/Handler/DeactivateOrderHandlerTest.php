@@ -48,9 +48,9 @@ final class DeactivateOrderHandlerTest extends TestCase
         ));
 
         $this->assertCount(1, $deactivated);
-        $this->assertSame($sessionId->toNative(), $deactivated[0]->sessionId()->toNative());
-        $this->assertSame($orderId->toNative(), $deactivated[0]->orderId()->toNative());
-        $this->assertSame('TTL expired', $deactivated[0]->reason());
+        $this->assertSame($sessionId->toNative(), $deactivated[0]->getSessionId()->toNative());
+        $this->assertSame($orderId->toNative(), $deactivated[0]->getOrderId()->toNative());
+        $this->assertSame('TTL expired', $deactivated[0]->getReason());
     }
 
     public function test_deactivated_session_returns_to_idle(): void

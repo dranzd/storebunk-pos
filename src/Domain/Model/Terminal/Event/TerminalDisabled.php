@@ -55,12 +55,12 @@ final class TerminalDisabled extends AbstractAggregateEvent implements DomainEve
         return $this->disabledAt;
     }
 
-    final public function terminalId(): TerminalId
+    final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
     }
 
-    final public function disabledAt(): DateTimeImmutable
+    final public function getDisabledAt(): DateTimeImmutable
     {
         return $this->disabledAt;
     }
