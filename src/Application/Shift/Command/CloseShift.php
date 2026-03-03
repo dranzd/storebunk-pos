@@ -10,24 +10,27 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 
 final class CloseShift extends AbstractCommand
 {
-    private ShiftId $shiftId;
-    private Money $declaredClosingCashAmount;
-
-    public function __construct(
-        ShiftId $shiftId,
-        Money $declaredClosingCashAmount
+    private function __construct(
+        private readonly string $shiftId,
+        private readonly int $declaredClosingCashAmount,
+        private readonly string $currency
     ) {
-        $this->shiftId = $shiftId;
-        $this->declaredClosingCashAmount = $declaredClosingCashAmount;
-
         parent::__construct(
-            $shiftId->toNative(),
+            $this->shiftId,
             self::expectedMessageName(),
             [
-                'shift_id' => $shiftId->toNative(),
-                'declared_closing_cash_amount' => $declaredClosingCashAmount->toArray(),
+                'shift_id' => $this->shiftId,
+                'declared_closing_cash_amount' => [
+                    'amount' => $this->declaredClosingCashAmount,
+                    'currency' => $this->currency,
+                ],
             ]
         );
+    }
+
+    final public static function withCashAmount(string $shiftId, int $declaredClosingCashAmount, string $currency): self
+    {
+        return new self($shiftId, $declaredClosingCashAmount, $currency);
     }
 
     final public static function expectedMessageName(): string
@@ -37,11 +40,11 @@ final class CloseShift extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return $this->shiftId;
+        return ShiftId::fromString($this->shiftId);
     }
 
     final public function declaredClosingCashAmount(): Money
     {
-        return $this->declaredClosingCashAmount;
+        return Money::fromScalar($this->declaredClosingCashAmount, $this->currency);
     }
 }

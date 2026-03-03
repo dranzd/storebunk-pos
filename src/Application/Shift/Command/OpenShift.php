@@ -13,36 +13,39 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class OpenShift extends AbstractCommand
 {
-    private ShiftId $shiftId;
-    private TerminalId $terminalId;
-    private BranchId $branchId;
-    private CashierId $cashierId;
-    private Money $openingCashAmount;
-
-    public function __construct(
-        ShiftId $shiftId,
-        TerminalId $terminalId,
-        BranchId $branchId,
-        CashierId $cashierId,
-        Money $openingCashAmount
+    private function __construct(
+        private readonly string $shiftId,
+        private readonly string $terminalId,
+        private readonly string $branchId,
+        private readonly string $cashierId,
+        private readonly int $openingCashAmount,
+        private readonly string $currency
     ) {
-        $this->shiftId = $shiftId;
-        $this->terminalId = $terminalId;
-        $this->branchId = $branchId;
-        $this->cashierId = $cashierId;
-        $this->openingCashAmount = $openingCashAmount;
-
         parent::__construct(
-            $shiftId->toNative(),
+            $this->shiftId,
             self::expectedMessageName(),
             [
-                'shift_id' => $shiftId->toNative(),
-                'terminal_id' => $terminalId->toNative(),
-                'branch_id' => $branchId->toNative(),
-                'cashier_id' => $cashierId->toNative(),
-                'opening_cash_amount' => $openingCashAmount->toArray(),
+                'shift_id' => $this->shiftId,
+                'terminal_id' => $this->terminalId,
+                'branch_id' => $this->branchId,
+                'cashier_id' => $this->cashierId,
+                'opening_cash_amount' => [
+                    'amount' => $this->openingCashAmount,
+                    'currency' => $this->currency,
+                ],
             ]
         );
+    }
+
+    final public static function forCashier(
+        string $shiftId,
+        string $terminalId,
+        string $branchId,
+        string $cashierId,
+        int $openingCashAmount,
+        string $currency
+    ): self {
+        return new self($shiftId, $terminalId, $branchId, $cashierId, $openingCashAmount, $currency);
     }
 
     final public static function expectedMessageName(): string
@@ -52,26 +55,26 @@ final class OpenShift extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return $this->shiftId;
+        return ShiftId::fromString($this->shiftId);
     }
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 
     final public function branchId(): BranchId
     {
-        return $this->branchId;
+        return BranchId::fromString($this->branchId);
     }
 
     final public function cashierId(): CashierId
     {
-        return $this->cashierId;
+        return CashierId::fromString($this->cashierId);
     }
 
     final public function openingCashAmount(): Money
     {
-        return $this->openingCashAmount;
+        return Money::fromScalar($this->openingCashAmount, $this->currency);
     }
 }

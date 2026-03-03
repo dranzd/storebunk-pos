@@ -113,7 +113,10 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $this->expectExceptionMessage('Cannot reactivate order: insufficient inventory for re-reservation');
 
         $reactivateHandler = new ReactivateOrderHandler($this->sessionRepository, $this->inventoryService);
-        $reactivateHandler(new ReactivateOrder($sessionId, $orderId));
+        $reactivateHandler(ReactivateOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
     }
 
     public function test_draft_lifecycle_service_detects_expired_orders(): void

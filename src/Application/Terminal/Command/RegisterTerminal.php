@@ -10,28 +10,25 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class RegisterTerminal extends AbstractCommand
 {
-    private TerminalId $terminalId;
-    private BranchId $branchId;
-    private string $name;
-
-    public function __construct(
-        TerminalId $terminalId,
-        BranchId $branchId,
-        string $name
+    private function __construct(
+        private readonly string $terminalId,
+        private readonly string $branchId,
+        private readonly string $name
     ) {
-        $this->terminalId = $terminalId;
-        $this->branchId = $branchId;
-        $this->name = $name;
-
         parent::__construct(
-            $terminalId->toNative(),
+            $this->terminalId,
             self::expectedMessageName(),
             [
-                'terminal_id' => $terminalId->toNative(),
-                'branch_id' => $branchId->toNative(),
-                'name' => $name,
+                'terminal_id' => $this->terminalId,
+                'branch_id' => $this->branchId,
+                'name' => $this->name,
             ]
         );
+    }
+
+    final public static function register(string $terminalId, string $branchId, string $name): self
+    {
+        return new self($terminalId, $branchId, $name);
     }
 
     final public static function expectedMessageName(): string
@@ -41,12 +38,12 @@ final class RegisterTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 
     final public function branchId(): BranchId
     {
-        return $this->branchId;
+        return BranchId::fromString($this->branchId);
     }
 
     final public function name(): string

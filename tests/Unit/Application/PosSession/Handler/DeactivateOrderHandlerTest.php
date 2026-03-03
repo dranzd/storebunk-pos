@@ -60,7 +60,7 @@ final class DeactivateOrderHandlerTest extends TestCase
 
         $this->startSessionWithOrder($sessionId, $orderId);
 
-        ($this->handler)(new DeactivateOrder($sessionId, 'TTL expired'));
+        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
 
         $this->expectNotToPerformAssertions();
     }
@@ -72,12 +72,16 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(new StartSession($sessionId, $shiftId, $terminalId));
+        $startSession(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('No active order to deactivate');
 
-        ($this->handler)(new DeactivateOrder($sessionId, 'TTL expired'));
+        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
     }
 
     private function startSessionWithOrder(SessionId $sessionId, OrderId $orderId): void

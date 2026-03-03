@@ -9,22 +9,23 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class RenameTerminal extends AbstractCommand
 {
-    private TerminalId $terminalId;
-    private string $newName;
-
-    public function __construct(TerminalId $terminalId, string $newName)
-    {
-        $this->terminalId = $terminalId;
-        $this->newName = $newName;
-
+    private function __construct(
+        private readonly string $terminalId,
+        private readonly string $newName
+    ) {
         parent::__construct(
-            $terminalId->toNative(),
+            $this->terminalId,
             self::expectedMessageName(),
             [
-                'terminal_id' => $terminalId->toNative(),
-                'new_name' => $newName,
+                'terminal_id' => $this->terminalId,
+                'new_name' => $this->newName,
             ]
         );
+    }
+
+    final public static function to(string $terminalId, string $newName): self
+    {
+        return new self($terminalId, $newName);
     }
 
     final public static function expectedMessageName(): string
@@ -34,7 +35,7 @@ final class RenameTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 
     final public function newName(): string

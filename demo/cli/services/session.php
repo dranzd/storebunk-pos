@@ -22,6 +22,7 @@ use Dranzd\StorebunkPos\Demo\Cli\Utils;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
@@ -100,7 +101,11 @@ function sessionStart(SimpleCommandBus $commandBus, StateStore $stateStore, CliA
     $terminalId = new TerminalId($terminalIdRaw);
 
     try {
-        $commandBus->dispatch(new StartSession($sessionId, $shiftId, $terminalId));
+        $commandBus->dispatch(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $stateStore->set('last_session_id', $sessionId->toNative());
         $stateStore->push('session_ids', $sessionId->toNative());
@@ -128,7 +133,10 @@ function sessionNewOrder(SimpleCommandBus $commandBus, StateStore $stateStore, C
     $orderId   = new OrderId();
 
     try {
-        $commandBus->dispatch(new StartNewOrder($sessionId, $orderId));
+        $commandBus->dispatch(StartNewOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         $stateStore->set('last_order_id', $orderId->toNative());
         $stateStore->push('order_ids', $orderId->toNative());
@@ -157,7 +165,7 @@ function sessionPark(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(new ParkOrder($sessionId));
+        $commandBus->dispatch(ParkOrder::forSession($sessionId->toNative()));
 
         Output::success('Order parked.');
         Output::field('Session ID', $sessionId->toNative());
@@ -189,7 +197,10 @@ function sessionResume(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $orderId   = new OrderId($orderIdRaw);
 
     try {
-        $commandBus->dispatch(new ResumeOrder($sessionId, $orderId));
+        $commandBus->dispatch(ResumeOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         Output::success('Order resumed.');
         Output::field('Session ID', $sessionId->toNative());
@@ -222,7 +233,10 @@ function sessionReactivate(SimpleCommandBus $commandBus, StateStore $stateStore,
     $orderId   = new OrderId($orderIdRaw);
 
     try {
-        $commandBus->dispatch(new ReactivateOrder($sessionId, $orderId));
+        $commandBus->dispatch(ReactivateOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         Output::success('Order reactivated (inventory re-reserved).');
         Output::field('Session ID', $sessionId->toNative());
@@ -248,7 +262,7 @@ function sessionCheckout(SimpleCommandBus $commandBus, StateStore $stateStore, C
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(new InitiateCheckout($sessionId));
+        $commandBus->dispatch(InitiateCheckout::forSession($sessionId->toNative()));
 
         Output::success('Checkout initiated (order confirmed, reservation converted to hard).');
         Output::field('Session ID', $sessionId->toNative());
@@ -284,10 +298,13 @@ function sessionPay(
     }
 
     $sessionId = new SessionId($sessionIdRaw);
-    $money     = Utils::money($amount, $currency);
-
     try {
-        $commandBus->dispatch(new RequestPayment($sessionId, $money, $paymentMethod));
+        $commandBus->dispatch(RequestPayment::via(
+            $sessionId->toNative(),
+            $amount,
+            $currency,
+            $paymentMethod
+        ));
 
         Output::success('Payment authorized and applied.');
         Output::field('Session ID', $sessionId->toNative());
@@ -326,7 +343,7 @@ function sessionComplete(
     $orderingService->markOrderAsFullyPaid($orderId);
 
     try {
-        $commandBus->dispatch(new CompleteOrder($sessionId));
+        $commandBus->dispatch(CompleteOrder::forSession($sessionId->toNative()));
 
         Output::success('Order completed (inventory deducted).');
         Output::field('Session ID', $sessionId->toNative());
@@ -354,7 +371,10 @@ function sessionCancel(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(new CancelOrder($sessionId, $reason));
+        $commandBus->dispatch(CancelOrder::because(
+            $sessionId->toNative(),
+            $reason
+        ));
 
         Output::success('Order cancelled (reservation released).');
         Output::field('Session ID', $sessionId->toNative());
@@ -380,7 +400,7 @@ function sessionEnd(SimpleCommandBus $commandBus, StateStore $stateStore, CliArg
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(new EndSession($sessionId));
+        $commandBus->dispatch(EndSession::withId($sessionId->toNative()));
 
         Output::success('POS session ended.');
         Output::field('Session ID', $sessionId->toNative());
@@ -406,7 +426,10 @@ function sessionNewOrderOffline(SimpleCommandBus $commandBus, StateStore $stateS
     $orderId   = new OrderId();
 
     try {
-        $commandBus->dispatch(new StartNewOrderOffline($sessionId, $orderId));
+        $commandBus->dispatch(StartNewOrderOffline::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         $stateStore->set('last_order_id', $orderId->toNative());
         $stateStore->push('order_ids', $orderId->toNative());
@@ -440,11 +463,19 @@ function sessionSync(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
         exit(1);
     }
 
+    $branchIdRaw = $args->get('branch-id', $stateStore->get('last_branch_id', 'branch-001'));
+
     $sessionId = new SessionId($sessionIdRaw);
     $orderId   = new OrderId($orderIdRaw);
+    $branchId  = new BranchId($branchIdRaw);
 
     try {
-        $commandBus->dispatch(new SyncOrderOnline($sessionId, $orderId));
+        $commandBus->dispatch(SyncOrderOnline::forOrder(
+            $sessionId->toNative(),
+            $orderId->toNative(),
+            $branchId->toNative(),
+            null
+        ));
 
         $pending = $stateStore->getList('pending_sync_order_ids');
         $pending = array_filter($pending, fn($id) => $id !== $orderId->toNative());

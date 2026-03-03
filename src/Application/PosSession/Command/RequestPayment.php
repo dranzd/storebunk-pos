@@ -10,25 +10,29 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class RequestPayment extends AbstractCommand
 {
-    private SessionId $sessionId;
-    private Money $amount;
-    private string $paymentMethod;
-
-    public function __construct(SessionId $sessionId, Money $amount, string $paymentMethod)
-    {
-        $this->sessionId = $sessionId;
-        $this->amount = $amount;
-        $this->paymentMethod = $paymentMethod;
-
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly int $amount,
+        private readonly string $currency,
+        private readonly string $paymentMethod
+    ) {
         parent::__construct(
-            $sessionId->toNative(),
+            $this->sessionId,
             self::expectedMessageName(),
             [
-                'session_id' => $sessionId->toNative(),
-                'amount' => $amount->toArray(),
-                'payment_method' => $paymentMethod,
+                'session_id' => $this->sessionId,
+                'amount' => [
+                    'amount' => $this->amount,
+                    'currency' => $this->currency,
+                ],
+                'payment_method' => $this->paymentMethod,
             ]
         );
+    }
+
+    final public static function via(string $sessionId, int $amount, string $currency, string $paymentMethod): self
+    {
+        return new self($sessionId, $amount, $currency, $paymentMethod);
     }
 
     final public static function expectedMessageName(): string
@@ -38,12 +42,12 @@ final class RequestPayment extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function amount(): Money
     {
-        return $this->amount;
+        return Money::fromScalar($this->amount, $this->currency);
     }
 
     final public function paymentMethod(): string

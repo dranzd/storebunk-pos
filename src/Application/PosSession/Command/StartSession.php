@@ -11,25 +11,25 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class StartSession extends AbstractCommand
 {
-    private SessionId $sessionId;
-    private ShiftId $shiftId;
-    private TerminalId $terminalId;
-
-    public function __construct(SessionId $sessionId, ShiftId $shiftId, TerminalId $terminalId)
-    {
-        $this->sessionId = $sessionId;
-        $this->shiftId = $shiftId;
-        $this->terminalId = $terminalId;
-
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly string $shiftId,
+        private readonly string $terminalId
+    ) {
         parent::__construct(
-            $sessionId->toNative(),
+            $this->sessionId,
             self::expectedMessageName(),
             [
-                'session_id' => $sessionId->toNative(),
-                'shift_id' => $shiftId->toNative(),
-                'terminal_id' => $terminalId->toNative(),
+                'session_id' => $this->sessionId,
+                'shift_id' => $this->shiftId,
+                'terminal_id' => $this->terminalId,
             ]
         );
+    }
+
+    final public static function onTerminal(string $sessionId, string $shiftId, string $terminalId): self
+    {
+        return new self($sessionId, $shiftId, $terminalId);
     }
 
     final public static function expectedMessageName(): string
@@ -39,16 +39,16 @@ final class StartSession extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function shiftId(): ShiftId
     {
-        return $this->shiftId;
+        return ShiftId::fromString($this->shiftId);
     }
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 }

@@ -10,19 +10,23 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class StartNewOrder extends AbstractCommand
 {
-    private SessionId $sessionId;
-    private OrderId $orderId;
-
-    public function __construct(SessionId $sessionId, OrderId $orderId)
-    {
-        $this->sessionId = $sessionId;
-        $this->orderId = $orderId;
-
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly string $orderId
+    ) {
         parent::__construct(
-            $sessionId->toNative(),
+            $this->sessionId,
             self::expectedMessageName(),
-            ['session_id' => $sessionId->toNative(), 'order_id' => $orderId->toNative()]
+            [
+                'session_id' => $this->sessionId,
+                'order_id' => $this->orderId,
+            ]
         );
+    }
+
+    final public static function withOrder(string $sessionId, string $orderId): self
+    {
+        return new self($sessionId, $orderId);
     }
 
     final public static function expectedMessageName(): string
@@ -32,11 +36,11 @@ final class StartNewOrder extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function orderId(): OrderId
     {
-        return $this->orderId;
+        return OrderId::fromString($this->orderId);
     }
 }

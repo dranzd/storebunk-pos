@@ -10,25 +10,42 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class SyncOrderOnline extends AbstractCommand
 {
-    public const MESSAGE_NAME = 'storebunk_pos.pos_session.command.sync_order_online';
-
-    public function __construct(
-        private readonly SessionId $sessionId,
-        private readonly OrderId $orderId,
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly string $orderId,
         private readonly string $branchId,
-        private readonly ?string $customerId = null,
+        private readonly ?string $customerId = null
     ) {
-        parent::__construct('', self::MESSAGE_NAME, []);
+        parent::__construct(
+            $this->sessionId,
+            self::expectedMessageName(),
+            [
+                'session_id' => $this->sessionId,
+                'order_id' => $this->orderId,
+                'branch_id' => $this->branchId,
+                'customer_id' => $this->customerId,
+            ]
+        );
+    }
+
+    final public static function forOrder(string $sessionId, string $orderId, string $branchId, ?string $customerId = null): self
+    {
+        return new self($sessionId, $orderId, $branchId, $customerId);
+    }
+
+    final public static function expectedMessageName(): string
+    {
+        return 'storebunk.pos.session.sync_order_online';
     }
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function orderId(): OrderId
     {
-        return $this->orderId;
+        return OrderId::fromString($this->orderId);
     }
 
     final public function branchId(): string

@@ -9,19 +9,21 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class SetTerminalMaintenance extends AbstractCommand
 {
-    private TerminalId $terminalId;
-
-    public function __construct(TerminalId $terminalId)
-    {
-        $this->terminalId = $terminalId;
-
+    private function __construct(
+        private readonly string $terminalId
+    ) {
         parent::__construct(
-            $terminalId->toNative(),
+            $this->terminalId,
             self::expectedMessageName(),
             [
-                'terminal_id' => $terminalId->toNative(),
+                'terminal_id' => $this->terminalId,
             ]
         );
+    }
+
+    final public static function forTerminal(string $terminalId): self
+    {
+        return new self($terminalId);
     }
 
     final public static function expectedMessageName(): string
@@ -31,6 +33,6 @@ final class SetTerminalMaintenance extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 }

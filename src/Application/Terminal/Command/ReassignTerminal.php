@@ -10,22 +10,23 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class ReassignTerminal extends AbstractCommand
 {
-    private TerminalId $terminalId;
-    private BranchId $newBranchId;
-
-    public function __construct(TerminalId $terminalId, BranchId $newBranchId)
-    {
-        $this->terminalId = $terminalId;
-        $this->newBranchId = $newBranchId;
-
+    private function __construct(
+        private readonly string $terminalId,
+        private readonly string $newBranchId
+    ) {
         parent::__construct(
-            $terminalId->toNative(),
+            $this->terminalId,
             self::expectedMessageName(),
             [
-                'terminal_id' => $terminalId->toNative(),
-                'new_branch_id' => $newBranchId->toNative(),
+                'terminal_id' => $this->terminalId,
+                'new_branch_id' => $this->newBranchId,
             ]
         );
+    }
+
+    final public static function toBranch(string $terminalId, string $newBranchId): self
+    {
+        return new self($terminalId, $newBranchId);
     }
 
     final public static function expectedMessageName(): string
@@ -35,11 +36,11 @@ final class ReassignTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 
     final public function newBranchId(): BranchId
     {
-        return $this->newBranchId;
+        return BranchId::fromString($this->newBranchId);
     }
 }

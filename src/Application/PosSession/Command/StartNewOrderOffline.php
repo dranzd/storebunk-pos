@@ -10,22 +10,37 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class StartNewOrderOffline extends AbstractCommand
 {
-    public const MESSAGE_NAME = 'storebunk_pos.pos_session.command.start_new_order_offline';
-
-    public function __construct(
-        private readonly SessionId $sessionId,
-        private readonly OrderId $orderId
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly string $orderId
     ) {
-        parent::__construct('', self::MESSAGE_NAME, []);
+        parent::__construct(
+            $this->sessionId,
+            self::expectedMessageName(),
+            [
+                'session_id' => $this->sessionId,
+                'order_id' => $this->orderId,
+            ]
+        );
+    }
+
+    final public static function withOrder(string $sessionId, string $orderId): self
+    {
+        return new self($sessionId, $orderId);
+    }
+
+    final public static function expectedMessageName(): string
+    {
+        return 'storebunk.pos.session.start_new_order_offline';
     }
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function orderId(): OrderId
     {
-        return $this->orderId;
+        return OrderId::fromString($this->orderId);
     }
 }

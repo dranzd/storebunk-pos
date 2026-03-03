@@ -65,9 +65,10 @@ final class CloseShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Cannot close shift');
 
-        ($this->handler)(new CloseShift(
-            $shiftId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        ($this->handler)(CloseShift::withCashAmount(
+            $shiftId->toNative(),
+            50000,
+            'PHP'
         ));
     }
 
@@ -80,9 +81,10 @@ final class CloseShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('2 active POS session(s)');
 
-        ($this->handler)(new CloseShift(
-            $shiftId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        ($this->handler)(CloseShift::withCashAmount(
+            $shiftId->toNative(),
+            50000,
+            'PHP'
         ));
     }
 

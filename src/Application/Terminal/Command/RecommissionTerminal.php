@@ -9,22 +9,23 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
 final class RecommissionTerminal extends AbstractCommand
 {
-    private TerminalId $terminalId;
-    private string $reason;
-
-    public function __construct(TerminalId $terminalId, string $reason)
-    {
-        $this->terminalId = $terminalId;
-        $this->reason = $reason;
-
+    private function __construct(
+        private readonly string $terminalId,
+        private readonly string $reason
+    ) {
         parent::__construct(
-            $terminalId->toNative(),
+            $this->terminalId,
             self::expectedMessageName(),
             [
-                'terminal_id' => $terminalId->toNative(),
-                'reason' => $reason,
+                'terminal_id' => $this->terminalId,
+                'reason' => $this->reason,
             ]
         );
+    }
+
+    final public static function because(string $terminalId, string $reason): self
+    {
+        return new self($terminalId, $reason);
     }
 
     final public static function expectedMessageName(): string
@@ -34,7 +35,7 @@ final class RecommissionTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return $this->terminalId;
+        return TerminalId::fromString($this->terminalId);
     }
 
     final public function reason(): string

@@ -9,19 +9,23 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class DeactivateOrder extends AbstractCommand
 {
-    private SessionId $sessionId;
-    private string $reason;
-
-    public function __construct(SessionId $sessionId, string $reason)
-    {
-        $this->sessionId = $sessionId;
-        $this->reason = $reason;
-
+    private function __construct(
+        private readonly string $sessionId,
+        private readonly string $reason
+    ) {
         parent::__construct(
-            $sessionId->toNative(),
+            $this->sessionId,
             self::expectedMessageName(),
-            ['session_id' => $sessionId->toNative(), 'reason' => $reason]
+            [
+                'session_id' => $this->sessionId,
+                'reason' => $this->reason,
+            ]
         );
+    }
+
+    final public static function because(string $sessionId, string $reason): self
+    {
+        return new self($sessionId, $reason);
     }
 
     final public static function expectedMessageName(): string
@@ -31,7 +35,7 @@ final class DeactivateOrder extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 
     final public function reason(): string

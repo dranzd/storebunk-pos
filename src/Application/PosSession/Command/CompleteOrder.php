@@ -9,17 +9,19 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
 final class CompleteOrder extends AbstractCommand
 {
-    private SessionId $sessionId;
-
-    public function __construct(SessionId $sessionId)
-    {
-        $this->sessionId = $sessionId;
-
+    private function __construct(
+        private readonly string $sessionId
+    ) {
         parent::__construct(
-            $sessionId->toNative(),
+            $this->sessionId,
             self::expectedMessageName(),
-            ['session_id' => $sessionId->toNative()]
+            ['session_id' => $this->sessionId]
         );
+    }
+
+    final public static function forSession(string $sessionId): self
+    {
+        return new self($sessionId);
     }
 
     final public static function expectedMessageName(): string
@@ -29,6 +31,6 @@ final class CompleteOrder extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return $this->sessionId;
+        return SessionId::fromString($this->sessionId);
     }
 }
