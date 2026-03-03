@@ -40,11 +40,11 @@ final class CloseShift extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return ShiftId::fromString($this->shiftId);
+        return ShiftId::fromNative($this->shiftId);
     }
 
     final public function declaredClosingCashAmount(): Money
     {
-        return Money::fromScalar($this->declaredClosingCashAmount, $this->currency);
+        return Money::fromArray(['amount' => $this->declaredClosingCashAmount, 'currency' => $this->currency]);
     }
 }

@@ -38,12 +38,12 @@ final class RegisterTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 
     final public function branchId(): BranchId
     {
-        return BranchId::fromString($this->branchId);
+        return BranchId::fromNative($this->branchId);
     }
 
     final public function name(): string

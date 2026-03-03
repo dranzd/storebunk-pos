@@ -36,11 +36,11 @@ final class ReassignTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 
     final public function newBranchId(): BranchId
     {
-        return BranchId::fromString($this->newBranchId);
+        return BranchId::fromNative($this->newBranchId);
     }
 }

@@ -42,12 +42,12 @@ final class RequestPayment extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return SessionId::fromString($this->sessionId);
+        return SessionId::fromNative($this->sessionId);
     }
 
     final public function amount(): Money
     {
-        return Money::fromScalar($this->amount, $this->currency);
+        return Money::fromArray(['amount' => $this->amount, 'currency' => $this->currency]);
     }
 
     final public function paymentMethod(): string

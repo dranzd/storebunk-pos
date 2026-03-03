@@ -33,6 +33,6 @@ final class ActivateTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 }

@@ -40,11 +40,11 @@ final class RecordCashDrop extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return ShiftId::fromString($this->shiftId);
+        return ShiftId::fromNative($this->shiftId);
     }
 
     final public function amount(): Money
     {
-        return Money::fromScalar($this->amount, $this->currency);
+        return Money::fromArray(['amount' => $this->amount, 'currency' => $this->currency]);
     }
 }

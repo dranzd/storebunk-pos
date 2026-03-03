@@ -37,7 +37,7 @@ final class ForceCloseShift extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return ShiftId::fromString($this->shiftId);
+        return ShiftId::fromNative($this->shiftId);
     }
 
     final public function supervisorId(): string

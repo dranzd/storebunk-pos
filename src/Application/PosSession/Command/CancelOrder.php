@@ -35,7 +35,7 @@ final class CancelOrder extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return SessionId::fromString($this->sessionId);
+        return SessionId::fromNative($this->sessionId);
     }
 
     final public function reason(): string

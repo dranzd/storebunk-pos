@@ -60,18 +60,17 @@
 
 2. **CloseShiftHandlerTest.php**
    - Line 54: `new CloseShift(...)` → needs factory method
-   - Line 105: `new CloseShift(...)` → needs factory method  
+   - Line 105: `new CloseShift(...)` → needs factory method
    - Line 127: `new CloseShift(...)` → needs factory method
    - Line 136: `new OpenShift(...)` → needs factory method
    - Line 155: `new StartSession(...)` → needs factory method
 
-## Lint Errors (Can be ignored)
+## Fixed Issues
 
-**Intelephense false positives:**
-- `fromString()` undefined - These methods exist in common library value objects (Uuid base class)
-- `fromScalar()` undefined - These methods exist in Money\Basic from common library
-
-These are IDE linting issues, not actual code errors. The methods exist at runtime.
+**Corrected method names:**
+- ✅ Changed all `fromString()` to `fromNative()` (correct method from Uuid base class)
+- ✅ Changed all `fromScalar()` to `fromArray()` (correct method from Money\Basic)
+- ✅ Updated DraftLifecycleService to use new factory methods
 
 ## Breaking Changes
 

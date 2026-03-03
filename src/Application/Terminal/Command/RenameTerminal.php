@@ -35,7 +35,7 @@ final class RenameTerminal extends AbstractCommand
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 
     final public function newName(): string

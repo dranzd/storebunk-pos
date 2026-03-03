@@ -39,16 +39,16 @@ final class StartSession extends AbstractCommand
 
     final public function sessionId(): SessionId
     {
-        return SessionId::fromString($this->sessionId);
+        return SessionId::fromNative($this->sessionId);
     }
 
     final public function shiftId(): ShiftId
     {
-        return ShiftId::fromString($this->shiftId);
+        return ShiftId::fromNative($this->shiftId);
     }
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 }

@@ -55,26 +55,26 @@ final class OpenShift extends AbstractCommand
 
     final public function shiftId(): ShiftId
     {
-        return ShiftId::fromString($this->shiftId);
+        return ShiftId::fromNative($this->shiftId);
     }
 
     final public function terminalId(): TerminalId
     {
-        return TerminalId::fromString($this->terminalId);
+        return TerminalId::fromNative($this->terminalId);
     }
 
     final public function branchId(): BranchId
     {
-        return BranchId::fromString($this->branchId);
+        return BranchId::fromNative($this->branchId);
     }
 
     final public function cashierId(): CashierId
     {
-        return CashierId::fromString($this->cashierId);
+        return CashierId::fromNative($this->cashierId);
     }
 
     final public function openingCashAmount(): Money
     {
-        return Money::fromScalar($this->openingCashAmount, $this->currency);
+        return Money::fromArray(['amount' => $this->openingCashAmount, 'currency' => $this->currency]);
     }
 }
