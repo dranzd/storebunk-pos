@@ -11,10 +11,11 @@ final class RenameTerminal extends AbstractCommand
 {
     private function __construct(
         private readonly string $terminalId,
-        private readonly string $newName
+        private readonly string $newName,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->terminalId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'terminal_id' => $this->terminalId,
@@ -23,9 +24,9 @@ final class RenameTerminal extends AbstractCommand
         );
     }
 
-    final public static function to(string $terminalId, string $newName): self
+    final public static function to(string $terminalId, string $newName, ?string $commandId = null): self
     {
-        return new self($terminalId, $newName);
+        return new self($terminalId, $newName, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

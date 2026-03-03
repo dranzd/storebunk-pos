@@ -14,10 +14,11 @@ final class StartSession extends AbstractCommand
     private function __construct(
         private readonly string $sessionId,
         private readonly string $shiftId,
-        private readonly string $terminalId
+        private readonly string $terminalId,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->sessionId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'session_id' => $this->sessionId,
@@ -27,9 +28,9 @@ final class StartSession extends AbstractCommand
         );
     }
 
-    final public static function onTerminal(string $sessionId, string $shiftId, string $terminalId): self
+    final public static function onTerminal(string $sessionId, string $shiftId, string $terminalId, ?string $commandId = null): self
     {
-        return new self($sessionId, $shiftId, $terminalId);
+        return new self($sessionId, $shiftId, $terminalId, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

@@ -12,10 +12,11 @@ final class ReassignTerminal extends AbstractCommand
 {
     private function __construct(
         private readonly string $terminalId,
-        private readonly string $newBranchId
+        private readonly string $newBranchId,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->terminalId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'terminal_id' => $this->terminalId,
@@ -24,9 +25,9 @@ final class ReassignTerminal extends AbstractCommand
         );
     }
 
-    final public static function toBranch(string $terminalId, string $newBranchId): self
+    final public static function toBranch(string $terminalId, string $newBranchId, ?string $commandId = null): self
     {
-        return new self($terminalId, $newBranchId);
+        return new self($terminalId, $newBranchId, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

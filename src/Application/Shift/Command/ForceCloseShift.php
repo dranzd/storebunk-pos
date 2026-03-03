@@ -12,10 +12,11 @@ final class ForceCloseShift extends AbstractCommand
     private function __construct(
         private readonly string $shiftId,
         private readonly string $supervisorId,
-        private readonly string $reason
+        private readonly string $reason,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->shiftId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'shift_id' => $this->shiftId,
@@ -25,9 +26,9 @@ final class ForceCloseShift extends AbstractCommand
         );
     }
 
-    final public static function bySupervisor(string $shiftId, string $supervisorId, string $reason): self
+    final public static function bySupervisor(string $shiftId, string $supervisorId, string $reason, ?string $commandId = null): self
     {
-        return new self($shiftId, $supervisorId, $reason);
+        return new self($shiftId, $supervisorId, $reason, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

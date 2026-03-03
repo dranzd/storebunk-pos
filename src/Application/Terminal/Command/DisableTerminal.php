@@ -10,10 +10,11 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 final class DisableTerminal extends AbstractCommand
 {
     private function __construct(
-        private readonly string $terminalId
+        private readonly string $terminalId,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->terminalId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'terminal_id' => $this->terminalId,
@@ -21,9 +22,9 @@ final class DisableTerminal extends AbstractCommand
         );
     }
 
-    final public static function withId(string $terminalId): self
+    final public static function withId(string $terminalId, ?string $commandId = null): self
     {
-        return new self($terminalId);
+        return new self($terminalId, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

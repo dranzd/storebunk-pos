@@ -121,10 +121,6 @@ final class OfflineSyncIntegrationTest extends TestCase
         );
         $offlineHandler($offlineCommand);
 
-        $session = $this->sessionRepository->load($sessionId);
-        $session->markOrderPendingSync($orderId);
-        $this->sessionRepository->store($session);
-
         $syncHandler = new SyncOrderOnlineHandler(
             $this->sessionRepository,
             $this->orderingService,
@@ -165,10 +161,6 @@ final class OfflineSyncIntegrationTest extends TestCase
             $sessionId->toNative(),
             $orderId->toNative()
         ));
-
-        $session = $this->sessionRepository->load($sessionId);
-        $session->markOrderPendingSync($orderId);
-        $this->sessionRepository->store($session);
 
         $syncHandler = new SyncOrderOnlineHandler(
             $this->sessionRepository,
@@ -214,18 +206,10 @@ final class OfflineSyncIntegrationTest extends TestCase
             $orderId1->toNative()
         ));
 
-        $session = $this->sessionRepository->load($sessionId);
-        $session->markOrderPendingSync($orderId1);
-        $this->sessionRepository->store($session);
-
         $offlineHandler(StartNewOrderOffline::withOrder(
             $sessionId->toNative(),
             $orderId2->toNative()
         ));
-
-        $session = $this->sessionRepository->load($sessionId);
-        $session->markOrderPendingSync($orderId2);
-        $this->sessionRepository->store($session);
 
         $this->assertSame(2, $this->pendingSyncQueue->count());
 

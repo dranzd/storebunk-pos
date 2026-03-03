@@ -11,10 +11,11 @@ final class DeactivateOrder extends AbstractCommand
 {
     private function __construct(
         private readonly string $sessionId,
-        private readonly string $reason
+        private readonly string $reason,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->sessionId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'session_id' => $this->sessionId,
@@ -23,9 +24,9 @@ final class DeactivateOrder extends AbstractCommand
         );
     }
 
-    final public static function because(string $sessionId, string $reason): self
+    final public static function because(string $sessionId, string $reason, ?string $commandId = null): self
     {
-        return new self($sessionId, $reason);
+        return new self($sessionId, $reason, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

@@ -13,10 +13,11 @@ final class CloseShift extends AbstractCommand
     private function __construct(
         private readonly string $shiftId,
         private readonly int $declaredClosingCashAmount,
-        private readonly string $currency
+        private readonly string $currency,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->shiftId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'shift_id' => $this->shiftId,
@@ -28,9 +29,9 @@ final class CloseShift extends AbstractCommand
         );
     }
 
-    final public static function withCashAmount(string $shiftId, int $declaredClosingCashAmount, string $currency): self
+    final public static function withCashAmount(string $shiftId, int $declaredClosingCashAmount, string $currency, ?string $commandId = null): self
     {
-        return new self($shiftId, $declaredClosingCashAmount, $currency);
+        return new self($shiftId, $declaredClosingCashAmount, $currency, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

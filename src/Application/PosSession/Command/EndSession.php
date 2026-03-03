@@ -10,18 +10,19 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 final class EndSession extends AbstractCommand
 {
     private function __construct(
-        private readonly string $sessionId
+        private readonly string $sessionId,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->sessionId,
+            $commandId,
             self::expectedMessageName(),
             ['session_id' => $this->sessionId]
         );
     }
 
-    final public static function withId(string $sessionId): self
+    final public static function withId(string $sessionId, ?string $commandId = null): self
     {
-        return new self($sessionId);
+        return new self($sessionId, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

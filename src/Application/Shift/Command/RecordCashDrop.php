@@ -13,10 +13,11 @@ final class RecordCashDrop extends AbstractCommand
     private function __construct(
         private readonly string $shiftId,
         private readonly int $amount,
-        private readonly string $currency
+        private readonly string $currency,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->shiftId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'shift_id' => $this->shiftId,
@@ -28,9 +29,9 @@ final class RecordCashDrop extends AbstractCommand
         );
     }
 
-    final public static function ofAmount(string $shiftId, int $amount, string $currency): self
+    final public static function ofAmount(string $shiftId, int $amount, string $currency, ?string $commandId = null): self
     {
-        return new self($shiftId, $amount, $currency);
+        return new self($shiftId, $amount, $currency, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

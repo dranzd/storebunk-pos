@@ -72,10 +72,17 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(new StartSession($sessionId, $shiftId, $terminalId));
+        $startSessionHandler(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);
-        $startOrderHandler(new StartNewOrder($sessionId, $orderId));
+        $startOrderHandler(StartNewOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         $session = $this->sessionRepository->load($sessionId);
         $session->deactivateOrder('TTL expired');
@@ -84,7 +91,10 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $this->inventoryService->createSoftReservation($orderId);
 
         $reactivateHandler = new ReactivateOrderHandler($this->sessionRepository, $this->inventoryService);
-        $reactivateHandler(new ReactivateOrder($sessionId, $orderId));
+        $reactivateHandler(ReactivateOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         $session = $this->sessionRepository->load($sessionId);
         $this->assertTrue($this->inventoryService->hasSoftReservation($orderId));
@@ -98,10 +108,17 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(new StartSession($sessionId, $shiftId, $terminalId));
+        $startSessionHandler(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);
-        $startOrderHandler(new StartNewOrder($sessionId, $orderId));
+        $startOrderHandler(StartNewOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
 
         $session = $this->sessionRepository->load($sessionId);
         $session->deactivateOrder('TTL expired');

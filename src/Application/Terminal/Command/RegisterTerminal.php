@@ -13,10 +13,11 @@ final class RegisterTerminal extends AbstractCommand
     private function __construct(
         private readonly string $terminalId,
         private readonly string $branchId,
-        private readonly string $name
+        private readonly string $name,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->terminalId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'terminal_id' => $this->terminalId,
@@ -26,9 +27,9 @@ final class RegisterTerminal extends AbstractCommand
         );
     }
 
-    final public static function register(string $terminalId, string $branchId, string $name): self
+    final public static function register(string $terminalId, string $branchId, string $name, ?string $commandId = null): self
     {
-        return new self($terminalId, $branchId, $name);
+        return new self($terminalId, $branchId, $name, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

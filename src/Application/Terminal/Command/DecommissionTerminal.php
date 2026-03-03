@@ -11,10 +11,11 @@ final class DecommissionTerminal extends AbstractCommand
 {
     private function __construct(
         private readonly string $terminalId,
-        private readonly string $reason
+        private readonly string $reason,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->terminalId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'terminal_id' => $this->terminalId,
@@ -23,9 +24,9 @@ final class DecommissionTerminal extends AbstractCommand
         );
     }
 
-    final public static function because(string $terminalId, string $reason): self
+    final public static function because(string $terminalId, string $reason, ?string $commandId = null): self
     {
-        return new self($terminalId, $reason);
+        return new self($terminalId, $reason, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

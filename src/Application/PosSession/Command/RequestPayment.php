@@ -14,10 +14,11 @@ final class RequestPayment extends AbstractCommand
         private readonly string $sessionId,
         private readonly int $amount,
         private readonly string $currency,
-        private readonly string $paymentMethod
+        private readonly string $paymentMethod,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->sessionId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'session_id' => $this->sessionId,
@@ -30,9 +31,9 @@ final class RequestPayment extends AbstractCommand
         );
     }
 
-    final public static function via(string $sessionId, int $amount, string $currency, string $paymentMethod): self
+    final public static function via(string $sessionId, int $amount, string $currency, string $paymentMethod, ?string $commandId = null): self
     {
-        return new self($sessionId, $amount, $currency, $paymentMethod);
+        return new self($sessionId, $amount, $currency, $paymentMethod, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

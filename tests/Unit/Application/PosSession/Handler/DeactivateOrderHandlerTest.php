@@ -40,7 +40,7 @@ final class DeactivateOrderHandlerTest extends TestCase
 
         $this->startSessionWithOrder($sessionId, $orderId);
 
-        ($this->handler)(new DeactivateOrder($sessionId, 'TTL expired'));
+        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
 
         $deactivated = array_values(array_filter(
             $this->eventStore->loadEvents($sessionId->toNative()),
@@ -90,9 +90,16 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(new StartSession($sessionId, $shiftId, $terminalId));
+        $startSession(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
-        $startOrder(new StartNewOrder($sessionId, $orderId));
+        $startOrder(StartNewOrder::withOrder(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
     }
 }

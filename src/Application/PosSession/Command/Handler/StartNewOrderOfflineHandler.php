@@ -32,6 +32,7 @@ final class StartNewOrderOfflineHandler
 
         $session = $this->sessionRepository->load($command->sessionId());
         $session->startNewOrderOffline($command->orderId(), $commandId);
+        $session->markOrderPendingSync($command->orderId());
         $this->sessionRepository->store($session);
 
         $this->pendingSyncQueue->enqueue(

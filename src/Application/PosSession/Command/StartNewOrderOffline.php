@@ -12,10 +12,11 @@ final class StartNewOrderOffline extends AbstractCommand
 {
     private function __construct(
         private readonly string $sessionId,
-        private readonly string $orderId
+        private readonly string $orderId,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->sessionId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'session_id' => $this->sessionId,
@@ -24,9 +25,9 @@ final class StartNewOrderOffline extends AbstractCommand
         );
     }
 
-    final public static function withOrder(string $sessionId, string $orderId): self
+    final public static function withOrder(string $sessionId, string $orderId, ?string $commandId = null): self
     {
-        return new self($sessionId, $orderId);
+        return new self($sessionId, $orderId, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

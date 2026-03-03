@@ -51,9 +51,10 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(new CloseShift(
-            $shiftId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        ($this->handler)(CloseShift::withCashAmount(
+            $shiftId->toNative(),
+            50000,
+            'PHP'
         ));
     }
 
@@ -102,9 +103,10 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(new CloseShift(
-            $shiftId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        ($this->handler)(CloseShift::withCashAmount(
+            $shiftId->toNative(),
+            50000,
+            'PHP'
         ));
     }
 
@@ -125,9 +127,10 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(new CloseShift(
-            $shiftId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        ($this->handler)(CloseShift::withCashAmount(
+            $shiftId->toNative(),
+            50000,
+            'PHP'
         ));
     }
 
@@ -135,12 +138,13 @@ final class CloseShiftHandlerTest extends TestCase
     {
         $shiftId = new ShiftId();
         $openHandler = new OpenShiftHandler($this->shiftRepository);
-        $openHandler(new OpenShift(
-            $shiftId,
-            new TerminalId(),
-            new BranchId(),
-            new CashierId(),
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP'])
+        $openHandler(OpenShift::forCashier(
+            $shiftId->toNative(),
+            (new TerminalId())->toNative(),
+            (new BranchId())->toNative(),
+            (new CashierId())->toNative(),
+            50000,
+            'PHP'
         ));
 
         return $shiftId;
@@ -152,7 +156,11 @@ final class CloseShiftHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startHandler = new StartSessionHandler($this->sessionRepository);
-        $startHandler(new StartSession($sessionId, $shiftId, $terminalId));
+        $startHandler(StartSession::onTerminal(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative()
+        ));
 
         $this->readModel->onSessionStarted(
             \Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted::occur(

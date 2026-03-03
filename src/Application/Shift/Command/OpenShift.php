@@ -19,10 +19,11 @@ final class OpenShift extends AbstractCommand
         private readonly string $branchId,
         private readonly string $cashierId,
         private readonly int $openingCashAmount,
-        private readonly string $currency
+        private readonly string $currency,
+        string $commandId = ''
     ) {
         parent::__construct(
-            $this->shiftId,
+            $commandId,
             self::expectedMessageName(),
             [
                 'shift_id' => $this->shiftId,
@@ -43,9 +44,10 @@ final class OpenShift extends AbstractCommand
         string $branchId,
         string $cashierId,
         int $openingCashAmount,
-        string $currency
+        string $currency,
+        ?string $commandId = null
     ): self {
-        return new self($shiftId, $terminalId, $branchId, $cashierId, $openingCashAmount, $currency);
+        return new self($shiftId, $terminalId, $branchId, $cashierId, $openingCashAmount, $currency, $commandId ?? '');
     }
 
     final public static function expectedMessageName(): string

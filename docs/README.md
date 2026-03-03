@@ -19,6 +19,7 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[Domain Model](domain-model.md)** — Aggregates, Commands, Events, Policies, Invariants
 - **[Folder Structure](folder-structure.md)** — Complete directory reference and conventions
 - **[Technical Design](technical_design.md)** — Implementation details, coding standards, and adapters
+- **[Offline Sync](offline-sync.md)** — Offline order creation, sync queue, idempotency model, and consumer integration guide
 
 ### Planning & Tracking
 - **[Milestones](milestones.md)** — Project roadmap with phased plan and commit messages
