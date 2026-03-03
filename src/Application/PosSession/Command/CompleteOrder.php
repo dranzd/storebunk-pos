@@ -20,7 +20,10 @@ final class CompleteOrder extends AbstractCommand
         );
     }
 
-    final public static function forSession(string $sessionId, ?string $commandId = null): self
+    final public static function forSession(
+        string $sessionId,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $commandId ?? '');
     }

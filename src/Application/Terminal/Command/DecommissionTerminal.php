@@ -24,9 +24,17 @@ final class DecommissionTerminal extends AbstractCommand
         );
     }
 
-    final public static function because(string $terminalId, string $reason, ?string $commandId = null): self
+    final public static function because(
+        string $terminalId,
+        string $reason,
+        ?string $commandId = null
+    ): self
     {
-        return new self($terminalId, $reason, $commandId ?? '');
+        return new self(
+            $terminalId,
+            $reason,
+            $commandId ?? ''
+        );
     }
 
     final public static function expectedMessageName(): string

@@ -22,7 +22,10 @@ final class SetTerminalMaintenance extends AbstractCommand
         );
     }
 
-    final public static function forTerminal(string $terminalId, ?string $commandId = null): self
+    final public static function forTerminal(
+        string $terminalId,
+        ?string $commandId = null
+    ): self
     {
         return new self($terminalId, $commandId ?? '');
     }

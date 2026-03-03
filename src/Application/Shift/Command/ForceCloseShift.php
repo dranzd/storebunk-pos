@@ -26,7 +26,12 @@ final class ForceCloseShift extends AbstractCommand
         );
     }
 
-    final public static function bySupervisor(string $shiftId, string $supervisorId, string $reason, ?string $commandId = null): self
+    final public static function bySupervisor(
+        string $shiftId,
+        string $supervisorId,
+        string $reason,
+        ?string $commandId = null
+    ): self
     {
         return new self($shiftId, $supervisorId, $reason, $commandId ?? '');
     }

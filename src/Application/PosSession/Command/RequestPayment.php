@@ -31,7 +31,13 @@ final class RequestPayment extends AbstractCommand
         );
     }
 
-    final public static function via(string $sessionId, int $amount, string $currency, string $paymentMethod, ?string $commandId = null): self
+    final public static function via(
+        string $sessionId,
+        int $amount,
+        string $currency,
+        string $paymentMethod,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $amount, $currency, $paymentMethod, $commandId ?? '');
     }

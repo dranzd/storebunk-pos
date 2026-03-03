@@ -28,7 +28,12 @@ final class StartSession extends AbstractCommand
         );
     }
 
-    final public static function onTerminal(string $sessionId, string $shiftId, string $terminalId, ?string $commandId = null): self
+    final public static function onTerminal(
+        string $sessionId,
+        string $shiftId,
+        string $terminalId,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $shiftId, $terminalId, $commandId ?? '');
     }

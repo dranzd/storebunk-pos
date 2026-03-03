@@ -29,7 +29,12 @@ final class RecordCashDrop extends AbstractCommand
         );
     }
 
-    final public static function ofAmount(string $shiftId, int $amount, string $currency, ?string $commandId = null): self
+    final public static function ofAmount(
+        string $shiftId,
+        int $amount,
+        string $currency,
+        ?string $commandId = null
+    ): self
     {
         return new self($shiftId, $amount, $currency, $commandId ?? '');
     }

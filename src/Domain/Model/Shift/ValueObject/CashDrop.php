@@ -16,7 +16,10 @@ final class CashDrop implements ValueObject
     ) {
     }
 
-    final public static function record(Money $amount, DateTimeImmutable $recordedAt): self
+    final public static function record(
+        Money $amount,
+        DateTimeImmutable $recordedAt
+    ): self
     {
         return new self($amount, $recordedAt);
     }

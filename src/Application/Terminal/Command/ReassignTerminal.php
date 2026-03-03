@@ -25,7 +25,11 @@ final class ReassignTerminal extends AbstractCommand
         );
     }
 
-    final public static function toBranch(string $terminalId, string $newBranchId, ?string $commandId = null): self
+    final public static function toBranch(
+        string $terminalId,
+        string $newBranchId,
+        ?string $commandId = null
+    ): self
     {
         return new self($terminalId, $newBranchId, $commandId ?? '');
     }

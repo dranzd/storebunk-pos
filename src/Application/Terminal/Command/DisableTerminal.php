@@ -22,7 +22,10 @@ final class DisableTerminal extends AbstractCommand
         );
     }
 
-    final public static function withId(string $terminalId, ?string $commandId = null): self
+    final public static function withId(
+        string $terminalId,
+        ?string $commandId = null
+    ): self
     {
         return new self($terminalId, $commandId ?? '');
     }

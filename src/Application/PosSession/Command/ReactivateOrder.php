@@ -25,7 +25,11 @@ final class ReactivateOrder extends AbstractCommand
         );
     }
 
-    final public static function withOrder(string $sessionId, string $orderId, ?string $commandId = null): self
+    final public static function withOrder(
+        string $sessionId,
+        string $orderId,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $orderId, $commandId ?? '');
     }

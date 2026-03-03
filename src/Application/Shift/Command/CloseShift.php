@@ -29,7 +29,12 @@ final class CloseShift extends AbstractCommand
         );
     }
 
-    final public static function withCashAmount(string $shiftId, int $declaredClosingCashAmount, string $currency, ?string $commandId = null): self
+    final public static function withCashAmount(
+        string $shiftId,
+        int $declaredClosingCashAmount,
+        string $currency,
+        ?string $commandId = null
+    ): self
     {
         return new self($shiftId, $declaredClosingCashAmount, $currency, $commandId ?? '');
     }

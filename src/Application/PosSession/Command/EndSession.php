@@ -20,7 +20,10 @@ final class EndSession extends AbstractCommand
         );
     }
 
-    final public static function withId(string $sessionId, ?string $commandId = null): self
+    final public static function withId(
+        string $sessionId,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $commandId ?? '');
     }

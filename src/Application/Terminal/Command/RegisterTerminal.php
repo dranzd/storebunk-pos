@@ -27,7 +27,12 @@ final class RegisterTerminal extends AbstractCommand
         );
     }
 
-    final public static function register(string $terminalId, string $branchId, string $name, ?string $commandId = null): self
+    final public static function register(
+        string $terminalId,
+        string $branchId,
+        string $name,
+        ?string $commandId = null
+    ): self
     {
         return new self($terminalId, $branchId, $name, $commandId ?? '');
     }

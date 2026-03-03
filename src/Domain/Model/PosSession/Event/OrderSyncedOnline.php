@@ -27,7 +27,10 @@ final class OrderSyncedOnline extends AbstractAggregateEvent implements DomainEv
         return $event;
     }
 
-    final public static function occur(SessionId $sessionId, OrderId $orderId): self
+    final public static function occur(
+        SessionId $sessionId,
+        OrderId $orderId
+    ): self
     {
         $event = new self();
         $event->sessionId = $sessionId;

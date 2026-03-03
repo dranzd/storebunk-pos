@@ -24,7 +24,11 @@ final class RenameTerminal extends AbstractCommand
         );
     }
 
-    final public static function to(string $terminalId, string $newName, ?string $commandId = null): self
+    final public static function to(
+        string $terminalId,
+        string $newName,
+        ?string $commandId = null
+    ): self
     {
         return new self($terminalId, $newName, $commandId ?? '');
     }

@@ -24,7 +24,11 @@ final class DeactivateOrder extends AbstractCommand
         );
     }
 
-    final public static function because(string $sessionId, string $reason, ?string $commandId = null): self
+    final public static function because(
+        string $sessionId,
+        string $reason,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $reason, $commandId ?? '');
     }

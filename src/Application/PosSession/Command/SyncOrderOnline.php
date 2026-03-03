@@ -29,7 +29,13 @@ final class SyncOrderOnline extends AbstractCommand
         );
     }
 
-    final public static function forOrder(string $sessionId, string $orderId, string $branchId, ?string $customerId = null, ?string $commandId = null): self
+    final public static function forOrder(
+        string $sessionId,
+        string $orderId,
+        string $branchId,
+        ?string $customerId = null,
+        ?string $commandId = null
+    ): self
     {
         return new self($sessionId, $orderId, $branchId, $customerId, $commandId ?? '');
     }
