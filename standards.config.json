@@ -1,0 +1,5 @@
+{
+  "include": ["README.md", "docs/**/*.md", "src/**/*.php"],
+  "exclude": ["vendor", "node_modules"],
+  "repoName": "storebunk-pos"
+}

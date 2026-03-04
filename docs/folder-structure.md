@@ -261,6 +261,12 @@ storebunk-pos/
 
 ## Layer Responsibilities
 
+## @standard: domain-layer-purity
+@category: architecture
+@status: stable
+
+The domain layer must contain only pure business logic with no framework dependencies. It should encapsulate aggregates, value objects, events, repository interfaces, and service interfaces that define business contracts.
+
 ### Domain Layer
 - **Pure business logic** — No framework dependencies
 - **Aggregates** enforce business rules and invariants
@@ -270,12 +276,24 @@ storebunk-pos/
 - **Service Interfaces** define ports to external bounded contexts
 - **Read Model Interfaces** define query contracts
 
+## @standard: hexagonal-architecture
+@category: architecture
+@status: stable
+
+Application layer orchestrates domain objects to fulfill use cases without containing business logic. Infrastructure layer implements technology-specific adapters for domain ports. This maintains dependency inversion and technology independence.
+
 ### Application Layer
 - **Orchestrates** domain objects to fulfill use cases
 - **Commands** represent intentions to change state
 - **Queries** represent requests for data
 - **Handlers** execute commands and queries
 - **Event Handlers** react to domain events for cross-aggregate coordination
+
+## @standard: repository-interface-separation
+@category: architecture
+@status: stable
+
+Repository interfaces must be defined in the domain layer while implementations live in infrastructure. Domain code depends only on interfaces, never concrete implementations.
 
 ### Infrastructure Layer
 - **Implements** ports with concrete technology
@@ -296,6 +314,18 @@ storebunk-pos/
 
 ## Naming Conventions
 
+## @standard: event-sourcing-naming
+@category: event-sourcing
+@status: stable
+
+Domain events must be named in past tense using the {ActionPastTense}.php pattern. Events represent facts that happened in the domain and should be immutable.
+
+## @standard: command-naming-convention
+@category: architecture
+@status: stable
+
+Commands must use {ActionEntity}.php naming without Command suffix. Commands represent intentions to change state and should be simple data structures.
+
 ### Files
 - **Aggregates**: `{Name}.php` (e.g., `Shift.php`, `Terminal.php`)
 - **Value Objects**: `{Name}.php` (e.g., `ShiftId.php`, `CashDrop.php`)
@@ -307,6 +337,12 @@ storebunk-pos/
 - **Read Model Implementations**: `InMemory{Name}ReadModel.php` (e.g., `InMemoryTerminalReadModel.php`)
 - **Repository Implementations**: `InMemory{Name}Repository.php` (e.g., `InMemoryTerminalRepository.php`)
 - **Stubs**: `Stub{Name}.php` in `tests/Stub/` (e.g., `StubOrderingService.php`)
+
+## @standard: aggregate-context-organization
+@category: ddd
+@status: stable
+
+Domain models must be organized by bounded context with each context containing its aggregate, value objects, events, and repository interfaces. This maintains context boundaries and model consistency.
 
 ### Namespaces
 - Domain Model: `Dranzd\StorebunkPos\Domain\Model\{Context}\`
