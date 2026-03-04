@@ -11,6 +11,7 @@
         "dranzd/common-valueobject": "dev-master",
         "dranzd/common-domain-assert": "dev-master",
         "dranzd/common-utils": "dev-master",
+        "dranzd/standards-doc": "dev-main",
         "ramsey/uuid": "^4.7"
     },
     "require-dev": {
@@ -38,6 +39,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/dranzd/common-cqrs.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/dranzd/standards-doc.git"
         }
     ],
     "autoload": {
@@ -64,7 +69,10 @@
             "@test",
             "@phpstan",
             "@cs-check"
-        ]
+        ],
+        "standards:diff": "vendor/bin/standards --diff-only",
+        "standards:dry-run": "vendor/bin/standards --dry-run",
+        "standards:sync": "vendor/bin/standards"
     },
     "minimum-stability": "dev",
     "prefer-stable": true

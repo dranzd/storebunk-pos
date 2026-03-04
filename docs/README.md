@@ -38,6 +38,7 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[ADR-001: Event Property Encapsulation and `get`-Prefixed Accessors](adr/001-event-getter-prefix.md)** — Why all domain events use `private` properties with `get`-prefixed getters instead of `public readonly` properties
 
 ### Process & Guidelines
+- **[Documentation Process](documentation-process.md)** — How standards and project documentation interact, tagging conventions, and sync workflow
 - **[Agent Workflow](agent_workflow.md)** — Guidelines for AI assistants contributing to this project
 
 ### Raw Materials

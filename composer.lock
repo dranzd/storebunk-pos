@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f167329aa7b714e086d8473855a4dd0c",
+    "content-hash": "aefa24768f8da9722a9f71fbcdaf7c2e",
     "packages": [
         {
             "name": "brick/math",
@@ -276,10 +276,6 @@
                 "query-bus",
                 "query-handler"
             ],
-            "support": {
-                "source": "https://github.com/dranzd/common-cqrs/tree/master",
-                "issues": "https://github.com/dranzd/common-cqrs/issues"
-            },
             "time": "2026-02-19T18:53:25+00:00"
         },
         {
@@ -341,10 +337,6 @@
                 }
             ],
             "description": "Domain-Driven Design (DDD) assertion utilities for domain validation, extending webmozart/assert",
-            "support": {
-                "source": "https://github.com/dranzd/common-domain-assert/tree/master",
-                "issues": "https://github.com/dranzd/common-domain-assert/issues"
-            },
             "time": "2025-11-05T17:44:40+00:00"
         },
         {
@@ -417,10 +409,6 @@
                 }
             ],
             "description": "Event sourcing helper package for common projects",
-            "support": {
-                "source": "https://github.com/dranzd/common-event-sourcing/tree/master",
-                "issues": "https://github.com/dranzd/common-event-sourcing/issues"
-            },
             "time": "2026-03-01T15:40:22+00:00"
         },
         {
@@ -494,10 +482,6 @@
                 "string",
                 "utilities"
             ],
-            "support": {
-                "source": "https://github.com/dranzd/common-utils/tree/master",
-                "issues": "https://github.com/dranzd/common-utils/issues"
-            },
             "time": "2026-02-14T09:05:46+00:00"
         },
         {
@@ -583,11 +567,66 @@
                 }
             ],
             "description": "Domain-Driven Design value object library with common implementations and utilities",
-            "support": {
-                "source": "https://github.com/dranzd/common-valueobject/tree/master",
-                "issues": "https://github.com/dranzd/common-valueobject/issues"
-            },
             "time": "2026-02-21T02:29:13+00:00"
+        },
+        {
+            "name": "dranzd/standards-doc",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:dranzd/standards-doc.git",
+                "reference": "1c9cc66b81b2713f776ae069d20936c36827cdac"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/dranzd/standards-doc/zipball/1c9cc66b81b2713f776ae069d20936c36827cdac",
+                "reference": "1c9cc66b81b2713f776ae069d20936c36827cdac",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.0"
+            },
+            "suggest": {
+                "dranzd/standards-cli": "Required for upstream syncing of tagged standards from consumer projects to this repository"
+            },
+            "default-branch": true,
+            "bin": [
+                "bin/standards"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Dranzd\\StandardsDoc\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Dranzd\\StandardsDoc\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "dranzd",
+                    "email": "dranzd@gmail.com"
+                }
+            ],
+            "description": "Tagged standards and best practices for PHP projects (DDD, Event Sourcing, Architecture)",
+            "support": {
+                "source": "https://github.com/dranzd/standards-doc/tree/main",
+                "issues": "https://github.com/dranzd/standards-doc/issues"
+            },
+            "time": "2026-03-04T07:04:38+00:00"
         },
         {
             "name": "psr/container",
@@ -2857,7 +2896,8 @@
         "dranzd/common-domain-assert": 20,
         "dranzd/common-event-sourcing": 20,
         "dranzd/common-utils": 20,
-        "dranzd/common-valueobject": 20
+        "dranzd/common-valueobject": 20,
+        "dranzd/standards-doc": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

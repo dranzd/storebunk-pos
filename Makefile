@@ -75,6 +75,19 @@ quality: ## Run all quality checks (test + phpstan + cs-check)
 	$(UTILS) quality
 
 ##
+## ── Standards ────────────────────────────────────────────────────────────────
+##
+
+standards-diff: ## Show differences between vendor and docs/standards/
+	$(UTILS) exec vendor/bin/standards --diff-only
+
+standards-dry-run: ## Preview standards sync without applying
+	$(UTILS) exec vendor/bin/standards --dry-run
+
+standards-sync-down: ## Sync standards from vendor to docs/standards/
+	$(UTILS) exec vendor/bin/standards
+
+##
 ## ── Demo ─────────────────────────────────────────────────────────────────────
 ##
 
@@ -154,6 +167,7 @@ help: ## Show this help
 .PHONY: up down restart build rebuild status ps logs shell root-shell \
         install update dump-autoload \
         test test-unit test-integration phpstan cs-check cs-fix quality \
+        standards-diff standards-dry-run standards-sync-down \
         demo demo-state-clear demo-state-show \
         demo-terminal-register demo-terminal-list \
         demo-shift-open demo-shift-close \
