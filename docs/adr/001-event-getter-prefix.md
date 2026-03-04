@@ -1,7 +1,13 @@
 # ADR-001: Event Property Encapsulation and `get`-Prefixed Accessor Methods
 
-**Status:** Accepted  
-**Date:** 2026-03-02  
+## @standard: event-encapsulation-pattern
+@category: event-sourcing
+@status: stable
+
+All domain events must use private properties (not readonly) with public get-prefixed getter methods. This avoids PHPStan conflicts and provides stable abstraction for consumers. All public methods on event classes must be declared final.
+
+**Status:** Accepted
+**Date:** 2026-03-02
 **Applies to:** All domain events across all bounded contexts in `src/Domain/Model/*/Event/`
 
 ---
@@ -32,6 +38,12 @@ Both issues were resolved in those projects by adopting `private` properties wit
 ---
 
 ## Decision
+
+## @standard: event-getter-naming
+@category: event-sourcing
+@status: stable
+
+All domain events must use private properties with get-prefixed public getter methods. Boolean accessors use is prefix. Properties are not readonly to avoid PHPStan conflicts with static factory methods and reconstitution.
 
 All domain events in this project use the following encapsulation pattern:
 

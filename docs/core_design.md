@@ -2,6 +2,12 @@
 
 ## Architecture Overview
 
+## @standard: hexagonal-architecture-principles
+@category: architecture
+@status: stable
+
+The system must follow strict Hexagonal Architecture (Ports & Adapters) combined with DDD, Event Sourcing, and CQRS. The core is a framework-agnostic library with domain-centric design and event-driven state changes.
+
 The system follows a strict **Hexagonal Architecture (Ports & Adapters)** combined with **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, and **CQRS**.
 
 ### Principles
@@ -26,6 +32,13 @@ POS aggregates implement `AggregateRoot` + use `AggregateRootTrait`. POS events 
 ## Architectural Layers
 
 ### 1. Domain (The Core)
+
+## @standard: domain-layer-isolation
+@category: architecture
+@status: stable
+
+The domain layer must contain only pure business logic with aggregates, value objects, events, and interfaces. It must be free from infrastructure concerns and framework dependencies.
+
 - **Aggregates**: Transaction boundaries — `Terminal`, `Shift`, `PosSession` (implement `AggregateRoot` from common-event-sourcing).
 - **Value Objects**: Immutable data structures — `TerminalId`, `ShiftId`, `SessionId` (extend `Uuid` from common-valueobject), `CashDrop`.
 - **Domain Events**: Facts that happened — `ShiftOpened`, `CheckoutInitiated`, `CashDropRecorded` (extend `AbstractAggregateEvent` from common-event-sourcing).
@@ -46,11 +59,24 @@ POS aggregates implement `AggregateRoot` + use `AggregateRootTrait`. POS events 
 - **Framework Integration**: Adapters for Laravel, etc., to expose the core via HTTP/CLI.
 
 ## Event Sourcing
+
+## @standard: event-sourcing-projections
+@category: event-sourcing
+@status: stable
+
+Event Store is the single source of truth. Read models are built by listening to domain events, enabling CQRS. Aggregates must NOT have public getters - all reads go through projections.
+
 - **Source of Truth**: The Event Store is the single source of truth.
 - **Projections**: Read models (e.g., `ShiftCashSummary`, `ActiveOrders`) are built by listening to domain events. This enables CQRS (Command Query Responsibility Segregation).
 - **No Public Getters on Aggregates**: Aggregate roots must NOT have public getters for querying state. All reads go through projections.
 
 ## Context Boundaries
+
+## @standard: bounded-context-dependencies
+@category: architecture
+@status: stable
+
+POS depends on other bounded contexts through ports (interfaces) only. Other BCs must never depend on POS. Integration must be event-driven with POS emitting events for downstream BCs to react independently.
 
 POS depends on other bounded contexts through **ports (interfaces)**:
 

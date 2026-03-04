@@ -40,6 +40,12 @@ POS aggregates implement `AggregateRoot` and use `AggregateRootTrait` from `comm
 
 ## Coding Standards
 
+## @standard: php-coding-standards
+@category: architecture
+@status: stable
+
+All code must follow PSR-12 style, use strict types, maintain immutability for VOs and events, avoid public getters on aggregates, and include PHPDoc for all public methods. Event accessors use get/is prefixes, properties are private (not readonly), and public methods are final by default.
+
 - **PSR-12**: Code style enforced via PHP_CodeSniffer.
 - **Strict Types**: `declare(strict_types=1);` in all files.
 - **Immutability**: All Value Objects and Events are immutable.
@@ -65,6 +71,12 @@ Dranzd\StorebunkPos\Shared\...
 
 ## Integration Points
 
+## @standard: bus-integration-pattern
+@category: architecture
+@status: stable
+
+The core must expose Command Bus for writes, Query Bus for reads, and Event Bus for side effects. External BCs are accessed through Service Interfaces (Ports) where consumers provide real adapters.
+
 - The core exposes a **Command Bus** for write operations.
 - The core exposes a **Query Bus** for read operations.
 - Events are dispatched to an **Event Bus** for side effects and projections.
@@ -81,6 +93,12 @@ While the core is agnostic, consumers can build adapters for:
 The library provides **in-memory implementations** for all ports (repositories, read models, service interfaces) for testing purposes.
 
 ## Event Publishing
+
+## @standard: event-publishing-separation
+@category: architecture
+@status: stable
+
+Event publishing is NOT provided by the core library. Consumers must implement their own event publishing strategy (Laravel Events, Symfony EventDispatcher, RabbitMQ, etc.). Repository implementations are responsible for dispatching events after persisting aggregates.
 
 Event publishing is **NOT provided** by this library. Consumers implement their own event publishing strategy:
 

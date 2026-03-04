@@ -2,6 +2,12 @@
 
 ## Overview
 
+## @standard: framework-agnostic-library
+@category: architecture
+@status: stable
+
+The POS library must be framework-agnostic with zero dependencies on web frameworks or UI components. It is designed as a pure PHP library that can be consumed by any PHP application.
+
 This library implements the **POS (Point of Sale) Bounded Context** for the StoreBunk Multi-Retail Platform using:
 
 - **Domain-Driven Design (DDD)**
@@ -126,6 +132,12 @@ The shared kernel consists of two parts:
 
 ### Event Sourcing
 
+## @standard: event-driven-state
+@category: event-sourcing
+@status: stable
+
+State changes must be captured as a sequence of immutable domain events. The aggregate state is reconstructed by replaying events. Events are the source of truth, not current state.
+
 Instead of storing current state, we store a sequence of events:
 
 ```php
@@ -136,6 +148,12 @@ ShiftOpened -> CashDropRecorded -> CheckoutInitiated -> ShiftClosed
 The aggregate state is reconstructed by replaying events.
 
 ### CQRS
+
+## @standard: cqrs-separation
+@category: architecture
+@status: stable
+
+Separate models must exist for reads and writes. Write model uses aggregates with event store. Read model uses projections for fast queries. All read model interfaces must follow Interface Segregation Principle.
 
 Separate models for reads and writes:
 
@@ -217,6 +235,12 @@ Command/Query → Bus → InMemoryHandlerRegistry → Handler → Repository
 ---
 
 ## Business Rules Summary
+
+## @standard: pos-invariants
+@category: ddd
+@status: stable
+
+All POS business invariants must be enforced within the domain layer. These rules represent operational discipline that the POS system must maintain at all times.
 
 1. **One cashier = one terminal per open shift**
 2. **One terminal = one open shift at a time**

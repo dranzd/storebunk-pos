@@ -6,6 +6,12 @@ This document defines the complete domain model for the POS Bounded Context: agg
 
 ## 1. Aggregates
 
+## @standard: aggregate-invariant-enforcement
+@category: ddd
+@status: stable
+
+All business invariants must be enforced within aggregate roots. Aggregates are transaction boundaries and must protect business rules through their public methods. No invariant enforcement may be delegated to application services.
+
 ### 1.1 Terminal (Entity / Lightweight Aggregate)
 
 Represents a registered POS device.
@@ -21,6 +27,12 @@ Represents a registered POS device.
 | `registeredAt` | `DateTimeImmutable` | When the terminal was registered |
 
 #### Invariants
+
+## @standard: terminal-business-rules
+@category: ddd
+@status: stable
+
+Terminal aggregate must enforce all terminal-specific business invariants including branch assignment, status transitions, and shift constraints. These rules ensure terminal lifecycle integrity.
 
 - Terminal belongs to exactly one branch.
 - Terminal can have only one open shift at a time.
@@ -93,6 +105,12 @@ variance = declaredClosingCash - expectedCash
 
 #### Invariants
 
+## @standard: shift-business-rules
+@category: ddd
+@status: stable
+
+Shift aggregate must enforce cashier accountability and cash handling invariants. These rules ensure operational discipline and audit trail integrity for cash management.
+
 1. One cashier = one terminal per open shift.
 2. A cashier cannot open multiple shifts simultaneously.
 3. A terminal cannot have multiple open shifts.
@@ -146,6 +164,12 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `state` | `SessionState` (Enum) | Idle, Building, Checkout |
 
 #### Invariants
+
+## @standard: session-lifecycle-rules
+@category: ddd
+@status: stable
+
+PosSession aggregate must enforce UI session invariants and order reference management. Sessions orchestrate order lifecycle but never own order data directly.
 
 1. Session exists only while shift is open.
 2. Session does NOT own order data — only references `orderId`.
