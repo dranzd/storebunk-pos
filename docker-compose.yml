@@ -17,6 +17,7 @@ services:
     working_dir: /app
     environment:
       - COMPOSER_HOME=/home/${USER:-appuser}/.composer
+      - COMPOSER_AUTH={"github-oauth":{"github.com":"${GITHUB_TOKEN}"}}
       - GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
     tty: true
     stdin_open: true

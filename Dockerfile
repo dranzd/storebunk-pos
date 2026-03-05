@@ -8,7 +8,7 @@ ARG USER=appuser
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev openssh-client sudo && \
+    git unzip zip libzip-dev openssh-client sudo rsync && \
     docker-php-ext-install zip && \
     rm -rf /var/lib/apt/lists/*
 
