@@ -34,8 +34,7 @@ final class RecordCashDrop extends AbstractCommand
         int $amount,
         string $currency,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($shiftId, $amount, $currency, $commandId ?? '');
     }
 

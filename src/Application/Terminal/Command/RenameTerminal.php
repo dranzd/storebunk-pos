@@ -28,8 +28,7 @@ final class RenameTerminal extends AbstractCommand
         string $terminalId,
         string $newName,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($terminalId, $newName, $commandId ?? '');
     }
 

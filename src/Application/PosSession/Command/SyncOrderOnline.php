@@ -35,8 +35,7 @@ final class SyncOrderOnline extends AbstractCommand
         string $branchId,
         ?string $customerId = null,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $orderId, $branchId, $customerId, $commandId ?? '');
     }
 

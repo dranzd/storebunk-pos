@@ -34,8 +34,7 @@ final class CloseShift extends AbstractCommand
         int $declaredClosingCashAmount,
         string $currency,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($shiftId, $declaredClosingCashAmount, $currency, $commandId ?? '');
     }
 

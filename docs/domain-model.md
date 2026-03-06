@@ -356,13 +356,8 @@ POS never manipulates stock directly. It requests reservation operations through
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `dropId` | `string` | Unique identifier |
-| `shiftId` | `ShiftId` | Parent shift |
 | `amount` | `Money` | Amount removed |
-| `performedBy` | `CashierId` | Who performed the drop |
-| `approvedBy` | `?string` | Supervisor who approved (if required) |
-| `reason` | `string` | Reason for the drop |
-| `timestamp` | `DateTimeImmutable` | When the drop occurred |
+| `recordedAt` | `DateTimeImmutable` | When the drop was recorded |
 
 ### Rules
 
@@ -472,7 +467,7 @@ interface PaymentServiceInterface
 | `ShiftOpened` | shiftId, terminalId, branchId, cashierId, openingCashAmount |
 | `ShiftClosed` | shiftId, declaredCash, expectedCash, variance |
 | `ShiftForceClosed` | shiftId, supervisorId, reason |
-| `CashDropRecorded` | shiftId, dropId, amount, performedBy, reason |
+| `CashDropRecorded` | shiftId, amount, recordedAt |
 
 ### Session Events
 
@@ -482,11 +477,16 @@ interface PaymentServiceInterface
 | `NewOrderStarted` | sessionId, orderId |
 | `OrderParked` | sessionId, orderId |
 | `OrderResumed` | sessionId, orderId |
+| `OrderDeactivated` | sessionId, orderId, reason |
+| `OrderReactivated` | sessionId, orderId |
 | `CheckoutInitiated` | sessionId, orderId |
-| `PaymentRequested` | sessionId, orderId, amount, method |
+| `PaymentRequested` | sessionId, orderId, amount, paymentMethod |
 | `OrderCompleted` | sessionId, orderId |
 | `OrderCancelledViaPOS` | sessionId, orderId, reason |
 | `SessionEnded` | sessionId |
+| `OrderCreatedOffline` | sessionId, orderId, commandId |
+| `OrderMarkedPendingSync` | sessionId, orderId |
+| `OrderSyncedOnline` | sessionId, orderId |
 
 ---
 

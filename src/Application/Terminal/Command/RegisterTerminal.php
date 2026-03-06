@@ -32,8 +32,7 @@ final class RegisterTerminal extends AbstractCommand
         string $branchId,
         string $name,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($terminalId, $branchId, $name, $commandId ?? '');
     }
 

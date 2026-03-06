@@ -23,8 +23,7 @@ final class ParkOrder extends AbstractCommand
     final public static function forSession(
         string $sessionId,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $commandId ?? '');
     }
 

@@ -30,8 +30,7 @@ final class OrderMarkedPendingSync extends AbstractAggregateEvent implements Dom
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId
-    ): self
-    {
+    ): self {
         $event = new self();
         $event->sessionId = $sessionId;
         $event->orderId   = $orderId;

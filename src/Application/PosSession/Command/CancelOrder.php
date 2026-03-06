@@ -28,8 +28,7 @@ final class CancelOrder extends AbstractCommand
         string $sessionId,
         string $reason,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $reason, $commandId ?? '');
     }
 

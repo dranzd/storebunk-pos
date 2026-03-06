@@ -215,6 +215,45 @@ final class PosSessionTest extends TestCase
         $session->initiateCheckout();
     }
 
+    public function test_it_cannot_initiate_checkout_when_already_in_checkout_state(): void
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->initiateCheckout();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Can only initiate checkout from Building state');
+
+        $session->initiateCheckout();
+    }
+
+    public function test_it_cannot_request_payment_from_building_state(): void
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->popRecordedEvents();
+
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 10000, 'currency' => 'USD']);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Can only request payment in Checkout state');
+
+        $session->requestPayment($amount, 'cash');
+    }
+
+    public function test_it_cannot_complete_order_from_building_state(): void
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Can only complete order in Checkout state');
+
+        $session->completeOrder();
+    }
+
     public function test_it_can_request_payment(): void
     {
         $session = $this->createStartedSession();

@@ -31,8 +31,7 @@ final class ForceCloseShift extends AbstractCommand
         string $supervisorId,
         string $reason,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($shiftId, $supervisorId, $reason, $commandId ?? '');
     }
 

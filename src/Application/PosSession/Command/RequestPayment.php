@@ -37,8 +37,7 @@ final class RequestPayment extends AbstractCommand
         string $currency,
         string $paymentMethod,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $amount, $currency, $paymentMethod, $commandId ?? '');
     }
 

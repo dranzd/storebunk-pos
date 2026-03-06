@@ -33,8 +33,7 @@ final class StartSession extends AbstractCommand
         string $shiftId,
         string $terminalId,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $shiftId, $terminalId, $commandId ?? '');
     }
 

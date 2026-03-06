@@ -8,8 +8,13 @@ use Dranzd\StorebunkPos\Application\PosSession\ReadModel\PosSessionReadModelInte
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderParked;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 
@@ -75,6 +80,46 @@ final class InMemoryPosSessionReadModel implements PosSessionReadModelInterface
             $this->sessions[$sessionId]['active_order_id']  = null;
             $this->sessions[$sessionId]['last_activity_at'] = $event->getCancelledAt();
         }
+    }
+
+    final public function onOrderDeactivated(OrderDeactivated $event): void
+    {
+        $sessionId = $event->getSessionId()->toNative();
+        if (isset($this->sessions[$sessionId])) {
+            $this->sessions[$sessionId]['active_order_id']  = null;
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getDeactivatedAt();
+        }
+    }
+
+    final public function onOrderReactivated(OrderReactivated $event): void
+    {
+        $sessionId = $event->getSessionId()->toNative();
+        if (isset($this->sessions[$sessionId])) {
+            $this->sessions[$sessionId]['active_order_id']  = $event->getOrderId()->toNative();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->getReactivatedAt();
+        }
+    }
+
+    final public function onOrderCreatedOffline(OrderCreatedOffline $event): void
+    {
+        $sessionId = $event->getSessionId()->toNative();
+        if (isset($this->sessions[$sessionId])) {
+            $this->sessions[$sessionId]['active_order_id']  = $event->getOrderId()->toNative();
+            $this->sessions[$sessionId]['last_activity_at'] = $event->occurredAt();
+        }
+    }
+
+    final public function onOrderMarkedPendingSync(OrderMarkedPendingSync $event): void
+    {
+        $sessionId = $event->getSessionId()->toNative();
+        if (isset($this->sessions[$sessionId])) {
+            $this->sessions[$sessionId]['active_order_id']  = null;
+            $this->sessions[$sessionId]['last_activity_at'] = $event->occurredAt();
+        }
+    }
+
+    final public function onOrderSyncedOnline(OrderSyncedOnline $event): void
+    {
     }
 
     final public function onSessionEnded(SessionEnded $event): void

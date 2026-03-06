@@ -29,8 +29,7 @@ final class StartNewOrderOffline extends AbstractCommand
         string $sessionId,
         string $orderId,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($sessionId, $orderId, $commandId ?? '');
     }
 

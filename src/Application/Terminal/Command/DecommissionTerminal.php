@@ -28,8 +28,7 @@ final class DecommissionTerminal extends AbstractCommand
         string $terminalId,
         string $reason,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self(
             $terminalId,
             $reason,

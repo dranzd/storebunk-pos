@@ -6,9 +6,13 @@ namespace Dranzd\StorebunkPos\Tests\Unit\Infrastructure\Terminal;
 
 use DateTimeImmutable;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalActivated;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDisabled;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalMaintenanceSet;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalReassigned;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRegistered;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRenamed;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel\InMemoryTerminalReadModel;
@@ -121,6 +125,59 @@ final class InMemoryTerminalReadModelTest extends TestCase
 
         $disabledTerminals = $this->readModel->getTerminalsByStatus('disabled');
         $this->assertCount(1, $disabledTerminals);
+    }
+
+    public function test_it_projects_terminal_renamed_event(): void
+    {
+        $terminalId = new TerminalId();
+        $this->registerTerminal($terminalId);
+
+        $event = TerminalRenamed::occur($terminalId, 'Terminal', 'POS Station 2', new DateTimeImmutable());
+        $this->readModel->onTerminalRenamed($event);
+
+        $terminal = $this->readModel->getTerminal($terminalId->toNative());
+        $this->assertSame('POS Station 2', $terminal['name']);
+    }
+
+    public function test_it_projects_terminal_reassigned_event(): void
+    {
+        $terminalId = new TerminalId();
+        $oldBranch  = new BranchId();
+        $newBranch  = new BranchId();
+        $this->registerTerminalWithBranch($terminalId, $oldBranch);
+
+        $event = TerminalReassigned::occur($terminalId, $oldBranch, $newBranch, new DateTimeImmutable());
+        $this->readModel->onTerminalReassigned($event);
+
+        $terminal = $this->readModel->getTerminal($terminalId->toNative());
+        $this->assertSame($newBranch->toNative(), $terminal['branch_id']);
+    }
+
+    public function test_it_projects_terminal_decommissioned_event(): void
+    {
+        $terminalId = new TerminalId();
+        $this->registerTerminal($terminalId);
+
+        $event = TerminalDecommissioned::occur($terminalId, 'end of life', new DateTimeImmutable());
+        $this->readModel->onTerminalDecommissioned($event);
+
+        $terminal = $this->readModel->getTerminal($terminalId->toNative());
+        $this->assertSame('decommissioned', $terminal['status']);
+    }
+
+    public function test_it_projects_terminal_recommissioned_event(): void
+    {
+        $terminalId = new TerminalId();
+        $this->registerTerminal($terminalId);
+        $this->readModel->onTerminalDecommissioned(
+            TerminalDecommissioned::occur($terminalId, 'end of life', new DateTimeImmutable())
+        );
+
+        $event = TerminalRecommissioned::occur($terminalId, 'returned to service', new DateTimeImmutable());
+        $this->readModel->onTerminalRecommissioned($event);
+
+        $terminal = $this->readModel->getTerminal($terminalId->toNative());
+        $this->assertSame('disabled', $terminal['status']);
     }
 
     private function registerTerminal(TerminalId $terminalId): void

@@ -6,9 +6,13 @@ namespace Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel;
 
 use Dranzd\StorebunkPos\Application\Terminal\ReadModel\TerminalReadModelInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalActivated;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalDisabled;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalMaintenanceSet;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalReassigned;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRecommissioned;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRegistered;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRenamed;
 
 final class InMemoryTerminalReadModel implements TerminalReadModelInterface
 {
@@ -49,6 +53,38 @@ final class InMemoryTerminalReadModel implements TerminalReadModelInterface
         $terminalId = $event->getTerminalId()->toNative();
         if (isset($this->terminals[$terminalId])) {
             $this->terminals[$terminalId]['status'] = 'maintenance';
+        }
+    }
+
+    final public function onTerminalRenamed(TerminalRenamed $event): void
+    {
+        $terminalId = $event->getTerminalId()->toNative();
+        if (isset($this->terminals[$terminalId])) {
+            $this->terminals[$terminalId]['name'] = $event->getNewName();
+        }
+    }
+
+    final public function onTerminalReassigned(TerminalReassigned $event): void
+    {
+        $terminalId = $event->getTerminalId()->toNative();
+        if (isset($this->terminals[$terminalId])) {
+            $this->terminals[$terminalId]['branch_id'] = $event->getNewBranchId()->toNative();
+        }
+    }
+
+    final public function onTerminalDecommissioned(TerminalDecommissioned $event): void
+    {
+        $terminalId = $event->getTerminalId()->toNative();
+        if (isset($this->terminals[$terminalId])) {
+            $this->terminals[$terminalId]['status'] = 'decommissioned';
+        }
+    }
+
+    final public function onTerminalRecommissioned(TerminalRecommissioned $event): void
+    {
+        $terminalId = $event->getTerminalId()->toNative();
+        if (isset($this->terminals[$terminalId])) {
+            $this->terminals[$terminalId]['status'] = 'disabled';
         }
     }
 

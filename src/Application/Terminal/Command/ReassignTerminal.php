@@ -29,8 +29,7 @@ final class ReassignTerminal extends AbstractCommand
         string $terminalId,
         string $newBranchId,
         ?string $commandId = null
-    ): self
-    {
+    ): self {
         return new self($terminalId, $newBranchId, $commandId ?? '');
     }
 
