@@ -6,14 +6,14 @@ namespace Dranzd\StorebunkPos\Domain\Model\Shift\Event;
 
 use DateTimeImmutable;
 use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInterface
+final class ShiftOpened extends BaseAggregateEvent implements DomainEventInterface
 {
     private ShiftId $shiftId;
     private TerminalId $terminalId;
@@ -21,22 +21,6 @@ final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInt
     private CashierId $cashierId;
     private Money $openingCashAmount;
     private DateTimeImmutable $openedAt;
-
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->branchId = BranchId::fromNative($array['payload']['branch_id']);
-        $event->cashierId = CashierId::fromNative($array['payload']['cashier_id']);
-        $event->openingCashAmount = Money::fromArray($array['payload']['opening_cash_amount']);
-        $event->openedAt = new DateTimeImmutable($array['payload']['opened_at']);
-
-        return $event;
-    }
 
     final public static function occur(
         ShiftId $shiftId,
@@ -46,32 +30,45 @@ final class ShiftOpened extends AbstractAggregateEvent implements DomainEventInt
         Money $openingCashAmount,
         DateTimeImmutable $openedAt
     ): self {
-        $event = new self();
-        $event->shiftId = $shiftId;
-        $event->terminalId = $terminalId;
-        $event->branchId = $branchId;
-        $event->cashierId = $cashierId;
-        $event->openingCashAmount = $openingCashAmount;
-        $event->openedAt = $openedAt;
+        $instance = new self();
+        $instance->shiftId = $shiftId;
+        $instance->terminalId = $terminalId;
+        $instance->branchId = $branchId;
+        $instance->cashierId = $cashierId;
+        $instance->openingCashAmount = $openingCashAmount;
+        $instance->openedAt = $openedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.shift.opened';
+        return "storebunk.pos.shift.opened";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'shift_id' => $this->shiftId->toNative(),
-            'terminal_id' => $this->terminalId->toNative(),
-            'branch_id' => $this->branchId->toNative(),
-            'cashier_id' => $this->cashierId->toNative(),
-            'opening_cash_amount' => $this->openingCashAmount->toArray(),
-            'opened_at' => $this->openedAt->format(DATE_ATOM),
+            "shift_id" => $this->shiftId->toNative(),
+            "terminal_id" => $this->terminalId->toNative(),
+            "branch_id" => $this->branchId->toNative(),
+            "cashier_id" => $this->cashierId->toNative(),
+            "opening_cash_amount" => $this->openingCashAmount->toArray(),
+            "opened_at" => $this->openedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->branchId = BranchId::fromNative($payload["branch_id"]);
+        $this->cashierId = CashierId::fromNative($payload["cashier_id"]);
+        $this->openingCashAmount = Money::fromArray($payload["opening_cash_amount"]);
+        $this->openedAt = new DateTimeImmutable($payload["opened_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

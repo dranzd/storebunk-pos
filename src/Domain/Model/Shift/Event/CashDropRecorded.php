@@ -6,54 +6,51 @@ namespace Dranzd\StorebunkPos\Domain\Model\Shift\Event;
 
 use DateTimeImmutable;
 use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 
-final class CashDropRecorded extends AbstractAggregateEvent implements DomainEventInterface
+final class CashDropRecorded extends BaseAggregateEvent implements DomainEventInterface
 {
     private ShiftId $shiftId;
     private Money $amount;
     private DateTimeImmutable $recordedAt;
-
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
-        $event->amount = Money::fromArray($array['payload']['amount']);
-        $event->recordedAt = new DateTimeImmutable($array['payload']['recorded_at']);
-
-        return $event;
-    }
 
     final public static function occur(
         ShiftId $shiftId,
         Money $amount,
         DateTimeImmutable $recordedAt
     ): self {
-        $event = new self();
-        $event->shiftId = $shiftId;
-        $event->amount = $amount;
-        $event->recordedAt = $recordedAt;
+        $instance = new self();
+        $instance->shiftId = $shiftId;
+        $instance->amount = $amount;
+        $instance->recordedAt = $recordedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.shift.cash_drop_recorded';
+        return "storebunk.pos.shift.cash_drop_recorded";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'shift_id' => $this->shiftId->toNative(),
-            'amount' => $this->amount->toArray(),
-            'recorded_at' => $this->recordedAt->format(DATE_ATOM),
+            "shift_id" => $this->shiftId->toNative(),
+            "amount" => $this->amount->toArray(),
+            "recorded_at" => $this->recordedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
+        $this->amount = Money::fromArray($payload["amount"]);
+        $this->recordedAt = new DateTimeImmutable($payload["recorded_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

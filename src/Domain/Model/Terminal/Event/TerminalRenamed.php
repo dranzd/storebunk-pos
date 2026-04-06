@@ -5,59 +5,52 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\Terminal\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class TerminalRenamed extends AbstractAggregateEvent implements DomainEventInterface
+final class TerminalRenamed extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private TerminalId $terminalId;
-    private string $oldName;
     private string $newName;
     private DateTimeImmutable $renamedAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->oldName = $array['payload']['old_name'];
-        $event->newName = $array['payload']['new_name'];
-        $event->renamedAt = new DateTimeImmutable($array['payload']['renamed_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         TerminalId $terminalId,
-        string $oldName,
         string $newName,
-        DateTimeImmutable $renamedAt
+        DateTimeImmutable $renamedAt,
     ): self {
-        $event = new self();
-        $event->terminalId = $terminalId;
-        $event->oldName = $oldName;
-        $event->newName = $newName;
-        $event->renamedAt = $renamedAt;
+        $instance = new self();
+        $instance->terminalId = $terminalId;
+        $instance->newName = $newName;
+        $instance->renamedAt = $renamedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.terminal.renamed';
+        return "storebunk.pos.terminal.renamed";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'terminal_id' => $this->terminalId->toNative(),
-            'old_name' => $this->oldName,
-            'new_name' => $this->newName,
-            'renamed_at' => $this->renamedAt->format(DATE_ATOM),
+            "terminal_id" => $this->terminalId->toNative(),
+            "new_name" => $this->newName,
+            "renamed_at" => $this->renamedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->newName = $payload["new_name"];
+        $this->renamedAt = new DateTimeImmutable($payload["renamed_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable
@@ -68,11 +61,6 @@ final class TerminalRenamed extends AbstractAggregateEvent implements DomainEven
     final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
-    }
-
-    final public function getOldName(): string
-    {
-        return $this->oldName;
     }
 
     final public function getNewName(): string

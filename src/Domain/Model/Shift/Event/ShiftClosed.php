@@ -6,64 +6,51 @@ namespace Dranzd\StorebunkPos\Domain\Model\Shift\Event;
 
 use DateTimeImmutable;
 use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 
-final class ShiftClosed extends AbstractAggregateEvent implements DomainEventInterface
+final class ShiftClosed extends BaseAggregateEvent implements DomainEventInterface
 {
     private ShiftId $shiftId;
-    private Money $declaredClosingCashAmount;
-    private Money $expectedCashAmount;
-    private Money $varianceAmount;
+    private Money $closingCashAmount;
     private DateTimeImmutable $closedAt;
-
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
-        $event->declaredClosingCashAmount = Money::fromArray($array['payload']['declared_closing_cash_amount']);
-        $event->expectedCashAmount = Money::fromArray($array['payload']['expected_cash_amount']);
-        $event->varianceAmount = Money::fromArray($array['payload']['variance_amount']);
-        $event->closedAt = new DateTimeImmutable($array['payload']['closed_at']);
-
-        return $event;
-    }
 
     final public static function occur(
         ShiftId $shiftId,
-        Money $declaredClosingCashAmount,
-        Money $expectedCashAmount,
-        Money $varianceAmount,
+        Money $closingCashAmount,
         DateTimeImmutable $closedAt
     ): self {
-        $event = new self();
-        $event->shiftId = $shiftId;
-        $event->declaredClosingCashAmount = $declaredClosingCashAmount;
-        $event->expectedCashAmount = $expectedCashAmount;
-        $event->varianceAmount = $varianceAmount;
-        $event->closedAt = $closedAt;
+        $instance = new self();
+        $instance->shiftId = $shiftId;
+        $instance->closingCashAmount = $closingCashAmount;
+        $instance->closedAt = $closedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.shift.closed';
+        return "storebunk.pos.shift.closed";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'shift_id' => $this->shiftId->toNative(),
-            'declared_closing_cash_amount' => $this->declaredClosingCashAmount->toArray(),
-            'expected_cash_amount' => $this->expectedCashAmount->toArray(),
-            'variance_amount' => $this->varianceAmount->toArray(),
-            'closed_at' => $this->closedAt->format(DATE_ATOM),
+            "shift_id" => $this->shiftId->toNative(),
+            "closing_cash_amount" => $this->closingCashAmount->toArray(),
+            "closed_at" => $this->closedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
+        $this->closingCashAmount = Money::fromArray($payload["closing_cash_amount"]);
+        $this->closedAt = new DateTimeImmutable($payload["closed_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable
@@ -76,19 +63,9 @@ final class ShiftClosed extends AbstractAggregateEvent implements DomainEventInt
         return $this->shiftId;
     }
 
-    final public function getDeclaredClosingCashAmount(): Money
+    final public function getClosingCashAmount(): Money
     {
-        return $this->declaredClosingCashAmount;
-    }
-
-    final public function getExpectedCashAmount(): Money
-    {
-        return $this->expectedCashAmount;
-    }
-
-    final public function getVarianceAmount(): Money
-    {
-        return $this->varianceAmount;
+        return $this->closingCashAmount;
     }
 
     final public function getClosedAt(): DateTimeImmutable

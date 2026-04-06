@@ -5,49 +5,48 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\Terminal\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class TerminalDisabled extends AbstractAggregateEvent implements DomainEventInterface
+final class TerminalDisabled extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private TerminalId $terminalId;
     private DateTimeImmutable $disabledAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->disabledAt = new DateTimeImmutable($array['payload']['disabled_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         TerminalId $terminalId,
-        DateTimeImmutable $disabledAt
+        DateTimeImmutable $disabledAt,
     ): self {
-        $event = new self();
-        $event->terminalId = $terminalId;
-        $event->disabledAt = $disabledAt;
-
-        return $event;
+        $instance = new self();
+        $instance->terminalId = $terminalId;
+        $instance->disabledAt = $disabledAt;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.terminal.disabled';
+        return "storebunk.pos.terminal.disabled";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'terminal_id' => $this->terminalId->toNative(),
-            'disabled_at' => $this->disabledAt->format(DATE_ATOM),
+            "terminal_id" => $this->terminalId->toNative(),
+            "disabled_at" => $this->disabledAt->format(
+                \DateTimeInterface::ATOM,
+            ),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->disabledAt = new DateTimeImmutable($payload["disabled_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

@@ -5,60 +5,60 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\Terminal\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class TerminalRegistered extends AbstractAggregateEvent implements DomainEventInterface
+final class TerminalRegistered extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private TerminalId $terminalId;
     private BranchId $branchId;
     private string $name;
     private DateTimeImmutable $registeredAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->branchId = BranchId::fromNative($array['payload']['branch_id']);
-        $event->name = $array['payload']['name'];
-        $event->registeredAt = new DateTimeImmutable($array['payload']['registered_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         TerminalId $terminalId,
         BranchId $branchId,
         string $name,
-        DateTimeImmutable $registeredAt
+        DateTimeImmutable $registeredAt,
     ): self {
-        $event = new self();
-        $event->terminalId = $terminalId;
-        $event->branchId = $branchId;
-        $event->name = $name;
-        $event->registeredAt = $registeredAt;
+        $instance = new self();
+        $instance->terminalId = $terminalId;
+        $instance->branchId = $branchId;
+        $instance->name = $name;
+        $instance->registeredAt = $registeredAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.terminal.registered';
+        return "storebunk.pos.terminal.registered";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'terminal_id' => $this->terminalId->toNative(),
-            'branch_id' => $this->branchId->toNative(),
-            'name' => $this->name,
-            'registered_at' => $this->registeredAt->format(DATE_ATOM),
+            "terminal_id" => $this->terminalId->toNative(),
+            "branch_id" => $this->branchId->toNative(),
+            "name" => $this->name,
+            "registered_at" => $this->registeredAt->format(
+                \DateTimeInterface::ATOM,
+            ),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->branchId = BranchId::fromNative($payload["branch_id"]);
+        $this->name = $payload["name"];
+        $this->registeredAt = new DateTimeImmutable($payload["registered_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

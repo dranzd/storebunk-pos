@@ -5,61 +5,59 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\PosSession\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class SessionStarted extends AbstractAggregateEvent implements DomainEventInterface
+final class SessionStarted extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private SessionId $sessionId;
     private ShiftId $shiftId;
     private TerminalId $terminalId;
     private DateTimeImmutable $startedAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
-        $event->shiftId = ShiftId::fromNative($array['payload']['shift_id']);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->startedAt = new DateTimeImmutable($array['payload']['started_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         SessionId $sessionId,
         ShiftId $shiftId,
         TerminalId $terminalId,
-        DateTimeImmutable $startedAt
+        DateTimeImmutable $startedAt,
     ): self {
-        $event = new self();
-        $event->sessionId = $sessionId;
-        $event->shiftId = $shiftId;
-        $event->terminalId = $terminalId;
-        $event->startedAt = $startedAt;
+        $instance = new self();
+        $instance->sessionId = $sessionId;
+        $instance->shiftId = $shiftId;
+        $instance->terminalId = $terminalId;
+        $instance->startedAt = $startedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.session.started';
+        return "storebunk.pos.session.started";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'session_id' => $this->sessionId->toNative(),
-            'shift_id' => $this->shiftId->toNative(),
-            'terminal_id' => $this->terminalId->toNative(),
-            'started_at' => $this->startedAt->format(DATE_ATOM),
+            "session_id" => $this->sessionId->toNative(),
+            "shift_id" => $this->shiftId->toNative(),
+            "terminal_id" => $this->terminalId->toNative(),
+            "started_at" => $this->startedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->sessionId = SessionId::fromNative($payload["session_id"]);
+        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->startedAt = new DateTimeImmutable($payload["started_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

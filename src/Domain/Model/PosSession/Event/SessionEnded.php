@@ -5,36 +5,24 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\PosSession\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
-final class SessionEnded extends AbstractAggregateEvent implements DomainEventInterface
+final class SessionEnded extends BaseAggregateEvent implements DomainEventInterface
 {
     private SessionId $sessionId;
     private DateTimeImmutable $endedAt;
-
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
-        $event->endedAt = new DateTimeImmutable($array['payload']['ended_at']);
-
-        return $event;
-    }
 
     final public static function occur(
         SessionId $sessionId,
         DateTimeImmutable $endedAt
     ): self {
-        $event = new self();
-        $event->sessionId = $sessionId;
-        $event->endedAt = $endedAt;
+        $instance = new self();
+        $instance->sessionId = $sessionId;
+        $instance->endedAt = $endedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
@@ -42,12 +30,21 @@ final class SessionEnded extends AbstractAggregateEvent implements DomainEventIn
         return 'storebunk.pos.session.ended';
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
             'session_id' => $this->sessionId->toNative(),
-            'ended_at' => $this->endedAt->format(DATE_ATOM),
+            'ended_at' => $this->endedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->endedAt = new DateTimeImmutable($payload['ended_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

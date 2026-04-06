@@ -5,55 +5,53 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\PosSession\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
-final class NewOrderStarted extends AbstractAggregateEvent implements DomainEventInterface
+final class NewOrderStarted extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private SessionId $sessionId;
     private OrderId $orderId;
     private DateTimeImmutable $startedAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
-        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
-        $event->startedAt = new DateTimeImmutable($array['payload']['started_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,
-        DateTimeImmutable $startedAt
+        DateTimeImmutable $startedAt,
     ): self {
-        $event = new self();
-        $event->sessionId = $sessionId;
-        $event->orderId = $orderId;
-        $event->startedAt = $startedAt;
+        $instance = new self();
+        $instance->sessionId = $sessionId;
+        $instance->orderId = $orderId;
+        $instance->startedAt = $startedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.session.new_order_started';
+        return "storebunk.pos.session.new_order_started";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'session_id' => $this->sessionId->toNative(),
-            'order_id' => $this->orderId->toNative(),
-            'started_at' => $this->startedAt->format(DATE_ATOM),
+            "session_id" => $this->sessionId->toNative(),
+            "order_id" => $this->orderId->toNative(),
+            "started_at" => $this->startedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->sessionId = SessionId::fromNative($payload["session_id"]);
+        $this->orderId = OrderId::fromNative($payload["order_id"]);
+        $this->startedAt = new DateTimeImmutable($payload["started_at"]);
     }
 
     final public function occurredAt(): DateTimeImmutable

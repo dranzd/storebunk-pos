@@ -6,33 +6,18 @@ namespace Dranzd\StorebunkPos\Domain\Model\PosSession\Event;
 
 use DateTimeImmutable;
 use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
-final class PaymentRequested extends AbstractAggregateEvent implements DomainEventInterface
+final class PaymentRequested extends BaseAggregateEvent implements DomainEventInterface
 {
     private SessionId $sessionId;
     private OrderId $orderId;
     private Money $amount;
     private string $paymentMethod;
     private DateTimeImmutable $requestedAt;
-
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->sessionId = SessionId::fromNative($array['payload']['session_id']);
-        $event->orderId = OrderId::fromNative($array['payload']['order_id']);
-        $event->amount = Money::fromArray($array['payload']['amount']);
-        $event->paymentMethod = $array['payload']['payment_method'];
-        $event->requestedAt = new DateTimeImmutable($array['payload']['requested_at']);
-
-        return $event;
-    }
 
     final public static function occur(
         SessionId $sessionId,
@@ -41,14 +26,14 @@ final class PaymentRequested extends AbstractAggregateEvent implements DomainEve
         string $paymentMethod,
         DateTimeImmutable $requestedAt
     ): self {
-        $event = new self();
-        $event->sessionId = $sessionId;
-        $event->orderId = $orderId;
-        $event->amount = $amount;
-        $event->paymentMethod = $paymentMethod;
-        $event->requestedAt = $requestedAt;
+        $instance = new self();
+        $instance->sessionId = $sessionId;
+        $instance->orderId = $orderId;
+        $instance->amount = $amount;
+        $instance->paymentMethod = $paymentMethod;
+        $instance->requestedAt = $requestedAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
@@ -56,15 +41,27 @@ final class PaymentRequested extends AbstractAggregateEvent implements DomainEve
         return 'storebunk.pos.session.payment_requested';
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
             'session_id' => $this->sessionId->toNative(),
             'order_id' => $this->orderId->toNative(),
             'amount' => $this->amount->toArray(),
             'payment_method' => $this->paymentMethod,
-            'requested_at' => $this->requestedAt->format(DATE_ATOM),
+            'requested_at' => $this->requestedAt->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->amount = Money::fromArray($payload['amount']);
+        $this->paymentMethod = $payload['payment_method'];
+        $this->requestedAt = new DateTimeImmutable($payload['requested_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

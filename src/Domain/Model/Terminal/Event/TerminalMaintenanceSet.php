@@ -5,49 +5,51 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Model\Terminal\Event;
 
 use DateTimeImmutable;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
+use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
-final class TerminalMaintenanceSet extends AbstractAggregateEvent implements DomainEventInterface
+final class TerminalMaintenanceSet extends BaseAggregateEvent implements
+    DomainEventInterface
 {
     private TerminalId $terminalId;
     private DateTimeImmutable $maintenanceSetAt;
 
-    /**
-     * @param array<string, mixed> $array
-     */
-    final public static function fromArray(array $array): static
-    {
-        $event = parent::fromArray($array);
-        $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-        $event->maintenanceSetAt = new DateTimeImmutable($array['payload']['maintenance_set_at']);
-
-        return $event;
-    }
-
     final public static function occur(
         TerminalId $terminalId,
-        DateTimeImmutable $maintenanceSetAt
+        DateTimeImmutable $maintenanceSetAt,
     ): self {
-        $event = new self();
-        $event->terminalId = $terminalId;
-        $event->maintenanceSetAt = $maintenanceSetAt;
+        $instance = new self();
+        $instance->terminalId = $terminalId;
+        $instance->maintenanceSetAt = $maintenanceSetAt;
 
-        return $event;
+        return $instance;
     }
 
     final public static function expectedMessageName(): string
     {
-        return 'storebunk.pos.terminal.maintenance_set';
+        return "storebunk.pos.terminal.maintenance_set";
     }
 
-    final public function toArray(): array
+    final public function getPayload(): array
     {
         return [
-            'terminal_id' => $this->terminalId->toNative(),
-            'maintenance_set_at' => $this->maintenanceSetAt->format(DATE_ATOM),
+            "terminal_id" => $this->terminalId->toNative(),
+            "maintenance_set_at" => $this->maintenanceSetAt->format(
+                \DateTimeInterface::ATOM,
+            ),
         ];
+    }
+
+    final protected function setPayload(array $payload): void
+    {
+        if (empty($payload)) {
+            return;
+        }
+        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->maintenanceSetAt = new DateTimeImmutable(
+            $payload["maintenance_set_at"],
+        );
     }
 
     final public function occurredAt(): DateTimeImmutable
