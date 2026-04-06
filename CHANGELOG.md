@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-06
+
+### Added
+
+- **BaseAggregateEvent** abstract base class — provides standard implementation of `getPayload()` and `setPayload()` for all domain events
+- **PayloadContractTest** — comprehensive PHPUnit test suite covering all 26 POS domain events with payload serialization and hydration verification
+- **AI Documentation Policy** (`docs/ai-documentation-policy.md`) — establishes guidelines for raw-discussion docs (off-limits) and specification storage with kebab-case naming
+- **Event Pattern Specification** (`docs/specifications/event-pattern-specification.md`) — consolidated analysis and implementation plan for event payload contract fix
+
+### Changed
+
+- All 26 POS domain events refactored to extend `BaseAggregateEvent` instead of directly implementing event interface
+- Makefile refactored to match storebunk-inventory UI style with explicit help targets and section headers
+- Removed ad-hoc verification script (`verify_payload_fix.php`) in favor of automated PHPUnit tests
+- PHPUnit configuration migrated to current schema (removes deprecation notice)
+
+### Fixed
+
+- Event payload contract: all events now properly implement `getPayload()` and `setPayload()` with complete data serialization (fixes #2001)
+- Terminal and Shift events — restored missing event parameters that were previously lost
+- Legacy `toArray()`/`fromArray()` patterns replaced with library-standard payload contract
+- PHPUnit deprecation: `phpunit.xml` now validates against current schema
+
 ## [1.1.0] - 2026-02-20
 
 ### Added

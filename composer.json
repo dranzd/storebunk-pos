@@ -1,79 +1,79 @@
 {
-    "name": "dranzd/storebunk-pos",
-    "description": "POS Domain library for StoreBunk Multi-Retail Platform - manages terminal lifecycle, cashier shifts, checkout orchestration, payment delegation, and operational cash tracking",
-    "type": "library",
-    "version": "1.1.0",
-    "license": "MIT",
-    "require": {
-        "php": "^8.3",
-        "dranzd/common-event-sourcing": "dev-master",
-        "dranzd/common-cqrs": "dev-master",
-        "dranzd/common-valueobject": "dev-master",
-        "dranzd/common-domain-assert": "dev-master",
-        "dranzd/common-utils": "dev-master",
-        "dranzd/standards-doc": "dev-main",
-        "ramsey/uuid": "^4.7"
+  "name": "dranzd/storebunk-pos",
+  "description": "POS Domain library for StoreBunk Multi-Retail Platform - manages terminal lifecycle, cashier shifts, checkout orchestration, payment delegation, and operational cash tracking",
+  "type": "library",
+  "version": "1.1.1",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "dranzd/common-event-sourcing": "dev-master",
+    "dranzd/common-cqrs": "dev-master",
+    "dranzd/common-valueobject": "dev-master",
+    "dranzd/common-domain-assert": "dev-master",
+    "dranzd/common-utils": "dev-master",
+    "dranzd/standards-doc": "dev-main",
+    "ramsey/uuid": "^4.7"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0",
+    "phpstan/phpstan": "^1.10",
+    "squizlabs/php_codesniffer": "^3.7"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/common-event-sourcing.git"
     },
-    "require-dev": {
-        "phpunit/phpunit": "^11.0",
-        "phpstan/phpstan": "^1.10",
-        "squizlabs/php_codesniffer": "^3.7"
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/common-utils.git"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/common-event-sourcing.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/common-utils.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/common-domain-assert.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/common-valueobject.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/common-cqrs.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/dranzd/standards-doc.git"
-        }
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/common-domain-assert.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/common-valueobject.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/common-cqrs.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dranzd/standards-doc.git"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Dranzd\\StorebunkPos\\": "src/",
+      "Dranzd\\StorebunkPos\\Demo\\Cli\\": "demo/cli/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Dranzd\\StorebunkPos\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit --testdox",
+    "test:unit": "phpunit tests/Unit --testdox",
+    "test:integration": "phpunit tests/Integration --testdox",
+    "test:coverage": "phpunit --coverage-html coverage",
+    "test:filter": "phpunit --filter",
+    "phpstan": "phpstan analyse --memory-limit=512M",
+    "cs-check": "phpcs",
+    "cs-fix": "phpcbf",
+    "quality": [
+      "@test",
+      "@phpstan",
+      "@cs-check"
     ],
-    "autoload": {
-        "psr-4": {
-            "Dranzd\\StorebunkPos\\": "src/",
-            "Dranzd\\StorebunkPos\\Demo\\Cli\\": "demo/cli/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Dranzd\\StorebunkPos\\Tests\\": "tests/"
-        }
-    },
-    "scripts": {
-        "test": "phpunit --testdox",
-        "test:unit": "phpunit tests/Unit --testdox",
-        "test:integration": "phpunit tests/Integration --testdox",
-        "test:coverage": "phpunit --coverage-html coverage",
-        "test:filter": "phpunit --filter",
-        "phpstan": "phpstan analyse --memory-limit=512M",
-        "cs-check": "phpcs",
-        "cs-fix": "phpcbf",
-        "quality": [
-            "@test",
-            "@phpstan",
-            "@cs-check"
-        ],
-        "standards:diff": "vendor/bin/standards --diff-only",
-        "standards:dry-run": "vendor/bin/standards --dry-run",
-        "standards:sync": "vendor/bin/standards"
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "standards:diff": "vendor/bin/standards --diff-only",
+    "standards:dry-run": "vendor/bin/standards --dry-run",
+    "standards:sync": "vendor/bin/standards"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }
