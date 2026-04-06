@@ -345,12 +345,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:dranzd/common-event-sourcing.git",
-                "reference": "e58910b6c6b42563e15db92692c430e04ba2e1cf"
+                "reference": "301bf305d6b78919ae9342b5c39b503ba5e7490b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dranzd/common-event-sourcing/zipball/e58910b6c6b42563e15db92692c430e04ba2e1cf",
-                "reference": "e58910b6c6b42563e15db92692c430e04ba2e1cf",
+                "url": "https://api.github.com/repos/dranzd/common-event-sourcing/zipball/301bf305d6b78919ae9342b5c39b503ba5e7490b",
+                "reference": "301bf305d6b78919ae9342b5c39b503ba5e7490b",
                 "shasum": ""
             },
             "require": {
@@ -409,7 +409,7 @@
                 }
             ],
             "description": "Event sourcing helper package for common projects",
-            "time": "2026-03-01T15:40:22+00:00"
+            "time": "2026-03-10T04:04:32+00:00"
         },
         {
             "name": "dranzd/common-utils",
@@ -575,12 +575,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:dranzd/standards-doc.git",
-                "reference": "1c9cc66b81b2713f776ae069d20936c36827cdac"
+                "reference": "0b992e8241519ab4e4058c6e41e1b3ff419a525c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dranzd/standards-doc/zipball/1c9cc66b81b2713f776ae069d20936c36827cdac",
-                "reference": "1c9cc66b81b2713f776ae069d20936c36827cdac",
+                "url": "https://api.github.com/repos/dranzd/standards-doc/zipball/0b992e8241519ab4e4058c6e41e1b3ff419a525c",
+                "reference": "0b992e8241519ab4e4058c6e41e1b3ff419a525c",
                 "shasum": ""
             },
             "require": {
@@ -622,11 +622,7 @@
                 }
             ],
             "description": "Tagged standards and best practices for PHP projects (DDD, Event Sourcing, Architecture)",
-            "support": {
-                "source": "https://github.com/dranzd/standards-doc/tree/main",
-                "issues": "https://github.com/dranzd/standards-doc/issues"
-            },
-            "time": "2026-03-04T07:04:38+00:00"
+            "time": "2026-03-05T19:20:58+00:00"
         },
         {
             "name": "psr/container",

@@ -21,26 +21,26 @@ Successfully implemented the CQRS/ES library's payload-based serialization contr
 
 ### Phase 1: Analysis & Documentation (Completed)
 
-✅ **Comprehensive Analysis** (`docs/raw-discussions/20250406-0001-event-pattern-analysis.md`)
+✅ **Comprehensive Analysis** (`docs/specifications/event-pattern-analysis.md`)
 - Validated all 4 reported issues as legitimate
 - Provided detailed technical evidence from code inspection
 - Root cause analysis with cascade impact diagram
 - Full solution proposal with implementation roadmap
 
-✅ **Executive Summary** (`docs/raw-discussions/20250406-0001-SUMMARY.md`)
+✅ **Executive Summary** (`docs/specifications/event-pattern-implementation-summary.md`)
 - Business impact analysis (cost/benefit)
 - Risk assessment (if fixed vs. not fixed)
 - Timeline and effort estimates
 - Decision framework for stakeholders
 
-✅ **Implementation Guide** (`docs/raw-discussions/20250406-0001-fix-strategy.md`)
+✅ **Implementation Guide** (`docs/specifications/event-pattern-fix-strategy.md`)
 - Step-by-step implementation instructions
 - Code templates for all patterns
 - Test templates and verification scripts
 - Common pitfalls and solutions
 - Migration strategy
 
-✅ **Navigation Index** (`docs/raw-discussions/INDEX.md`)
+✅ **Navigation Index** (`docs/specifications/event-pattern-index.md`)
 - Quick reference guide
 - Reading guide by role
 - Success criteria
@@ -290,10 +290,10 @@ echo "Payload: " . json_encode($event->getPayload()) . "\n";
 
 - ✅ `src/Domain/Event/BaseAggregateEvent.php` - Base class for all POS events
 - ✅ `verify_payload_fix.php` - Verification script
-- ✅ `docs/raw-discussions/20250406-0001-SUMMARY.md` - Executive summary
-- ✅ `docs/raw-discussions/20250406-0001-event-pattern-analysis.md` - Technical analysis
-- ✅ `docs/raw-discussions/20250406-0001-fix-strategy.md` - Implementation guide
-- ✅ `docs/raw-discussions/INDEX.md` - Navigation index
+- ✅ `docs/specifications/event-pattern-implementation-summary.md` - Executive summary
+- ✅ `docs/specifications/event-pattern-analysis.md` - Technical analysis
+- ✅ `docs/specifications/event-pattern-fix-strategy.md` - Implementation guide
+- ✅ `docs/specifications/event-pattern-index.md` - Navigation index
 
 ### Modified Files (26 Event Classes)
 
@@ -460,10 +460,10 @@ final class YourNewEvent extends BaseAggregateEvent implements DomainEventInterf
 
 For questions about:
 
-- **Architecture**: See `docs/raw-discussions/20250406-0001-event-pattern-analysis.md`
-- **Implementation**: See `docs/raw-discussions/20250406-0001-fix-strategy.md`
-- **Business Case**: See `docs/raw-discussions/20250406-0001-SUMMARY.md`
-- **Navigation**: See `docs/raw-discussions/INDEX.md`
+- **Architecture**: See `docs/specifications/event-pattern-analysis.md`
+- **Implementation**: See `docs/specifications/event-pattern-fix-strategy.md`
+- **Business Case**: See `docs/specifications/event-pattern-implementation-summary.md`
+- **Navigation**: See `docs/specifications/event-pattern-index.md`
 
 ---
 

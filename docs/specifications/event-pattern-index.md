@@ -10,21 +10,21 @@
 ## Quick Navigation
 
 ### For Executives/Managers
-👉 **START HERE**: [`20250406-0001-SUMMARY.md`](./20250406-0001-SUMMARY.md)
+👉 **START HERE**: [`event-pattern-implementation-summary.md`](./event-pattern-implementation-summary.md)
 - 5-minute read
 - Business impact analysis
 - Cost/benefit comparison
 - Decision guidance
 
 ### For Technical Team
-👉 **START HERE**: [`20250406-0001-event-pattern-analysis.md`](./20250406-0001-event-pattern-analysis.md)
+👉 **START HERE**: [`event-pattern-analysis.md`](./event-pattern-analysis.md)
 - 30-minute read
 - Detailed technical validation
 - Code evidence & proof
 - Architecture implications
 
 ### For Developers (Implementation)
-👉 **START HERE**: [`20250406-0001-fix-strategy.md`](./20250406-0001-fix-strategy.md)
+👉 **START HERE**: [`event-pattern-fix-strategy.md`](./event-pattern-fix-strategy.md)
 - Implementation guide
 - Step-by-step instructions
 - Code templates
@@ -34,7 +34,7 @@
 
 ## Document Overview
 
-### 1. Executive Summary [`20250406-0001-SUMMARY.md`]
+### 1. Executive Summary [`event-pattern-implementation-summary.md`]
 
 **Audience**: Managers, architects, decision-makers  
 **Length**: 315 lines  
@@ -53,7 +53,7 @@
 
 ---
 
-### 2. Technical Analysis [`20250406-0001-event-pattern-analysis.md`]
+### 2. Technical Analysis [`event-pattern-analysis.md`]
 
 **Audience**: Technical leads, architects, senior engineers  
 **Length**: 795 lines  
@@ -78,7 +78,7 @@
 
 ---
 
-### 3. Fix Strategy [`20250406-0001-fix-strategy.md`]
+### 3. Fix Strategy [`event-pattern-fix-strategy.md`]
 
 **Audience**: Developers, implementation team  
 **Length**: 965 lines  
@@ -146,8 +146,8 @@ POS was built before CQRS/ES library standardized on `getPayload()` / `setPayloa
 4. Decision point: Approve or defer
 
 ### Technical Lead / Architect
-1. Read: `20250406-0001-SUMMARY.md` (5 min)
-2. Read: `20250406-0001-event-pattern-analysis.md` sections:
+1. Read: `event-pattern-implementation-summary.md` (5 min)
+2. Read: `event-pattern-analysis.md` sections:
    - Executive Summary
    - Issue Validation (all 4 issues)
    - Root Cause Analysis
@@ -155,13 +155,13 @@ POS was built before CQRS/ES library standardized on `getPayload()` / `setPayloa
 4. Review: Risk Assessment
 
 ### Senior Developer / Team Lead
-1. Read: `20250406-0001-event-pattern-analysis.md` (full, 30 min)
-2. Skim: `20250406-0001-fix-strategy.md` to understand scope
+1. Read: `event-pattern-analysis.md` (full, 30 min)
+2. Skim: `event-pattern-fix-strategy.md` to understand scope
 3. Plan: 2-3 day sprint
 4. Assign: Events to team members
 
 ### Implementation Developer
-1. Read: `20250406-0001-fix-strategy.md` (60 min)
+1. Read: `event-pattern-fix-strategy.md` (60 min)
 2. Review: Real example (SessionStarted)
 3. Review: Template patterns
 4. Start: With Terminal events (simpler)
@@ -183,7 +183,7 @@ All analysis backed by code inspection:
 - `/media/dev/dranzd/storebunk-inventory/src/Domain/Model/Barcode/Event/Registered.php`
 
 ### Library Documentation
-- `vendor/dranzd/common-cqrs/README.md`
+- `vendor/dranzd/common-event-sourcing/README.md`
 - `vendor/dranzd/common-event-sourcing/README.md`
 
 ### Library Code
@@ -256,14 +256,14 @@ After fix, verify:
 ## Documents at a Glance
 
 ```
-Analysis Documents (2025-04-06):
-├── INDEX.md (this file)
+Specification Documents (2025-04-06):
+├── event-pattern-index.md (this file)
 │   └─ Navigation & overview of all analysis
-├── 20250406-0001-SUMMARY.md [315 lines]
+├── event-pattern-implementation-summary.md [315 lines]
 │   └─ Executive summary for decision makers
-├── 20250406-0001-event-pattern-analysis.md [795 lines]
+├── event-pattern-analysis.md [795 lines]
 │   └─ Technical deep-dive with full evidence
-└── 20250406-0001-fix-strategy.md [965 lines]
+└── event-pattern-fix-strategy.md [965 lines]
     └─ Implementation guide with templates
 ```
 
