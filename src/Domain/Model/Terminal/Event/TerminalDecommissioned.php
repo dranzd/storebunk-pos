@@ -13,14 +13,17 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
     DomainEventInterface
 {
     private TerminalId $terminalId;
+    private string $reason;
     private DateTimeImmutable $decommissionedAt;
 
     final public static function occur(
         TerminalId $terminalId,
+        string $reason,
         DateTimeImmutable $decommissionedAt,
     ): self {
         $instance = new self();
         $instance->terminalId = $terminalId;
+        $instance->reason = $reason;
         $instance->decommissionedAt = $decommissionedAt;
         return $instance;
     }
@@ -34,6 +37,7 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
     {
         return [
             "terminal_id" => $this->terminalId->toNative(),
+            "reason" => $this->reason,
             "decommissioned_at" => $this->decommissionedAt->format(
                 \DateTimeInterface::ATOM,
             ),
@@ -46,6 +50,7 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
             return;
         }
         $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->reason = $payload["reason"];
         $this->decommissionedAt = new DateTimeImmutable(
             $payload["decommissioned_at"],
         );
@@ -59,6 +64,11 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
     final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
+    }
+
+    final public function getReason(): string
+    {
+        return $this->reason;
     }
 
     final public function getDecommissionedAt(): DateTimeImmutable

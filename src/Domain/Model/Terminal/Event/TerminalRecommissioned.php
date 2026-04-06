@@ -13,14 +13,17 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
     DomainEventInterface
 {
     private TerminalId $terminalId;
+    private string $reason;
     private DateTimeImmutable $recommissionedAt;
 
     final public static function occur(
         TerminalId $terminalId,
+        string $reason,
         DateTimeImmutable $recommissionedAt,
     ): self {
         $instance = new self();
         $instance->terminalId = $terminalId;
+        $instance->reason = $reason;
         $instance->recommissionedAt = $recommissionedAt;
         return $instance;
     }
@@ -34,6 +37,7 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
     {
         return [
             "terminal_id" => $this->terminalId->toNative(),
+            "reason" => $this->reason,
             "recommissioned_at" => $this->recommissionedAt->format(
                 \DateTimeInterface::ATOM,
             ),
@@ -46,6 +50,7 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
             return;
         }
         $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->reason = $payload["reason"];
         $this->recommissionedAt = new DateTimeImmutable(
             $payload["recommissioned_at"],
         );
@@ -59,6 +64,11 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
     final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
+    }
+
+    final public function getReason(): string
+    {
+        return $this->reason;
     }
 
     final public function getRecommissionedAt(): DateTimeImmutable

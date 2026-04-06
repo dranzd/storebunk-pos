@@ -12,19 +12,21 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventInterface
 {
     private ShiftId $shiftId;
+    private string $supervisorId;
     private string $reason;
     private DateTimeImmutable $forceClosedAt;
 
     final public static function occur(
         ShiftId $shiftId,
+        string $supervisorId,
         string $reason,
-        DateTimeImmutable $forceClosedAt
+        DateTimeImmutable $forceClosedAt,
     ): self {
         $instance = new self();
         $instance->shiftId = $shiftId;
+        $instance->supervisorId = $supervisorId;
         $instance->reason = $reason;
         $instance->forceClosedAt = $forceClosedAt;
-
         return $instance;
     }
 
@@ -37,6 +39,7 @@ final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventIn
     {
         return [
             "shift_id" => $this->shiftId->toNative(),
+            "supervisor_id" => $this->supervisorId,
             "reason" => $this->reason,
             "force_closed_at" => $this->forceClosedAt->format(\DateTimeInterface::ATOM),
         ];
@@ -48,6 +51,7 @@ final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventIn
             return;
         }
         $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
+        $this->supervisorId = $payload["supervisor_id"];
         $this->reason = $payload["reason"];
         $this->forceClosedAt = new DateTimeImmutable($payload["force_closed_at"]);
     }
@@ -60,6 +64,11 @@ final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventIn
     final public function getShiftId(): ShiftId
     {
         return $this->shiftId;
+    }
+
+    final public function getSupervisorId(): string
+    {
+        return $this->supervisorId;
     }
 
     final public function getReason(): string
