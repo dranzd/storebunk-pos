@@ -5,55 +5,60 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Domain\Event;
 
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AbstractAggregateEvent;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateEventWithPrivateConstructorTrait;
 
 /**
- * BaseAggregateEvent
+ * Base class for all POS domain events.
  *
- * Base class for all POS domain events enforcing the payload-based serialization contract
- * from the common-event-sourcing library.
+ * Enforces the payload-based serialization contract from common-event-sourcing library.
  *
- * All POS events MUST:
- * 1. Extend this base class
- * 2. Implement getPayload(): array - return complete event data
- * 3. Implement setPayload(array): void - hydrate from payload
- * 4. Use AggregateEventWithPrivateConstructorTrait - enforce private constructor
+ * All POS events must:
+ * 1. Extend this class
+ * 2. Use AggregateEventWithPrivateConstructorTrait (on the concrete event, not here)
+ * 3. Implement getPayload(): array - Returns complete event data
+ * 4. Implement setPayload(array): void - Hydrates object from payload
  *
- * This ensures:
- * - Event serialization works correctly (payload not empty)
- * - Deserialization reconstructs state properly
- * - Generic consumers can access event data via getPayload()
- * - Schema evolution via upcasters becomes possible
- * - Decoupling from specific event class dependencies
+ * This pattern ensures:
+ * ✅ Events serialize/deserialize correctly
+ * ✅ Generic consumers can access event data without instanceof checks
+ * ✅ Schema evolution via upcasters is possible
+ * ✅ Consistency across all POS events
  *
- * @see AggregateEventWithPrivateConstructorTrait for constructor enforcement
- * @see AbstractAggregateEvent for base event functionality
- *
- * Usage Example:
+ * Example Implementation:
  *
  * ```php
+ * use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateEventWithPrivateConstructorTrait;
+ *
  * final class SessionStarted extends BaseAggregateEvent implements DomainEventInterface
  * {
  *     use AggregateEventWithPrivateConstructorTrait;
  *
  *     private SessionId $sessionId;
  *     private ShiftId $shiftId;
+ *     private DateTimeImmutable $startedAt;
  *
  *     final public static function occur(
  *         SessionId $sessionId,
- *         ShiftId $shiftId
+ *         ShiftId $shiftId,
+ *         DateTimeImmutable $startedAt
  *     ): self {
  *         $instance = new self();
  *         $instance->sessionId = $sessionId;
  *         $instance->shiftId = $shiftId;
+ *         $instance->startedAt = $startedAt;
  *         return $instance;
+ *     }
+ *
+ *     final public static function expectedMessageName(): string
+ *     {
+ *         return 'storebunk.pos.session.started';
  *     }
  *
  *     final public function getPayload(): array
  *     {
  *         return [
- *             'session_id' => $this->sessionId->toString(),
- *             'shift_id' => $this->shiftId->toString(),
+ *             'session_id' => $this->sessionId->toNative(),
+ *             'shift_id' => $this->shiftId->toNative(),
+ *             'started_at' => $this->startedAt->format(\DateTimeInterface::ATOM),
  *         ];
  *     }
  *
@@ -64,104 +69,75 @@ use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateEventWithPrivateCo
  *         }
  *         $this->sessionId = SessionId::fromNative($payload['session_id']);
  *         $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+ *         $this->startedAt = new DateTimeImmutable($payload['started_at']);
  *     }
+ *
+ *     final public function occurredAt(): DateTimeImmutable
+ *     {
+ *         return $this->startedAt;
+ *     }
+ *
+ *     final public function getSessionId(): SessionId { return $this->sessionId; }
+ *     final public function getShiftId(): ShiftId { return $this->shiftId; }
+ *     final public function getStartedAt(): DateTimeImmutable { return $this->startedAt; }
  * }
  * ```
+ *
+ * Key Implementation Notes:
+ *
+ * 1. getPayload() must return array with ALL event fields:
+ *    - Use snake_case for keys
+ *    - Use DateTimeInterface::ATOM for dates
+ *    - Use ::toNative() for value objects
+ *    - Include optional fields as null
+ *
+ * 2. setPayload() must hydrate from payload:
+ *    - Start with guard clause: if (empty($payload)) return;
+ *    - Reconstruct all properties from payload keys
+ *    - Use ::fromNative() for value objects
+ *    - Use DateTimeImmutable for dates
+ *    - Handle optional fields with null coalescing
+ *
+ * 3. Keep all existing public getters for type-safe access
+ *
+ * 4. Do NOT implement toArray() or fromArray() - parent handles these via getPayload/setPayload
+ *
+ * 5. occurredAt() should return the domain timestamp (when event actually occurred, not when recorded)
+ *
+ * 6. expectedMessageName() returns event type identifier (e.g., 'storebunk.pos.session.started')
+ *
+ * @see AbstractAggregateEvent Base class with event sourcing functionality
+ * @see AggregateEventWithPrivateConstructorTrait Use on concrete event classes to enforce private constructors
  */
 abstract class BaseAggregateEvent extends AbstractAggregateEvent
 {
-    use AggregateEventWithPrivateConstructorTrait;
-
     /**
      * Return event data as serializable array.
      *
-     * This is the PRIMARY and CANONICAL method for accessing event data.
-     * All event fields must be represented here in a format suitable for:
-     * - Serialization to event store
-     * - Deserialization from event store
-     * - Generic consumer access (projections, sagas, etc.)
-     * - Upcasting for schema evolution
+     * This is the canonical source of event state for serialization, deserialization,
+     * generic consumer access, and schema evolution.
      *
-     * Field naming convention: Use snake_case for all keys.
-     * Date format: Use \DateTimeInterface::ATOM (RFC 3339) for all timestamps.
-     * Value objects: Use toString() or toNative() for serialization.
-     * Null values: Include in array with null value.
+     * Subclasses MUST override this method to return all event data.
      *
-     * @return array<string, mixed> Event data with all fields
-     *
-     * @throws \RuntimeException If properties are not initialized
-     *
-     * Example return:
-     * ```php
-     * [
-     *     'session_id' => '123e4567-e89b-12d3-a456-426614174000',
-     *     'shift_id' => 'shift-789',
-     *     'terminal_id' => 'terminal-001',
-     *     'started_at' => '2025-04-06T10:00:00+00:00',
-     *     'employee_id' => null,  // Optional field
-     * ]
-     * ```
+     * @return array<string, mixed> Complete event state
      */
-    abstract public function getPayload(): array;
+    public function getPayload(): array
+    {
+        return [];
+    }
 
     /**
      * Hydrate event from serialized payload.
      *
-     * Called by the framework when deserializing events from storage.
-     * This method MUST reconstruct all object state from the payload array.
-     * It's the inverse of getPayload().
+     * Called by framework when deserializing events from storage.
+     * Reconstructs all object properties from the payload array.
      *
-     * Implementation requirements:
-     * - Handle empty payload (may be called during construction)
-     * - Convert payload scalar values to domain objects
-     * - Handle optional fields with null-coalescing
-     * - Parse dates using DateTimeImmutable
-     * - Reconstruct value objects using fromNative/from methods
+     * Subclasses MUST override this method to hydrate their properties.
      *
-     * @param array<string, mixed> $payload Serialized event data from storage
-     *
-     * @return void
-     *
-     * Example implementation:
-     * ```php
-     * final protected function setPayload(array $payload): void
-     * {
-     *     if (empty($payload)) {
-     *         return;  // Guard clause - may be called during construction
-     *     }
-     *
-     *     $this->sessionId = SessionId::fromNative($payload['session_id']);
-     *     $this->shiftId = ShiftId::fromNative($payload['shift_id']);
-     *     $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
-     *     $this->startedAt = new \DateTimeImmutable($payload['started_at']);
-     *     $this->employeeId = isset($payload['employee_id'])
-     *         ? EmployeeId::fromNative($payload['employee_id'])
-     *         : null;
-     * }
-     * ```
-     *
-     * @see getPayload() for the inverse operation
+     * @param array<string, mixed> $payload
      */
-    abstract protected function setPayload(array $payload): void;
-
-    /**
-     * Get event message name (event type identifier).
-     *
-     * Must be implemented by all subclasses.
-     * Example: 'storebunk.pos.session.started'
-     *
-     * @return string
-     */
-    abstract public static function expectedMessageName(): string;
-
-    /**
-     * Get when the event occurred.
-     *
-     * Should be implemented by subclasses to return the domain timestamp
-     * (not the system timestamp when event was recorded).
-     * Example: The moment the session was actually started.
-     *
-     * @return \DateTimeImmutable
-     */
-    abstract public function occurredAt(): \DateTimeImmutable;
+    protected function setPayload(array $payload): void
+    {
+        // Subclasses must override
+    }
 }
