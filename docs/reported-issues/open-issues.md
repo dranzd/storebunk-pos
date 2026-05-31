@@ -12,7 +12,7 @@ _(none)_
 
 #### 🟠 High
 
-_(none)_
+- [ ] [4002](4000-possession/4002-session-missing-operator-identity.md) — PosSession carries no operator identity (asymmetric with Shift) — _Open_
 
 #### 🟡 Medium
 
