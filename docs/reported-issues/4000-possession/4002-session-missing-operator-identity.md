@@ -1,7 +1,7 @@
 # 4002 — PosSession Carries No Operator Identity (Asymmetric With Shift)
 
 **Type:** Missing Feature
-**Status:** Open
+**Status:** Open — owner-confirmed (ready to implement)
 **Severity:** High
 **Reported:** 2026-05-30
 **Resolved:** _(blank — open)_
@@ -60,26 +60,33 @@ The PosSession aggregate was modeled as a thin operational wrapper around a shif
 
 ## Recommended Action
 
-Per the **locked decisions (2026-05-30, discussion §5)**, the operator is keyed by the Laravel **`User` id** — consistent with auth, the audit log, and the global actor (the "Performer / actor identity" rule). It is **not** the Shift's legacy `Cashier` UUID; that opener wrapper is unchanged and resolved to its user at the boundary. Backfill: **none** — old events upcast to a null operator ("Unknown").
+> **Owner override (2026-05-31, supersedes discussion §5's `user_id` decision):** this package
+> is a **bounded context** and must not depend on the host's `User` identity — doing so would
+> break its independence. The operator is expressed in **this module's own ubiquitous language:
+> `CashierId`**. The host maps its user → cashier at the boundary (and resolves the cashier's
+> display name on its read model). Payload/getter use the module's `cashier_id`, not a host
+> `user_id`. Backfill: **none** — old events upcast to a null operator ("Unknown").
 
 ### Part A — operator on the session (priority)
 
-1. Add a non-breaking factory `StartSession::onTerminalForUser(sessionId, shiftId, terminalId, userId)`; keep `onTerminal(...)` as a deprecated / null-operator overload for compatibility.
-2. `SessionStarted::occur(...)` carries the operator `user_id`; the `storebunk.pos.session.started` payload gains a **`user_id`** key.
-3. `PosSession` aggregate stores the operator and exposes a getter so the host projector can persist `pos_sessions.user_id` (host denormalizes the user name for display).
-4. Provide an **upcaster** that backfills `user_id => null` for already-stored `SessionStarted` events. Historical sessions read as "operator unknown"; host renders a neutral fallback.
+1. Add a non-breaking factory `StartSession::onTerminalForCashier(sessionId, shiftId, terminalId, cashierId)`; keep `onTerminal(...)` as a deprecated / null-operator overload for compatibility.
+2. `SessionStarted::occur(...)` carries the operator `CashierId`; the `storebunk.pos.session.started` payload gains a **`cashier_id`** key.
+3. `PosSession` aggregate stores the operator and exposes a getter so the host projector can persist the operator on its read model (host denormalizes the name for display).
+4. Provide an **upcaster** that backfills `cashier_id => null` for already-stored `SessionStarted` events. Historical sessions read as "operator unknown"; host renders a neutral fallback.
+
+Operator VO: reuse the module's `CashierId` language. Whether that is the existing `Shift\ValueObject\CashierId` (cross-aggregate import), a new `PosSession\ValueObject\CashierId`, or a promoted shared-kernel VO is an implementation detail — prefer a shared/PosSession-owned `CashierId` to avoid coupling PosSession to the Shift namespace.
 
 This unblocks the host read model, presence/ownership queries ("who's on terminal X"), and host-side enforcement of the shift-membership rule at session start.
 
 ### Part B — shift assignment / open / fallback set (secondary)
 
-Represent shift membership on the Shift aggregate, distinct from the per-session operator of Part A:
+Represent shift membership on the Shift aggregate, distinct from the per-session operator of Part A. Modeled via a **new `ShiftAssigned` event** (Q2 — separate from `ShiftOpened`, so membership can change without re-opening and `ShiftOpened`'s upcaster stays trivial):
 
-- An **optional assignee** (`user_id`). Unassigned ⇒ shift is **open** (host policy: any branch cashier may start a session).
-- A **fallback set of up to 3** `user_id`s — designated backups when the assignee is out.
+- An **optional assignee** (`CashierId`). Unassigned ⇒ shift is **open** (host policy: any branch cashier may start a session).
+- A **fallback set of up to 3** `CashierId`s — designated backups when the assignee is out.
 - Assigned shifts restricted to assignee + fallbacks, with a host-side supervisor/manager override.
 
-Vendor surface: store assignee + fallback list (≤3) on the Shift aggregate, emit it on the relevant event(s), expose getters so the host can project + enforce. Keyed by `user_id`. Existing shifts upcast to **no assignee / no fallbacks** (open), preserving today's behaviour. The shift's existing `cashier_id` opener is unchanged.
+Vendor surface: store assignee + fallback list (≤3) on the Shift aggregate, emit a `ShiftAssigned` event, expose getters so the host can project + enforce. **Keyed by the module's `CashierId`** to match the session operator. Existing shifts upcast to **no assignee / no fallbacks** (open), preserving today's behaviour. The shift's existing `cashier_id` opener is unchanged.
 
 ### Compatibility
 
@@ -107,11 +114,16 @@ Vendor surface: store assignee + fallback list (≤3) on the Shift aggregate, em
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
+**Decision:** Accept (one override)
+**Date answered:** 2026-05-31
+**Question Answers:**
 
-**Decision:** _(pending interactive question loop)_
-**Preferred Option:**
+- **Q1 — Operator identity: OVERRIDE.** Despite discussion §5 locking the operator to the host's `User` id, this package is a **bounded context** and must not depend on an outside system's identity — that would break its independence. The operator is `CashierId`, this module's own ubiquitous language. The host maps user → cashier at the boundary. (Neither a host `user_id` nor a new `UserId` VO.)
+- **Q2 — (a) New `ShiftAssigned` event.** Assignment is a distinct lifecycle action; keeps `ShiftOpened`'s upcaster trivial and lets membership change without re-opening.
+- **Q3 — (a) Keep Part A + Part B in 4002.** One broader accountability feature; implement Part A first (higher value), then Part B.
+
 **Notes:**
+The Q1 override propagates through the whole design: command factory becomes `onTerminalForCashier(...)`, the `storebunk.pos.session.started` payload key is `cashier_id` (not `user_id`), the upcaster backfills `cashier_id => null`, and Part B's assignee + fallback set are `CashierId`-keyed. VO sourcing (reuse `Shift\ValueObject\CashierId` vs a new/shared `CashierId`) is an implementation detail — prefer a shared/PosSession-owned VO to avoid coupling PosSession to the Shift namespace. The Recommended Action section has been reconciled to this override.
 
 ---
 
