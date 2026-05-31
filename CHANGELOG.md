@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-01
+
+> **Breaking release.** Starting a POS session now requires an operating cashier. Consumers calling `StartSession::onTerminal(...)` must migrate to `StartSession::onTerminalForCashier(...)`.
+
+### Added
+
+- **POS session operator identity** (resolves #4002 Part A) — `PosSession` now records its operating cashier. New `StartSession::onTerminalForCashier(sessionId, shiftId, terminalId, cashierId)`; `SessionStarted` carries a `cashier_id`; new module-owned `PosSession\ValueObject\CashierId`; `PosSession::cashierId()` getter. The operator is distinct from the host `User`, which continues to travel as `ActorCapable` actor metadata (`_actor_id`).
+- **Shift assignment / membership** (resolves #4002 Part B) — new `ShiftAssigned` and `ShiftUnassigned` events with `AssignShift` / `UnassignShift` commands. A shift can be assigned to a cashier with up to 3 fallback cashiers, and cleared back to "open". New getters `Shift::assignee()`, `Shift::fallbackCashiers()`, `Shift::isAssigned()`. Keyed by the module's `CashierId`.
+- **Demo CLI** — `shift assign`, `shift unassign`, and a `--cashier-id` option on `session start` (defaulting to the last shift's cashier).
+- **Tests** — `StartSessionHandlerTest`, `AssignShiftHandlerTest`, `UnassignShiftHandlerTest`, payload-contract tests for the two new Shift events, and expanded `ShiftTest` / `PosSessionTest` (208 tests total).
+
+### Changed
+
+- **BREAKING** — `SessionStarted::occur()` and `PosSession::start()` gained a required `CashierId` argument; the `storebunk.pos.session.started` payload gains a non-null `cashier_id` key.
+- POS domain event count is now **28** (added `ShiftAssigned`, `ShiftUnassigned`); event-pattern specification and ADR-001 updated accordingly.
+- `docs/reported-issues` index synced to authoritative issue-file statuses.
+
+### Removed
+
+- **BREAKING** — `StartSession::onTerminal()` (the operator-less factory). A session always has an operator; the package is pre-deployment, so no compatibility shim is retained.
+
+### Fixed
+
+- Demo bootstrap wired `CloseShiftHandler` with only the repository, but it requires `ShiftClosePolicy` and `PosSessionReadModelInterface` — a pre-existing defect that fatally broke the demo CLI on startup. Now wired correctly.
+
 ## [1.1.1] - 2026-04-06
 
 ### Added
