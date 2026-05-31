@@ -221,7 +221,7 @@ The merge is **never executed automatically** — it is always presented as a su
 | [2001](2000-terminal/2001-terminal-events-missing-fromarray.md) | Terminal | Terminal events missing `fromArray()` — reconstitution fails | Bug | Critical | Resolved | 2026-02-19 |
 | [3001](3000-shift/3001-shift-close-no-session-guard.md) | Shift | `CloseShift` has no active session guard | Missing Feature | High | Resolved | 2026-02-19 |
 | [4001](4000-possession/4001-handler-pops-events-before-store.md) | PosSession | PosSession handlers drain event buffer before `store()`, events never persisted | Bug | Critical | Resolved | 2026-02-22 |
-| [4002](4000-possession/4002-session-missing-operator-identity.md) | PosSession | PosSession carries no operator identity (asymmetric with Shift) | Missing Feature | High | In Review | 2026-05-30 |
+| [4002](4000-possession/4002-session-missing-operator-identity.md) | PosSession | PosSession carries no operator identity (asymmetric with Shift) | Missing Feature | High | Resolved | 2026-05-30 |
 | [6001](6000-bc-integration/6001-convert-soft-reservation-to-hard.md) | BC Integration | `convertSoftReservationToHard()` has no inventory BC mapping | Improvement | Medium | Resolved | 2026-02-19 |
 | [6002](6000-bc-integration/6002-deduct-inventory-mapping.md) | BC Integration | `deductInventory()` name misleading, mapping unclear | Improvement | Medium | Resolved | 2026-02-19 |
 | [6003](6000-bc-integration/6003-draft-order-missing-context.md) | BC Integration | `createDraftOrder()` accepts no customer or branch context | Design Gap | High | Resolved | 2026-02-19 |
@@ -231,4 +231,4 @@ The merge is **never executed automatically** — it is always presented as a su
 
 ---
 
-**Last Updated:** 2026-05-31 (4002 Part A delivered — session operator; 4002 Part B + 9001 open)
+**Last Updated:** 2026-06-01 (4002 resolved — session operator + shift assignment; only 9001 open)

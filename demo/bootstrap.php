@@ -30,8 +30,10 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
+use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\CloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
+use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\CloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\ForceCloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
@@ -87,6 +89,7 @@ $handlers = [
 
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository),
+    AssignShift::class      => new AssignShiftHandler($shiftRepository),
     CloseShift::class       => new CloseShiftHandler($shiftRepository),
     ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),

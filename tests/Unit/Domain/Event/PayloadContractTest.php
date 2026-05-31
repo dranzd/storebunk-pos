@@ -32,6 +32,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\CashDropRecorded;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
@@ -196,6 +197,20 @@ final class PayloadContractTest extends TestCase
     {
         $event = CashDropRecorded::occur(ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440045'), Money::fromArray(['amount' => 250, 'currency' => 'USD']), new DateTimeImmutable('2025-04-07T08:00:00Z'));
         $this->verifyPayloadContract($event, CashDropRecorded::class);
+    }
+
+    public function test_shift_assigned_payload_contract(): void
+    {
+        $event = ShiftAssigned::occur(
+            ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440047'),
+            CashierId::fromNative('550e8400-e29b-41d4-a716-446655440048'),
+            [
+                CashierId::fromNative('550e8400-e29b-41d4-a716-446655440049'),
+                CashierId::fromNative('550e8400-e29b-41d4-a716-446655440050'),
+            ],
+            new DateTimeImmutable('2025-04-07T09:00:00Z')
+        );
+        $this->verifyPayloadContract($event, ShiftAssigned::class);
     }
 
     private function verifyPayloadContract(object $event, string $eventClass): void

@@ -1,10 +1,10 @@
 # 4002 — PosSession Carries No Operator Identity (Asymmetric With Shift)
 
 **Type:** Missing Feature
-**Status:** In Review — Part A delivered (session operator); Part B (shift assignment) open
+**Status:** Resolved
 **Severity:** High
 **Reported:** 2026-05-30
-**Resolved:** _(blank — open)_
+**Resolved:** 2026-06-01
 **Affects:**
 - Part A (priority) — `Dranzd\StorebunkPos\Application\PosSession\Command\StartSession`, `…\Command\Handler\StartSessionHandler`, `Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted`, `Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession` (+ a possible new `PosSession\ValueObject\UserId`).
 - Part B (secondary) — `Dranzd\StorebunkPos\Domain\Model\Shift\Shift`, `…\Shift\Event\ShiftOpened` (and/or a new assignment event), `Dranzd\StorebunkPos\Application\Shift\Command\OpenShift`.
@@ -166,6 +166,20 @@ VO sourcing resolved to a module-owned `PosSession\ValueObject\CashierId` (not r
 
 **Commit/PR:** branch `feature/4002-session-operator-identity` (this commit).
 
-### Part B — shift assignment / open / fallback set
+### Part B — delivered (2026-06-01)
 
-_Not started. Open per Q3(a): implement on this issue after Part A._
+**As-delivered API:**
+- New event `Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned` (`storebunk.pos.shift.assigned`) — payload `shift_id`, `assignee_cashier_id`, `fallback_cashier_ids` (array), `assigned_at`; getters `getAssignee(): CashierId`, `getFallbackCashiers(): CashierId[]`. Separate from `ShiftOpened` per Q2(a), so membership can change without re-opening. — `src/Domain/Model/Shift/Event/ShiftAssigned.php`
+- New command `AssignShift::toCashier(string $shiftId, string $assigneeCashierId, string[] $fallbackCashierIds = [], ?string $commandId = null)` (`storebunk.pos.shift.assign`); `assignee(): CashierId`, `fallbackCashiers(): CashierId[]`. — `src/Application/Shift/Command/AssignShift.php`
+- `AssignShiftHandler` loads the shift, calls `assign(...)`, stores. — `src/Application/Shift/Command/Handler/AssignShiftHandler.php`
+- `Shift::assign(CashierId $assignee, CashierId[] $fallbackCashiers)` records `ShiftAssigned`; `applyOnShiftAssigned()` rehydrates; getters `assignee(): ?CashierId`, `fallbackCashiers(): CashierId[]`, `isAssigned(): bool`. — `src/Domain/Model/Shift/Shift.php`
+
+**Membership keyed by `Shift\ValueObject\CashierId`** (the same cashier identity the Shift aggregate already uses for its opener; no host `User` id).
+
+**Invariants enforced on `assign()`:** shift must be open; ≤3 fallbacks (`MAX_FALLBACK_CASHIERS`); assignee may not also be a fallback; fallbacks must be distinct. Re-assigning replaces membership. A shift never assigned is **open** (no `ShiftAssigned` recorded) ⇒ host policy decides who may start a session.
+
+**Demo:** `./demo/demo shift assign [--assignee-id] [--fallback-ids=a,b,c]` added (assignee defaults to the last shift's cashier). Note: the demo CLI is currently blocked by a **pre-existing** `bootstrap.php` mis-wiring of `CloseShiftHandler` (unrelated to this issue) — see the separate bug.
+
+**Tests:** `ShiftTest` (assign + all invariants + reconstitution), `AssignShiftHandlerTest`, `PayloadContractTest::test_shift_assigned_payload_contract`. Full suite green (200 tests), PHPStan clean, PHPCS clean.
+
+**Commit/PR:** branch `feature/4002-session-operator-identity`.
