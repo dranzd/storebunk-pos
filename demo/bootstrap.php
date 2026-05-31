@@ -49,6 +49,8 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\SetTerminalMaintena
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
+use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
+use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel\InMemoryTerminalReadModel;
@@ -68,7 +70,8 @@ $shiftRepository      = new InMemoryShiftRepository($eventStore);
 $sessionRepository    = new InMemoryPosSessionRepository($eventStore);
 
 // ── Read Models ───────────────────────────────────────────────────────────────
-$terminalReadModel = new InMemoryTerminalReadModel();
+$terminalReadModel    = new InMemoryTerminalReadModel();
+$posSessionReadModel  = new InMemoryPosSessionReadModel();
 
 // ── BC Service Stubs ──────────────────────────────────────────────────────────
 $orderingService   = new StubOrderingService();
@@ -78,6 +81,7 @@ $paymentService    = new StubPaymentService();
 // ── Domain Services ───────────────────────────────────────────────────────────
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
+$shiftClosePolicy    = new ShiftClosePolicy();
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -90,7 +94,7 @@ $handlers = [
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository),
     AssignShift::class      => new AssignShiftHandler($shiftRepository),
-    CloseShift::class       => new CloseShiftHandler($shiftRepository),
+    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
     ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),
 

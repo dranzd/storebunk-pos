@@ -178,7 +178,7 @@ VO sourcing resolved to a module-owned `PosSession\ValueObject\CashierId` (not r
 
 **Invariants enforced on `assign()`:** shift must be open; ≤3 fallbacks (`MAX_FALLBACK_CASHIERS`); assignee may not also be a fallback; fallbacks must be distinct. Re-assigning replaces membership. A shift never assigned is **open** (no `ShiftAssigned` recorded) ⇒ host policy decides who may start a session.
 
-**Demo:** `./demo/demo shift assign [--assignee-id] [--fallback-ids=a,b,c]` added (assignee defaults to the last shift's cashier). Note: the demo CLI is currently blocked by a **pre-existing** `bootstrap.php` mis-wiring of `CloseShiftHandler` (unrelated to this issue) — see the separate bug.
+**Demo:** `./demo/demo shift assign [--assignee-id] [--fallback-ids=a,b,c]` added (assignee defaults to the last shift's cashier). A pre-existing `bootstrap.php` mis-wiring of `CloseShiftHandler` (1 arg vs the required 3) that fatally broke the whole demo CLI was fixed alongside this — `ShiftClosePolicy` + `InMemoryPosSessionReadModel` are now wired.
 
 **Tests:** `ShiftTest` (assign + all invariants + reconstitution), `AssignShiftHandlerTest`, `PayloadContractTest::test_shift_assigned_payload_contract`. Full suite green (200 tests), PHPStan clean, PHPCS clean.
 
