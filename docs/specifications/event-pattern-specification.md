@@ -341,7 +341,7 @@ Provides:
 - Round-trip serialization preserves data
 - Event store format includes populated payloads
 
-✅ **Test Suite**: All 161 tests passing
+✅ **Test Suite**: All 208 tests passing
 
 ✅ **Static Analysis** (PHPStan level 8): No errors
 
@@ -457,8 +457,8 @@ All events:
 
 ### Test Coverage
 
-- ✅ Unit tests: 161 passing
-- ✅ Integration tests: All passing
+- ✅ Unit tests: 185 passing
+- ✅ Integration tests: 23 passing
 - ✅ Static analysis: PHPStan level 8, zero errors
 - ✅ Verification script: All 7 tests passing
 
@@ -471,7 +471,7 @@ Payload: {"terminal_id":"550e8400-e29b-41d4-a716-446655440002","activated_at":"2
 
 Test 5: SessionStarted::getPayload() [Complex Session Event]
 ✅ PASSED
-Payload: {"session_id":"...","shift_id":"...","terminal_id":"...","started_at":"..."}
+Payload: {"session_id":"...","shift_id":"...","terminal_id":"...","cashier_id":"...","started_at":"..."}
 
 Test 7: Round-Trip Serialization [Complete Event Lifecycle]
 ✅ PASSED
