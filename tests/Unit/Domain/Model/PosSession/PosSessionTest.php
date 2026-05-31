@@ -11,6 +11,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -25,8 +26,9 @@ final class PosSessionTest extends TestCase
         $sessionId = new SessionId();
         $shiftId = new ShiftId();
         $terminalId = new TerminalId();
+        $cashierId = new CashierId();
 
-        $session = PosSession::start($sessionId, $shiftId, $terminalId);
+        $session = PosSession::start($sessionId, $shiftId, $terminalId, $cashierId);
 
         $events = $session->popRecordedEvents();
         $this->assertCount(1, $events);
@@ -37,6 +39,7 @@ final class PosSessionTest extends TestCase
         $this->assertTrue($event->getSessionId()->sameValueAs($sessionId));
         $this->assertTrue($event->getShiftId()->sameValueAs($shiftId));
         $this->assertTrue($event->getTerminalId()->sameValueAs($terminalId));
+        $this->assertTrue($event->getCashierId()->sameValueAs($cashierId));
         $this->assertInstanceOf(DateTimeImmutable::class, $event->getStartedAt());
     }
 
@@ -341,7 +344,7 @@ final class PosSessionTest extends TestCase
     public function test_it_can_be_reconstituted_from_history(): void
     {
         $sessionId = new SessionId();
-        $originalSession = PosSession::start($sessionId, new ShiftId(), new TerminalId());
+        $originalSession = PosSession::start($sessionId, new ShiftId(), new TerminalId(), new CashierId());
         $orderId = new OrderId();
         $originalSession->startNewOrder($orderId);
         $originalSession->parkOrder();
@@ -360,7 +363,7 @@ final class PosSessionTest extends TestCase
     public function test_full_checkout_flow(): void
     {
         $sessionId = new SessionId();
-        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId());
+        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId(), new CashierId());
         $orderId = new OrderId();
         $session->startNewOrder($orderId);
         $session->initiateCheckout();
@@ -452,7 +455,7 @@ final class PosSessionTest extends TestCase
     public function test_full_draft_lifecycle_flow(): void
     {
         $sessionId = new SessionId();
-        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId());
+        $session = PosSession::start($sessionId, new ShiftId(), new TerminalId(), new CashierId());
         $orderId = new OrderId();
         $session->startNewOrder($orderId);
         $session->deactivateOrder('TTL expired');
@@ -473,7 +476,8 @@ final class PosSessionTest extends TestCase
         return PosSession::start(
             new SessionId(),
             new ShiftId(),
-            new TerminalId()
+            new TerminalId(),
+            new CashierId()
         );
     }
 }

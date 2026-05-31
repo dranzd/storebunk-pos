@@ -1,7 +1,7 @@
 # 4002 — PosSession Carries No Operator Identity (Asymmetric With Shift)
 
 **Type:** Missing Feature
-**Status:** Open — owner-confirmed (ready to implement)
+**Status:** In Review — Part A delivered (session operator); Part B (shift assignment) open
 **Severity:** High
 **Reported:** 2026-05-30
 **Resolved:** _(blank — open)_
@@ -65,16 +65,28 @@ The PosSession aggregate was modeled as a thin operational wrapper around a shif
 > break its independence. The operator is expressed in **this module's own ubiquitous language:
 > `CashierId`**. The host maps its user → cashier at the boundary (and resolves the cashier's
 > display name on its read model). Payload/getter use the module's `cashier_id`, not a host
-> `user_id`. Backfill: **none** — old events upcast to a null operator ("Unknown").
+> `user_id`.
+>
+> **Two distinct identities, kept separate:** the domain operator (`CashierId`, on the command
+> payload + `SessionStarted`) is *not* the command **meta actor**. The actor is the host `User`
+> performing the action and already travels as `ActorCapable` metadata (`_actor_id`/`_actor_name`)
+> on every `AbstractCommand` — a generic framework concern this package never reads into its
+> domain. Example: host user `0005` operating as cashier `1` records `cashier_id = 1` in the
+> domain while the actor metadata independently carries user `0005`.
+>
+> **Operator is REQUIRED, not optional (decided 2026-05-31):** a session is always operated by
+> someone, so a new session cannot be started without a `CashierId`. Because this package has
+> **never been released**, there are no stored `SessionStarted` events to migrate — so there is
+> **no backward-compat path**: no deprecated overload, no nullable operator, no upcaster. The
+> correct shape is implemented directly.
 
-### Part A — operator on the session (priority)
+### Part A — operator on the session (priority) — **DELIVERED**
 
-1. Add a non-breaking factory `StartSession::onTerminalForCashier(sessionId, shiftId, terminalId, cashierId)`; keep `onTerminal(...)` as a deprecated / null-operator overload for compatibility.
-2. `SessionStarted::occur(...)` carries the operator `CashierId`; the `storebunk.pos.session.started` payload gains a **`cashier_id`** key.
-3. `PosSession` aggregate stores the operator and exposes a getter so the host projector can persist the operator on its read model (host denormalizes the name for display).
-4. Provide an **upcaster** that backfills `cashier_id => null` for already-stored `SessionStarted` events. Historical sessions read as "operator unknown"; host renders a neutral fallback.
+1. Add a single factory `StartSession::onTerminalForCashier(sessionId, shiftId, terminalId, cashierId)` with a **required** cashier. The operator-less `onTerminal(...)` is **removed** (no compat path needed — package unreleased).
+2. `SessionStarted::occur(...)` carries a **required** operator `CashierId`; the `storebunk.pos.session.started` payload gains a non-null **`cashier_id`** key.
+3. `PosSession` aggregate stores the operator and exposes `cashierId(): CashierId` so the host projector can persist the operator on its read model (host denormalizes the name for display).
 
-Operator VO: reuse the module's `CashierId` language. Whether that is the existing `Shift\ValueObject\CashierId` (cross-aggregate import), a new `PosSession\ValueObject\CashierId`, or a promoted shared-kernel VO is an implementation detail — prefer a shared/PosSession-owned `CashierId` to avoid coupling PosSession to the Shift namespace.
+Operator VO: a module-owned `PosSession\ValueObject\CashierId extends Uuid` was added (not the `Shift\ValueObject\CashierId`), keeping PosSession decoupled from the Shift namespace.
 
 This unblocks the host read model, presence/ownership queries ("who's on terminal X"), and host-side enforcement of the shift-membership rule at session start.
 
@@ -90,8 +102,12 @@ Vendor surface: store assignee + fallback list (≤3) on the Shift aggregate, em
 
 ### Compatibility
 
-- Adding a required operator to `occur()` / the command factory would be **breaking** — avoid via the additive factory + nullable param + upcaster above.
-- Part B's new shift state/event needs its own upcaster (existing shifts default to current single-cashier semantics).
+- **Part A:** none required. The package is unreleased, so there are no persisted `SessionStarted`
+  events — the required operator is introduced directly, with no nullable param, deprecated
+  overload, or upcaster.
+- **Part B:** since shift membership is a *new* `ShiftAssigned` event (not a change to `ShiftOpened`),
+  existing shifts simply have no membership recorded ⇒ they read as **open**, preserving today's
+  single-cashier-opener behaviour. No upcaster needed for the unreleased package.
 - No projection rebuild required beyond the host adding the new columns + replaying.
 
 ---
@@ -123,14 +139,33 @@ Vendor surface: store assignee + fallback list (≤3) on the Shift aggregate, em
 - **Q3 — (a) Keep Part A + Part B in 4002.** One broader accountability feature; implement Part A first (higher value), then Part B.
 
 **Notes:**
-The Q1 override propagates through the whole design: command factory becomes `onTerminalForCashier(...)`, the `storebunk.pos.session.started` payload key is `cashier_id` (not `user_id`), the upcaster backfills `cashier_id => null`, and Part B's assignee + fallback set are `CashierId`-keyed. VO sourcing (reuse `Shift\ValueObject\CashierId` vs a new/shared `CashierId`) is an implementation detail — prefer a shared/PosSession-owned VO to avoid coupling PosSession to the Shift namespace. The Recommended Action section has been reconciled to this override.
+The Q1 override propagates through the whole design: command factory is `onTerminalForCashier(...)`, the `storebunk.pos.session.started` payload key is `cashier_id` (not `user_id`), and Part B's assignee + fallback set are `CashierId`-keyed.
+
+Two refinements were locked during implementation (2026-05-31):
+- **Actor vs. operator.** The command **meta actor** (host `User`, via `ActorCapable`'s `_actor_id`) and the domain **operator** (`CashierId`, on the command payload + event) are distinct. The package only knows the operator; the host user travels as actor metadata and is never read into the domain. cashier `1` ↔ host user `0005` are mapped at the boundary.
+- **Operator required + no backward-compat.** A new session must carry a `CashierId` (no operator-less path). Because the package is unreleased there are no stored events to upcast, so the optional/nullable/deprecated-overload/upcaster machinery from the original filing was dropped — the correct shape is implemented directly. `StartSession::onTerminal(...)` is removed.
+
+VO sourcing resolved to a module-owned `PosSession\ValueObject\CashierId` (not reusing `Shift\ValueObject\CashierId`), avoiding cross-aggregate coupling.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
+### Part A — delivered (2026-05-31)
 
-**Resolved:** YYYY-MM-DD
-**Commit/PR:** link or reference
-**Summary:** Brief description of what was done.
+**As-delivered API:**
+- New VO `Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId` (`extends Uuid`) — the module-owned session operator. — `src/Domain/Model/PosSession/ValueObject/CashierId.php`
+- `StartSession::onTerminalForCashier(string $sessionId, string $shiftId, string $terminalId, string $cashierId, ?string $commandId = null)` — required cashier; `cashierId(): CashierId` accessor; command payload key `cashier_id`. `onTerminal(...)` removed. — `src/Application/PosSession/Command/StartSession.php`
+- `SessionStarted::occur(SessionId, ShiftId, TerminalId, CashierId, DateTimeImmutable)` — required operator; payload key `cashier_id` (non-null); `getCashierId(): CashierId`. — `src/Domain/Model/PosSession/Event/SessionStarted.php`
+- `PosSession::start(SessionId, ShiftId, TerminalId, CashierId)` records the operator; `applyOnSessionStarted()` rehydrates it; `cashierId(): CashierId` getter. — `src/Domain/Model/PosSession/PosSession.php`
+- `StartSessionHandler` passes `$command->cashierId()` through. — `src/Application/PosSession/Command/Handler/StartSessionHandler.php`
+
+**Operator vs actor:** the host `User` performing the action is unchanged — it travels as `ActorCapable` metadata (`_actor_id`) on the command, separate from this domain `cashier_id`.
+
+**Tests:** new `StartSessionHandlerTest` (operator recorded + survives reconstitution); `PosSessionTest::test_it_can_be_started` asserts the operator; all session/shift call sites updated to pass a cashier. Full suite green (166 unit + 23 integration), PHPStan clean, PHPCS clean.
+
+**Commit/PR:** branch `feature/4002-session-operator-identity` (this commit).
+
+### Part B — shift assignment / open / fallback set
+
+_Not started. Open per Q3(a): implement on this issue after Part A._

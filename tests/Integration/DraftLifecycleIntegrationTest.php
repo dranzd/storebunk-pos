@@ -72,10 +72,11 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);
@@ -108,10 +109,11 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);

@@ -92,7 +92,7 @@ final class PayloadContractTest extends TestCase
 
     public function test_session_started_payload_contract(): void
     {
-        $event = SessionStarted::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440011'), ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440012'), TerminalId::fromNative('550e8400-e29b-41d4-a716-446655440013'), new DateTimeImmutable('2025-04-06T10:00:00Z'));
+        $event = SessionStarted::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440011'), ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440012'), TerminalId::fromNative('550e8400-e29b-41d4-a716-446655440013'), \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::fromNative('550e8400-e29b-41d4-a716-446655440099'), new DateTimeImmutable('2025-04-06T10:00:00Z'));
         $this->verifyPayloadContract($event, SessionStarted::class);
     }
 
