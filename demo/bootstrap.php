@@ -30,14 +30,18 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
+use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\CloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
+use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\CloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\ForceCloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\RecordCashDropHandler;
+use Dranzd\StorebunkPos\Application\Shift\Command\Handler\UnassignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
+use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Terminal\Command\ActivateTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\DisableTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ActivateTerminalHandler;
@@ -47,6 +51,8 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\SetTerminalMaintena
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
+use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
+use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel\InMemoryTerminalReadModel;
@@ -66,7 +72,8 @@ $shiftRepository      = new InMemoryShiftRepository($eventStore);
 $sessionRepository    = new InMemoryPosSessionRepository($eventStore);
 
 // ── Read Models ───────────────────────────────────────────────────────────────
-$terminalReadModel = new InMemoryTerminalReadModel();
+$terminalReadModel    = new InMemoryTerminalReadModel();
+$posSessionReadModel  = new InMemoryPosSessionReadModel();
 
 // ── BC Service Stubs ──────────────────────────────────────────────────────────
 $orderingService   = new StubOrderingService();
@@ -76,6 +83,7 @@ $paymentService    = new StubPaymentService();
 // ── Domain Services ───────────────────────────────────────────────────────────
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
+$shiftClosePolicy    = new ShiftClosePolicy();
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -87,7 +95,9 @@ $handlers = [
 
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository),
-    CloseShift::class       => new CloseShiftHandler($shiftRepository),
+    AssignShift::class      => new AssignShiftHandler($shiftRepository),
+    UnassignShift::class    => new UnassignShiftHandler($shiftRepository),
+    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
     ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),
 

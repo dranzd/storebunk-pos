@@ -19,6 +19,7 @@ use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 use Dranzd\StorebunkPos\Demo\Cli\Utils;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -96,15 +97,23 @@ function sessionStart(SimpleCommandBus $commandBus, StateStore $stateStore, CliA
         exit(1);
     }
 
+    $cashierIdRaw = $args->get('cashier-id', $stateStore->get('last_cashier_id', ''));
+    if ($cashierIdRaw === '') {
+        Output::error('--cashier-id is required (or run shift open first)');
+        exit(1);
+    }
+
     $sessionId  = new SessionId();
     $shiftId    = new ShiftId($shiftIdRaw);
     $terminalId = new TerminalId($terminalIdRaw);
+    $cashierId  = new CashierId($cashierIdRaw);
 
     try {
-        $commandBus->dispatch(StartSession::onTerminal(
+        $commandBus->dispatch(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            $cashierId->toNative()
         ));
 
         $stateStore->set('last_session_id', $sessionId->toNative());
@@ -114,6 +123,7 @@ function sessionStart(SimpleCommandBus $commandBus, StateStore $stateStore, CliA
         Output::field('Session ID', $sessionId->toNative());
         Output::field('Shift ID', $shiftId->toNative());
         Output::field('Terminal ID', $terminalId->toNative());
+        Output::field('Cashier ID', $cashierId->toNative());
         Output::field('Started At', (new DateTimeImmutable())->format(DATE_ATOM));
     } catch (InvariantViolationException $e) {
         Output::domainError($e->getMessage());

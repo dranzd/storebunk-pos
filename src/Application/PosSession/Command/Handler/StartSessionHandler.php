@@ -20,7 +20,8 @@ final class StartSessionHandler
         $session = PosSession::start(
             $command->sessionId(),
             $command->shiftId(),
-            $command->terminalId()
+            $command->terminalId(),
+            $command->cashierId()
         );
 
         $this->sessionRepository->store($session);

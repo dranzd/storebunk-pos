@@ -79,6 +79,13 @@ Manages cashier shifts and cash handling.
 # Open a shift
 ./demo/demo shift open --opening-cash=<amount> [--terminal-id=<uuid>] [--branch-id=<uuid>] [--cashier-id=<uuid>] [--currency=PHP]
 
+# Assign a shift to a cashier, with optional fallbacks (≤3, comma-separated).
+# assignee defaults to the last shift's cashier. Unassigned shifts are "open".
+./demo/demo shift assign [--shift-id=<uuid>] [--assignee-id=<uuid>] [--fallback-ids=<uuid>,<uuid>]
+
+# Clear a shift's membership, returning it to open
+./demo/demo shift unassign [--shift-id=<uuid>]
+
 # Close a shift
 ./demo/demo shift close --declared-cash=<amount> [--shift-id=<uuid>] [--currency=PHP]
 
@@ -94,8 +101,8 @@ Manages cashier shifts and cash handling.
 Manages POS sessions and order lifecycle.
 
 ```bash
-# Start a POS session
-./demo/demo session start [--shift-id=<uuid>] [--terminal-id=<uuid>]
+# Start a POS session (cashier defaults to the last shift's cashier)
+./demo/demo session start [--shift-id=<uuid>] [--terminal-id=<uuid>] [--cashier-id=<uuid>]
 
 # Start a new order
 ./demo/demo session new-order [--session-id=<uuid>]

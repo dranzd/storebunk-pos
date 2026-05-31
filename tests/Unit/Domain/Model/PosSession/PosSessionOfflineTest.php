@@ -8,6 +8,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -26,7 +27,8 @@ final class PosSessionOfflineTest extends TestCase
         $this->session = PosSession::start(
             $this->sessionId,
             new ShiftId(),
-            new TerminalId()
+            new TerminalId(),
+            new CashierId()
         );
         $this->session->popRecordedEvents();
     }

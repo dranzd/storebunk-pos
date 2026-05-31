@@ -45,10 +45,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $handler = new StartNewOrderOfflineHandler(
@@ -74,10 +75,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $handler = new StartNewOrderOfflineHandler(
@@ -104,10 +106,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $offlineHandler = new StartNewOrderOfflineHandler(
@@ -146,10 +149,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $offlineHandler = new StartNewOrderOfflineHandler(
@@ -189,10 +193,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId2   = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminal(
+        $startSessionHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $offlineHandler = new StartNewOrderOfflineHandler(

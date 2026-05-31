@@ -22,6 +22,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionState;
@@ -36,6 +37,7 @@ final class PosSession implements AggregateRoot
     private SessionId $sessionId;
     private ShiftId $shiftId;
     private TerminalId $terminalId;
+    private CashierId $cashierId;
     private SessionState $state;
     private ?OrderId $activeOrderId = null;
     /** @var OrderId[] */
@@ -48,7 +50,8 @@ final class PosSession implements AggregateRoot
     final public static function start(
         SessionId $sessionId,
         ShiftId $shiftId,
-        TerminalId $terminalId
+        TerminalId $terminalId,
+        CashierId $cashierId
     ): self {
         $session = new self();
         $session->sessionId = $sessionId;
@@ -57,6 +60,7 @@ final class PosSession implements AggregateRoot
                 $sessionId,
                 $shiftId,
                 $terminalId,
+                $cashierId,
                 new DateTimeImmutable()
             )
         );
@@ -321,6 +325,11 @@ final class PosSession implements AggregateRoot
         return $this->activeOrderId;
     }
 
+    final public function cashierId(): CashierId
+    {
+        return $this->cashierId;
+    }
+
     final public function getAggregateRootUuid(): string
     {
         return $this->sessionId->toNative();
@@ -331,6 +340,7 @@ final class PosSession implements AggregateRoot
         $this->sessionId = $event->getSessionId();
         $this->shiftId = $event->getShiftId();
         $this->terminalId = $event->getTerminalId();
+        $this->cashierId = $event->getCashierId();
         $this->state = SessionState::Idle;
     }
 

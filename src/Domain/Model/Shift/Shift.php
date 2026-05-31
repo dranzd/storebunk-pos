@@ -9,9 +9,11 @@ use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRoot;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateRootTrait;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\CashDropRecorded;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashDrop;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -24,6 +26,8 @@ final class Shift implements AggregateRoot
 {
     use AggregateRootTrait;
 
+    private const MAX_FALLBACK_CASHIERS = 3;
+
     private ShiftId $shiftId;
     private TerminalId $terminalId;
     private BranchId $branchId;
@@ -35,6 +39,9 @@ final class Shift implements AggregateRoot
     private ?Money $declaredClosingCashAmount = null;
     /** @var CashDrop[] */
     private array $cashDrops = [];
+    private ?CashierId $assignee = null;
+    /** @var CashierId[] */
+    private array $fallbackCashiers = [];
 
     final public static function open(
         ShiftId $shiftId,
@@ -110,9 +117,93 @@ final class Shift implements AggregateRoot
         );
     }
 
+    /**
+     * Set the shift's operating membership: an assignee cashier plus an optional
+     * set of fallback cashiers (≤3). Re-issuing replaces the membership without
+     * re-opening the shift. A shift that was never assigned is "open".
+     *
+     * @param CashierId[] $fallbackCashiers
+     */
+    final public function assign(CashierId $assignee, array $fallbackCashiers): void
+    {
+        if (!$this->status->isOpen()) {
+            throw InvariantViolationException::withMessage('Cannot assign a shift that is not open');
+        }
+
+        if (count($fallbackCashiers) > self::MAX_FALLBACK_CASHIERS) {
+            throw InvariantViolationException::withMessage(
+                sprintf('A shift may have at most %d fallback cashiers', self::MAX_FALLBACK_CASHIERS)
+            );
+        }
+
+        $seen = [];
+        foreach ($fallbackCashiers as $fallback) {
+            $native = $fallback->toNative();
+            if ($native === $assignee->toNative()) {
+                throw InvariantViolationException::withMessage('Assignee cannot also be a fallback cashier');
+            }
+            if (isset($seen[$native])) {
+                throw InvariantViolationException::withMessage('Fallback cashiers must be distinct');
+            }
+            $seen[$native] = true;
+        }
+
+        $this->recordThat(
+            ShiftAssigned::occur(
+                $this->shiftId,
+                $assignee,
+                array_values($fallbackCashiers),
+                new DateTimeImmutable()
+            )
+        );
+    }
+
+    /**
+     * Clear the shift's membership, returning it to "open" (no assignee, no
+     * fallbacks). The inverse of {@see assign()}.
+     */
+    final public function unassign(): void
+    {
+        if (!$this->status->isOpen()) {
+            throw InvariantViolationException::withMessage('Cannot unassign a shift that is not open');
+        }
+
+        if (!$this->isAssigned()) {
+            throw InvariantViolationException::withMessage('Shift is not assigned');
+        }
+
+        $this->recordThat(
+            ShiftUnassigned::occur(
+                $this->shiftId,
+                new DateTimeImmutable()
+            )
+        );
+    }
+
     final public function getAggregateRootUuid(): string
     {
         return $this->shiftId->toNative();
+    }
+
+    /**
+     * The shift's assignee, or null when the shift is open (no membership set).
+     */
+    final public function assignee(): ?CashierId
+    {
+        return $this->assignee;
+    }
+
+    /**
+     * @return CashierId[]
+     */
+    final public function fallbackCashiers(): array
+    {
+        return $this->fallbackCashiers;
+    }
+
+    final public function isAssigned(): bool
+    {
+        return $this->assignee !== null;
     }
 
     private function calculateExpectedCash(): Money
@@ -166,5 +257,17 @@ final class Shift implements AggregateRoot
     private function applyOnCashDropRecorded(CashDropRecorded $event): void
     {
         $this->cashDrops[] = CashDrop::record($event->getAmount(), $event->getRecordedAt());
+    }
+
+    private function applyOnShiftAssigned(ShiftAssigned $event): void
+    {
+        $this->assignee = $event->getAssignee();
+        $this->fallbackCashiers = $event->getFallbackCashiers();
+    }
+
+    private function applyOnShiftUnassigned(ShiftUnassigned $event): void
+    {
+        $this->assignee = null;
+        $this->fallbackCashiers = [];
     }
 }

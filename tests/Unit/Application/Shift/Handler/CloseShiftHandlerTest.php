@@ -121,6 +121,7 @@ final class CloseShiftHandlerTest extends TestCase
                 $otherSessionId,
                 $otherShiftId,
                 new TerminalId(),
+                new \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId(),
                 new \DateTimeImmutable()
             )
         );
@@ -156,10 +157,11 @@ final class CloseShiftHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startHandler = new StartSessionHandler($this->sessionRepository);
-        $startHandler(StartSession::onTerminal(
+        $startHandler(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $this->readModel->onSessionStarted(
@@ -167,6 +169,7 @@ final class CloseShiftHandlerTest extends TestCase
                 $sessionId,
                 $shiftId,
                 $terminalId,
+                new \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId(),
                 new \DateTimeImmutable()
             )
         );

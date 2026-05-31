@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
+use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\CloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
+use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
@@ -28,6 +30,12 @@ function handleShift(
         case 'open':
             shiftOpen($commandBus, $stateStore, $args);
             break;
+        case 'assign':
+            shiftAssign($commandBus, $stateStore, $args);
+            break;
+        case 'unassign':
+            shiftUnassign($commandBus, $stateStore, $args);
+            break;
         case 'close':
             shiftClose($commandBus, $stateStore, $args);
             break;
@@ -40,7 +48,7 @@ function handleShift(
         default:
             Output::error("Unknown shift subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo shift <open|close|force-close|cash-drop> [options]');
+            Output::usage('./demo shift <open|assign|unassign|close|force-close|cash-drop> [options]');
             exit(1);
     }
 }
@@ -88,6 +96,72 @@ function shiftOpen(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs
         Output::field('Cashier ID', $cashierId->toNative());
         Output::field('Opening Cash', Output::money($openingCash, $currency));
         Output::field('Opened At', (new DateTimeImmutable())->format(DATE_ATOM));
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
+{
+    $shiftIdRaw = $args->get('shift-id', $stateStore->get('last_shift_id', ''));
+    if ($shiftIdRaw === '') {
+        Output::error('--shift-id is required (or run shift open first)');
+        exit(1);
+    }
+
+    $assigneeIdRaw = $args->get('assignee-id', $stateStore->get('last_cashier_id', ''));
+    if ($assigneeIdRaw === '') {
+        Output::error('--assignee-id is required (or run shift open first)');
+        exit(1);
+    }
+
+    // Optional comma-separated fallback cashier ids, e.g. --fallback-ids=<uuid>,<uuid>
+    $fallbackRaw = $args->get('fallback-ids', '');
+    $fallbackIds = array_values(array_filter(array_map('trim', explode(',', $fallbackRaw))));
+
+    $shiftId  = new ShiftId($shiftIdRaw);
+    $assignee = new CashierId($assigneeIdRaw);
+    $fallbacks = array_map(static fn (string $id) => new CashierId($id), $fallbackIds);
+
+    try {
+        $commandBus->dispatch(AssignShift::toCashier(
+            $shiftId->toNative(),
+            $assignee->toNative(),
+            array_map(static fn (CashierId $c) => $c->toNative(), $fallbacks)
+        ));
+
+        Output::success('Shift assigned successfully.');
+        Output::field('Shift ID', $shiftId->toNative());
+        Output::field('Assignee', $assignee->toNative());
+        Output::field('Fallbacks', $fallbackIds === [] ? '(none)' : implode(', ', $fallbackIds));
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function shiftUnassign(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
+{
+    $shiftIdRaw = $args->get('shift-id', $stateStore->get('last_shift_id', ''));
+    if ($shiftIdRaw === '') {
+        Output::error('--shift-id is required (or run shift open first)');
+        exit(1);
+    }
+
+    $shiftId = new ShiftId($shiftIdRaw);
+
+    try {
+        $commandBus->dispatch(UnassignShift::shift($shiftId->toNative()));
+
+        Output::success('Shift unassigned (now open).');
+        Output::field('Shift ID', $shiftId->toNative());
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
     } catch (InvariantViolationException $e) {
         Output::domainError($e->getMessage());
         exit(1);

@@ -7,6 +7,7 @@ namespace Dranzd\StorebunkPos\Domain\Model\PosSession\Event;
 use DateTimeImmutable;
 use Dranzd\StorebunkPos\Domain\Event\BaseAggregateEvent;
 use Dranzd\StorebunkPos\Domain\Event\DomainEventInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
@@ -17,18 +18,21 @@ final class SessionStarted extends BaseAggregateEvent implements
     private SessionId $sessionId;
     private ShiftId $shiftId;
     private TerminalId $terminalId;
+    private CashierId $cashierId;
     private DateTimeImmutable $startedAt;
 
     final public static function occur(
         SessionId $sessionId,
         ShiftId $shiftId,
         TerminalId $terminalId,
+        CashierId $cashierId,
         DateTimeImmutable $startedAt,
     ): self {
         $instance = new self();
         $instance->sessionId = $sessionId;
         $instance->shiftId = $shiftId;
         $instance->terminalId = $terminalId;
+        $instance->cashierId = $cashierId;
         $instance->startedAt = $startedAt;
 
         return $instance;
@@ -45,6 +49,7 @@ final class SessionStarted extends BaseAggregateEvent implements
             "session_id" => $this->sessionId->toNative(),
             "shift_id" => $this->shiftId->toNative(),
             "terminal_id" => $this->terminalId->toNative(),
+            "cashier_id" => $this->cashierId->toNative(),
             "started_at" => $this->startedAt->format(\DateTimeInterface::ATOM),
         ];
     }
@@ -57,6 +62,7 @@ final class SessionStarted extends BaseAggregateEvent implements
         $this->sessionId = SessionId::fromNative($payload["session_id"]);
         $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
         $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->cashierId = CashierId::fromNative($payload["cashier_id"]);
         $this->startedAt = new DateTimeImmutable($payload["started_at"]);
     }
 
@@ -78,6 +84,14 @@ final class SessionStarted extends BaseAggregateEvent implements
     final public function getTerminalId(): TerminalId
     {
         return $this->terminalId;
+    }
+
+    /**
+     * The session's domain operator (a module-owned cashier).
+     */
+    final public function getCashierId(): CashierId
+    {
+        return $this->cashierId;
     }
 
     final public function getStartedAt(): DateTimeImmutable

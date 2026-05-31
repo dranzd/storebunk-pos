@@ -149,6 +149,7 @@ final class InMemoryPosSessionReadModelTest extends TestCase
             $sessionId,
             $shiftId ?? new ShiftId(),
             new TerminalId(),
+            new \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId(),
             new DateTimeImmutable()
         );
         $this->readModel->onSessionStarted($event);

@@ -32,7 +32,9 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\CashDropRecorded;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -92,7 +94,7 @@ final class PayloadContractTest extends TestCase
 
     public function test_session_started_payload_contract(): void
     {
-        $event = SessionStarted::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440011'), ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440012'), TerminalId::fromNative('550e8400-e29b-41d4-a716-446655440013'), new DateTimeImmutable('2025-04-06T10:00:00Z'));
+        $event = SessionStarted::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440011'), ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440012'), TerminalId::fromNative('550e8400-e29b-41d4-a716-446655440013'), \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::fromNative('550e8400-e29b-41d4-a716-446655440099'), new DateTimeImmutable('2025-04-06T10:00:00Z'));
         $this->verifyPayloadContract($event, SessionStarted::class);
     }
 
@@ -196,6 +198,29 @@ final class PayloadContractTest extends TestCase
     {
         $event = CashDropRecorded::occur(ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440045'), Money::fromArray(['amount' => 250, 'currency' => 'USD']), new DateTimeImmutable('2025-04-07T08:00:00Z'));
         $this->verifyPayloadContract($event, CashDropRecorded::class);
+    }
+
+    public function test_shift_assigned_payload_contract(): void
+    {
+        $event = ShiftAssigned::occur(
+            ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440047'),
+            CashierId::fromNative('550e8400-e29b-41d4-a716-446655440048'),
+            [
+                CashierId::fromNative('550e8400-e29b-41d4-a716-446655440049'),
+                CashierId::fromNative('550e8400-e29b-41d4-a716-446655440050'),
+            ],
+            new DateTimeImmutable('2025-04-07T09:00:00Z')
+        );
+        $this->verifyPayloadContract($event, ShiftAssigned::class);
+    }
+
+    public function test_shift_unassigned_payload_contract(): void
+    {
+        $event = ShiftUnassigned::occur(
+            ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440051'),
+            new DateTimeImmutable('2025-04-07T10:00:00Z')
+        );
+        $this->verifyPayloadContract($event, ShiftUnassigned::class);
     }
 
     private function verifyPayloadContract(object $event, string $eventClass): void

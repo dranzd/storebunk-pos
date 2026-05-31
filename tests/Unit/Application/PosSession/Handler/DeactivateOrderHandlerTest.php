@@ -72,10 +72,11 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminal(
+        $startSession(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $this->expectException(InvariantViolationException::class);
@@ -90,10 +91,11 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminal(
+        $startSession(StartSession::onTerminalForCashier(
             $sessionId->toNative(),
             $shiftId->toNative(),
-            $terminalId->toNative()
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
         ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
