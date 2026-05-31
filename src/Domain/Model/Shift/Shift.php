@@ -13,6 +13,7 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashDrop;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -157,6 +158,28 @@ final class Shift implements AggregateRoot
         );
     }
 
+    /**
+     * Clear the shift's membership, returning it to "open" (no assignee, no
+     * fallbacks). The inverse of {@see assign()}.
+     */
+    final public function unassign(): void
+    {
+        if (!$this->status->isOpen()) {
+            throw InvariantViolationException::withMessage('Cannot unassign a shift that is not open');
+        }
+
+        if (!$this->isAssigned()) {
+            throw InvariantViolationException::withMessage('Shift is not assigned');
+        }
+
+        $this->recordThat(
+            ShiftUnassigned::occur(
+                $this->shiftId,
+                new DateTimeImmutable()
+            )
+        );
+    }
+
     final public function getAggregateRootUuid(): string
     {
         return $this->shiftId->toNative();
@@ -240,5 +263,11 @@ final class Shift implements AggregateRoot
     {
         $this->assignee = $event->getAssignee();
         $this->fallbackCashiers = $event->getFallbackCashiers();
+    }
+
+    private function applyOnShiftUnassigned(ShiftUnassigned $event): void
+    {
+        $this->assignee = null;
+        $this->fallbackCashiers = [];
     }
 }

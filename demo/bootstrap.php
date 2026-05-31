@@ -38,8 +38,10 @@ use Dranzd\StorebunkPos\Application\Shift\Command\Handler\CloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\ForceCloseShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\RecordCashDropHandler;
+use Dranzd\StorebunkPos\Application\Shift\Command\Handler\UnassignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
+use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Terminal\Command\ActivateTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\DisableTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ActivateTerminalHandler;
@@ -94,6 +96,7 @@ $handlers = [
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository),
     AssignShift::class      => new AssignShiftHandler($shiftRepository),
+    UnassignShift::class    => new UnassignShiftHandler($shiftRepository),
     CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
     ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),

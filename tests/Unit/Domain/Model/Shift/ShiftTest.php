@@ -11,6 +11,7 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Shift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -228,6 +229,83 @@ final class ShiftTest extends TestCase
         $this->expectExceptionMessage('Cannot assign a shift that is not open');
 
         $shift->assign(new CashierId(), []);
+    }
+
+    public function test_it_can_be_unassigned_back_to_open(): void
+    {
+        $shift = $this->createOpenedShift();
+        $shift->assign(new CashierId(), [new CashierId()]);
+        $shift->popRecordedEvents();
+
+        $shift->unassign();
+
+        $events = $shift->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(ShiftUnassigned::class, $events[0]);
+
+        $this->assertFalse($shift->isAssigned());
+        $this->assertNull($shift->assignee());
+        $this->assertSame([], $shift->fallbackCashiers());
+    }
+
+    public function test_it_cannot_be_unassigned_when_never_assigned(): void
+    {
+        $shift = $this->createOpenedShift();
+        $shift->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Shift is not assigned');
+
+        $shift->unassign();
+    }
+
+    public function test_it_cannot_be_unassigned_when_not_open(): void
+    {
+        $shift = $this->createOpenedShift();
+        $shift->assign(new CashierId(), []);
+        $shift->close(Money::fromArray(['amount' => 10000, 'currency' => 'USD']));
+        $shift->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot unassign a shift that is not open');
+
+        $shift->unassign();
+    }
+
+    public function test_assigned_then_unassigned_reconstitutes_as_open(): void
+    {
+        $shiftId = new ShiftId();
+        $original = Shift::open(
+            $shiftId,
+            new TerminalId(),
+            new BranchId(),
+            new CashierId(),
+            Money::fromArray(['amount' => 10000, 'currency' => 'USD'])
+        );
+        $original->assign(new CashierId(), [new CashierId(), new CashierId()]);
+        $original->unassign();
+        $events = $original->popRecordedEvents();
+
+        $shift = new Shift();
+        $shift = $shift->reconstituteFromHistory($events);
+
+        $this->assertFalse($shift->isAssigned());
+        $this->assertNull($shift->assignee());
+        $this->assertSame([], $shift->fallbackCashiers());
+    }
+
+    public function test_it_can_be_reassigned_after_being_unassigned(): void
+    {
+        $shift = $this->createOpenedShift();
+        $shift->assign(new CashierId(), []);
+        $shift->unassign();
+        $shift->popRecordedEvents();
+
+        $newAssignee = new CashierId();
+        $shift->assign($newAssignee, []);
+
+        $this->assertTrue($shift->isAssigned());
+        $this->assertTrue($shift->assignee()->sameValueAs($newAssignee));
     }
 
     public function test_it_can_be_reconstituted_from_history(): void

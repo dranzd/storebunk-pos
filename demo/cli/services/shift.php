@@ -6,6 +6,7 @@ use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\CloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
+use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
@@ -32,6 +33,9 @@ function handleShift(
         case 'assign':
             shiftAssign($commandBus, $stateStore, $args);
             break;
+        case 'unassign':
+            shiftUnassign($commandBus, $stateStore, $args);
+            break;
         case 'close':
             shiftClose($commandBus, $stateStore, $args);
             break;
@@ -44,7 +48,7 @@ function handleShift(
         default:
             Output::error("Unknown shift subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo shift <open|assign|close|force-close|cash-drop> [options]');
+            Output::usage('./demo shift <open|assign|unassign|close|force-close|cash-drop> [options]');
             exit(1);
     }
 }
@@ -131,6 +135,30 @@ function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
         Output::field('Shift ID', $shiftId->toNative());
         Output::field('Assignee', $assignee->toNative());
         Output::field('Fallbacks', $fallbackIds === [] ? '(none)' : implode(', ', $fallbackIds));
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function shiftUnassign(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
+{
+    $shiftIdRaw = $args->get('shift-id', $stateStore->get('last_shift_id', ''));
+    if ($shiftIdRaw === '') {
+        Output::error('--shift-id is required (or run shift open first)');
+        exit(1);
+    }
+
+    $shiftId = new ShiftId($shiftIdRaw);
+
+    try {
+        $commandBus->dispatch(UnassignShift::shift($shiftId->toNative()));
+
+        Output::success('Shift unassigned (now open).');
+        Output::field('Shift ID', $shiftId->toNative());
     } catch (AggregateNotFoundException $e) {
         Output::domainError($e->getMessage());
         exit(1);

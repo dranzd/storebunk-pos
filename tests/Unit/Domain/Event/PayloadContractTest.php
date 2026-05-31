@@ -34,6 +34,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\CashDropRecorded;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -211,6 +212,15 @@ final class PayloadContractTest extends TestCase
             new DateTimeImmutable('2025-04-07T09:00:00Z')
         );
         $this->verifyPayloadContract($event, ShiftAssigned::class);
+    }
+
+    public function test_shift_unassigned_payload_contract(): void
+    {
+        $event = ShiftUnassigned::occur(
+            ShiftId::fromNative('550e8400-e29b-41d4-a716-446655440051'),
+            new DateTimeImmutable('2025-04-07T10:00:00Z')
+        );
+        $this->verifyPayloadContract($event, ShiftUnassigned::class);
     }
 
     private function verifyPayloadContract(object $event, string $eventClass): void

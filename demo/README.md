@@ -83,6 +83,9 @@ Manages cashier shifts and cash handling.
 # assignee defaults to the last shift's cashier. Unassigned shifts are "open".
 ./demo/demo shift assign [--shift-id=<uuid>] [--assignee-id=<uuid>] [--fallback-ids=<uuid>,<uuid>]
 
+# Clear a shift's membership, returning it to open
+./demo/demo shift unassign [--shift-id=<uuid>]
+
 # Close a shift
 ./demo/demo shift close --declared-cash=<amount> [--shift-id=<uuid>] [--currency=PHP]
 
