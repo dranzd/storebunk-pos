@@ -94,8 +94,8 @@ Manages cashier shifts and cash handling.
 Manages POS sessions and order lifecycle.
 
 ```bash
-# Start a POS session
-./demo/demo session start [--shift-id=<uuid>] [--terminal-id=<uuid>]
+# Start a POS session (cashier defaults to the last shift's cashier)
+./demo/demo session start [--shift-id=<uuid>] [--terminal-id=<uuid>] [--cashier-id=<uuid>]
 
 # Start a new order
 ./demo/demo session new-order [--session-id=<uuid>]
