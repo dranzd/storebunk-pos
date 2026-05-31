@@ -4,7 +4,7 @@
 **Date Created**: April 6, 2025  
 **Last Updated**: April 6, 2025  
 **Branch**: `feature/fix-event-serialization-contract`  
-**Scope**: 26 POS domain events across Terminal, PosSession, and Shift aggregates
+**Scope**: 28 POS domain events across Terminal, PosSession, and Shift aggregates
 
 ---
 
@@ -20,7 +20,7 @@ StoreBunk POS events violate the CQRS/ES library's payload-based serialization c
 
 ### Solution
 
-Implement the `getPayload()` / `setPayload()` contract on all 26 POS domain events, aligning the system with storebunk-inventory reference implementation and library standards.
+Implement the `getPayload()` / `setPayload()` contract on all 28 POS domain events, aligning the system with storebunk-inventory reference implementation and library standards.
 
 ### Impact
 
@@ -215,7 +215,7 @@ The library calls `getPayload()` as the **canonical interface** for event data. 
 
 ### Pattern Template
 
-All 26 POS events follow this pattern:
+All 28 POS events follow this pattern:
 
 ```php
 final class YourEvent extends BaseAggregateEvent implements DomainEventInterface
@@ -280,13 +280,17 @@ Provides:
 
 ## 5. Implementation Status
 
-### Events Migrated (26 total)
+### Events Migrated (28 total)
 
 ✅ All events now implement `getPayload()` and `setPayload()`.
 
+> **Provenance:** 26 events were migrated to the payload contract in the original
+> effort (2026-02). Issue 4002 (2026-06) later added two Shift events —
+> `ShiftAssigned` and `ShiftUnassigned` — authored against this same contract from
+> the start and covered by `PayloadContractTest`, bringing the total to 28.
+
 **Terminal Events (8)**:
 - ✅ TerminalActivated
-- ✅ TerminalDeactivated
 - ✅ TerminalDecommissioned
 - ✅ TerminalDisabled
 - ✅ TerminalMaintenanceSet
@@ -311,11 +315,13 @@ Provides:
 - ✅ SessionEnded
 - ✅ SessionStarted
 
-**Shift Events (4)**:
+**Shift Events (6)**:
 - ✅ CashDropRecorded
+- ✅ ShiftAssigned
 - ✅ ShiftClosed
 - ✅ ShiftForceClosed
 - ✅ ShiftOpened
+- ✅ ShiftUnassigned
 
 ### Changes Applied to Each Event
 
@@ -330,7 +336,7 @@ Provides:
 ### Verification Results
 
 ✅ **Automated Verification** (`verify_payload_fix.php`):
-- All 26 events return non-empty payloads
+- All 28 events return non-empty payloads
 - All events hydrate correctly from payloads
 - Round-trip serialization preserves data
 - Event store format includes populated payloads
@@ -434,7 +440,7 @@ $replayed->getPayload();    // ✅ Returns full data
 - ✅ `src/Domain/Event/BaseAggregateEvent.php` (base class & guidance)
 - ✅ `verify_payload_fix.php` (verification script)
 
-### Modified Files (26 Events)
+### Event Files (28 Events)
 
 **Location**: `src/Domain/Model/{Aggregate}/Event/{EventName}.php`
 
@@ -481,11 +487,11 @@ Match: ✅ TRUE
 
 | Metric | Result |
 |--------|--------|
-| Events Fixed | 26/26 (100%) |
-| getPayload() Implemented | 26/26 (100%) |
-| setPayload() Implemented | 26/26 (100%) |
-| Custom toArray() Removed | 26/26 (100%) |
-| Custom fromArray() Removed | 26/26 (100%) |
+| Events Fixed | 28/28 (100%) |
+| getPayload() Implemented | 28/28 (100%) |
+| setPayload() Implemented | 28/28 (100%) |
+| Custom toArray() Removed | 28/28 (100%) |
+| Custom fromArray() Removed | 28/28 (100%) |
 | Backward Compatibility | ✅ 100% |
 | Breaking Changes | 0 |
 | Code Duplication | 0 |
@@ -566,7 +572,7 @@ A: Will be fixed automatically when replayed (setPayload() now works correctly).
 
 - `src/Domain/Event/BaseAggregateEvent.php` — Implementation base class
 - `verify_payload_fix.php` — Verification script
-- All 26 event files in `src/Domain/Model/*/Event/`
+- All 28 event files in `src/Domain/Model/*/Event/`
 
 ### Library Documentation
 
@@ -583,10 +589,10 @@ A: Will be fixed automatically when replayed (setPayload() now works correctly).
 
 ### What This Specification Defines
 
-✅ Problem: 26 POS events violated CQRS/ES library contract  
+✅ Problem: POS events violated CQRS/ES library contract (26 events at the time)  
 ✅ Root Cause: Legacy pattern predating library standardization  
 ✅ Solution: Implement `getPayload()` / `setPayload()` on all events  
-✅ Implementation: Complete on all 26 events  
+✅ Implementation: Complete on all 28 events  
 ✅ Verification: All tests passing, static analysis clean  
 ✅ Status: Ready for production deployment  
 
