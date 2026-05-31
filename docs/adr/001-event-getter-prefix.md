@@ -181,7 +181,7 @@ Without getters, switching from `public string $terminalId` to `public TerminalI
 - **Safe refactoring** — property renames, type changes, and VO migrations don't cascade to consumers.
 - **Clean static analysis** — no `@phpstan-ignore` annotations or baseline exclusions needed.
 - **Immutability** — enforced by private properties + no setters + private constructor; no `readonly` keyword needed.
-- **Consistency** — all 26 events follow the same pattern, making the codebase predictable.
+- **Consistency** — all 28 events follow the same pattern, making the codebase predictable.
 
 ### Negative
 
