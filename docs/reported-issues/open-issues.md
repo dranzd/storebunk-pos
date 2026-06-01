@@ -20,4 +20,4 @@ _(none)_
 
 #### 🔵 Low
 
-- [ ] [9001](9000-offline-sync/9001-order-created-offline-accessor-naming.md) — Offline events use `get`-prefixed accessors, inconsistent with convention
+_(none)_

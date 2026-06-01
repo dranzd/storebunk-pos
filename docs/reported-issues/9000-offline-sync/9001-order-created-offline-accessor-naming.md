@@ -1,10 +1,10 @@
 # 9001 — Offline events use `get`-prefixed accessors, inconsistent with convention
 
 **Type:** Improvement
-**Status:** Open
+**Status:** Rejected
 **Severity:** Low
 **Reported:** 2026-02-19
-**Resolved:**
+**Resolved:** 2026-06-01
 **Affects:**
 - `src/Domain/Model/PosSession/Event/OrderCreatedOffline.php`
 - `src/Domain/Model/PosSession/Event/OrderMarkedPendingSync.php`
@@ -81,6 +81,6 @@ Update all internal call sites:
 
 ## Resolution
 
-**Resolved:** 2026-02-20
-**Commit/PR:** fix/9001-event-accessor-naming
-**Summary:** Removed `get`-prefix from all three offline event classes (`OrderCreatedOffline`, `OrderMarkedPendingSync`, `OrderSyncedOnline`) and their command counterparts (`StartNewOrderOffline`, `SyncOrderOnline`). Updated all call sites in `PosSession.php`, `StartNewOrderOfflineHandler`, `SyncOrderOnlineHandler`, and `PosSessionOfflineTest`. All 121 tests pass.
+**Resolved:** 2026-06-01
+**Commit/PR:** —
+**Summary:** Rejected. A full audit of all 28 POS domain events confirms every accessor across Terminal, PosSession, and Shift already uses the `get`-prefix (`getSessionId()`, `getOrderId()`, etc.) — consistent with ADR-001 (`docs/adr/001-event-getter-prefix.md`), which mandates the `get`-prefix as the project standard. The issue's premise — that the three offline events were inconsistent by using `get`-prefixed accessors — is incorrect. The code is uniform; there is nothing to fix.

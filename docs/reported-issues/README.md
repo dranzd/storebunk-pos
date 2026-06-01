@@ -226,9 +226,9 @@ The merge is **never executed automatically** — it is always presented as a su
 | [6002](6000-bc-integration/6002-deduct-inventory-mapping.md) | BC Integration | `deductInventory()` name misleading, mapping unclear | Improvement | Medium | Resolved | 2026-02-19 |
 | [6003](6000-bc-integration/6003-draft-order-missing-context.md) | BC Integration | `createDraftOrder()` accepts no customer or branch context | Design Gap | High | Resolved | 2026-02-19 |
 | [8001](8000-concurrency/8001-multi-terminal-enforcement-in-memory.md) | Concurrency | `MultiTerminalEnforcementService` uses in-memory state | Architecture | Critical | Resolved | 2026-02-19 |
-| [9001](9000-offline-sync/9001-order-created-offline-accessor-naming.md) | Offline/Sync | Offline events use `get`-prefixed accessors, inconsistent convention | Improvement | Low | Open | 2026-02-19 |
+| [9001](9000-offline-sync/9001-order-created-offline-accessor-naming.md) | Offline/Sync | Offline events use `get`-prefixed accessors, inconsistent convention | Improvement | Low | Rejected | 2026-02-19 |
 | [9002](9000-offline-sync/9002-deactivate-order-command-missing.md) | Offline/Sync | `DeactivateOrder` CQRS command and handler are missing | Missing Feature | High | Resolved | 2026-02-19 |
 
 ---
 
-**Last Updated:** 2026-06-01 (4002 resolved — session operator + shift assignment; only 9001 open)
+**Last Updated:** 2026-06-01 (9001 rejected — get-prefix is the ADR-001 standard; no open issues)
