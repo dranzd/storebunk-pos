@@ -58,7 +58,7 @@ final class CompleteOrderHandlerTest extends TestCase
             ->method('fulfillOrderReservation')
             ->with($this->callback(fn (OrderId $id) => $id->toNative() === $orderId->toNative()));
 
-        ($this->handler)(CompleteOrder::forSession($sessionId->toNative()));
+        ($this->handler)(new CompleteOrder($sessionId->toNative()));
 
         $completed = array_values(array_filter(
             $this->eventStore->loadEvents($sessionId->toNative()),
@@ -86,7 +86,7 @@ final class CompleteOrderHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Order is not fully paid');
 
-        ($this->handler)(CompleteOrder::forSession($sessionId->toNative()));
+        ($this->handler)(new CompleteOrder($sessionId->toNative()));
     }
 
     private function buildCheckoutSession(SessionId $sessionId, OrderId $orderId): void
@@ -95,7 +95,7 @@ final class CompleteOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -103,7 +103,7 @@ final class CompleteOrderHandlerTest extends TestCase
         ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
-        $startOrder(StartNewOrder::withOrder(
+        $startOrder(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));

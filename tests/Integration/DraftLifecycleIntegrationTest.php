@@ -72,7 +72,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -80,7 +80,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);
-        $startOrderHandler(StartNewOrder::withOrder(
+        $startOrderHandler(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -92,7 +92,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $this->inventoryService->createSoftReservation($orderId);
 
         $reactivateHandler = new ReactivateOrderHandler($this->sessionRepository, $this->inventoryService);
-        $reactivateHandler(ReactivateOrder::withOrder(
+        $reactivateHandler(new ReactivateOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -109,7 +109,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $orderId = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -117,7 +117,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         ));
 
         $startOrderHandler = new StartNewOrderHandler($this->sessionRepository);
-        $startOrderHandler(StartNewOrder::withOrder(
+        $startOrderHandler(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -132,7 +132,7 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $this->expectExceptionMessage('Cannot reactivate order: insufficient inventory for re-reservation');
 
         $reactivateHandler = new ReactivateOrderHandler($this->sessionRepository, $this->inventoryService);
-        $reactivateHandler(ReactivateOrder::withOrder(
+        $reactivateHandler(new ReactivateOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));

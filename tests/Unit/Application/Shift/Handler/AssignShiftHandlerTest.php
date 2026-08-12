@@ -38,7 +38,7 @@ final class AssignShiftHandlerTest extends TestCase
         $fallbackA = new CashierId();
         $fallbackB = new CashierId();
 
-        ($this->handler)(AssignShift::toCashier(
+        ($this->handler)(new AssignShift(
             $shiftId->toNative(),
             $assignee->toNative(),
             [$fallbackA->toNative(), $fallbackB->toNative()]
@@ -66,7 +66,7 @@ final class AssignShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('at most 3 fallback cashiers');
 
-        ($this->handler)(AssignShift::toCashier(
+        ($this->handler)(new AssignShift(
             $shiftId->toNative(),
             (new CashierId())->toNative(),
             [
@@ -82,7 +82,7 @@ final class AssignShiftHandlerTest extends TestCase
     {
         $shiftId = new ShiftId();
         $openHandler = new OpenShiftHandler($this->shiftRepository);
-        $openHandler(OpenShift::forCashier(
+        $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),
             (new BranchId())->toNative(),

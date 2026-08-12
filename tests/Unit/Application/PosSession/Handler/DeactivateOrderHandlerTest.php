@@ -40,7 +40,7 @@ final class DeactivateOrderHandlerTest extends TestCase
 
         $this->startSessionWithOrder($sessionId, $orderId);
 
-        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
+        ($this->handler)(new DeactivateOrder($sessionId->toNative(), 'TTL expired'));
 
         $deactivated = array_values(array_filter(
             $this->eventStore->loadEvents($sessionId->toNative()),
@@ -60,7 +60,7 @@ final class DeactivateOrderHandlerTest extends TestCase
 
         $this->startSessionWithOrder($sessionId, $orderId);
 
-        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
+        ($this->handler)(new DeactivateOrder($sessionId->toNative(), 'TTL expired'));
 
         $this->expectNotToPerformAssertions();
     }
@@ -72,7 +72,7 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -82,7 +82,7 @@ final class DeactivateOrderHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('No active order to deactivate');
 
-        ($this->handler)(DeactivateOrder::because($sessionId->toNative(), 'TTL expired'));
+        ($this->handler)(new DeactivateOrder($sessionId->toNative(), 'TTL expired'));
     }
 
     private function startSessionWithOrder(SessionId $sessionId, OrderId $orderId): void
@@ -91,7 +91,7 @@ final class DeactivateOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -99,7 +99,7 @@ final class DeactivateOrderHandlerTest extends TestCase
         ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
-        $startOrder(StartNewOrder::withOrder(
+        $startOrder(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));

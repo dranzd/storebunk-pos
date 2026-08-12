@@ -6,7 +6,13 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 
 use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
+/**
+ * DeactivateOrderHandler
+ *
+ * Handles the DeactivateOrder command by deactivating the session's active order.
+ */
 final class DeactivateOrderHandler
 {
     public function __construct(
@@ -14,10 +20,10 @@ final class DeactivateOrderHandler
     ) {
     }
 
-    final public function __invoke(DeactivateOrder $command): void
+    public function __invoke(DeactivateOrder $command): void
     {
-        $session = $this->sessionRepository->load($command->sessionId());
-        $session->deactivateOrder($command->reason());
+        $session = $this->sessionRepository->load(SessionId::fromNative($command->sessionId));
+        $session->deactivateOrder($command->reason);
         $this->sessionRepository->store($session);
     }
 }

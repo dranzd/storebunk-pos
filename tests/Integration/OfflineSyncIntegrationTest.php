@@ -45,7 +45,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -57,7 +57,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $command = StartNewOrderOffline::withOrder(
+        $command = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -75,7 +75,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -88,7 +88,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->idempotencyRegistry
         );
 
-        $command = StartNewOrderOffline::withOrder(
+        $command = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -106,7 +106,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -118,7 +118,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $offlineCommand = StartNewOrderOffline::withOrder(
+        $offlineCommand = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -130,7 +130,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
             'branch-uuid-1',
@@ -149,7 +149,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -161,7 +161,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -172,7 +172,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncCommand = SyncOrderOnline::forOrder(
+        $syncCommand = new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
             'branch-uuid-1',
@@ -193,7 +193,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId2   = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -206,12 +206,12 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->idempotencyRegistry
         );
 
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId1->toNative()
         ));
 
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId2->toNative()
         ));
@@ -224,7 +224,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId1->toNative(),
             'branch-uuid-1',
@@ -233,7 +233,7 @@ final class OfflineSyncIntegrationTest extends TestCase
 
         $this->assertSame(1, $this->pendingSyncQueue->count());
 
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId2->toNative(),
             'branch-uuid-1',

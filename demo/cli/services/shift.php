@@ -77,7 +77,7 @@ function shiftOpen(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs
     $cashierId  = new CashierId($cashierIdRaw);
 
     try {
-        $commandBus->dispatch(OpenShift::forCashier(
+        $commandBus->dispatch(new OpenShift(
             $shiftId->toNative(),
             $terminalId->toNative(),
             $branchId->toNative(),
@@ -125,7 +125,7 @@ function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     $fallbacks = array_map(static fn (string $id) => new CashierId($id), $fallbackIds);
 
     try {
-        $commandBus->dispatch(AssignShift::toCashier(
+        $commandBus->dispatch(new AssignShift(
             $shiftId->toNative(),
             $assignee->toNative(),
             array_map(static fn (CashierId $c) => $c->toNative(), $fallbacks)
@@ -155,7 +155,7 @@ function shiftUnassign(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $shiftId = new ShiftId($shiftIdRaw);
 
     try {
-        $commandBus->dispatch(UnassignShift::shift($shiftId->toNative()));
+        $commandBus->dispatch(new UnassignShift($shiftId->toNative()));
 
         Output::success('Shift unassigned (now open).');
         Output::field('Shift ID', $shiftId->toNative());
@@ -182,7 +182,7 @@ function shiftClose(SimpleCommandBus $commandBus, StateStore $stateStore, CliArg
     $shiftId = new ShiftId($shiftIdRaw);
 
     try {
-        $commandBus->dispatch(CloseShift::withCashAmount(
+        $commandBus->dispatch(new CloseShift(
             $shiftId->toNative(),
             $declaredCash,
             $currency
@@ -215,7 +215,7 @@ function shiftForceClose(SimpleCommandBus $commandBus, StateStore $stateStore, C
     $shiftId = new ShiftId($shiftIdRaw);
 
     try {
-        $commandBus->dispatch(ForceCloseShift::bySupervisor(
+        $commandBus->dispatch(new ForceCloseShift(
             $shiftId->toNative(),
             $supervisorId,
             $reason
@@ -254,7 +254,7 @@ function shiftCashDrop(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $shiftId = new ShiftId($shiftIdRaw);
 
     try {
-        $commandBus->dispatch(RecordCashDrop::ofAmount(
+        $commandBus->dispatch(new RecordCashDrop(
             $shiftId->toNative(),
             $amount,
             $currency

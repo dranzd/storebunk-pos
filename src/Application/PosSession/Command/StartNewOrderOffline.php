@@ -5,46 +5,29 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Application\PosSession\Command;
 
 use Dranzd\Common\Cqrs\Domain\Message\AbstractCommand;
-use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
-use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 
+/**
+ * StartNewOrderOffline
+ *
+ * Command to start a new order while the session is offline. Callers that
+ * need a deterministic command id for idempotent replay should use
+ * withMessageUuid() on the constructed command.
+ */
 final class StartNewOrderOffline extends AbstractCommand
 {
-    private function __construct(
-        private readonly string $sessionId,
-        private readonly string $orderId,
-        string $commandId = ''
+    public function __construct(
+        public readonly string $sessionId,
+        public readonly string $orderId
     ) {
         parent::__construct(
-            $commandId,
-            self::expectedMessageName(),
-            [
-                'session_id' => $this->sessionId,
-                'order_id' => $this->orderId,
-            ]
+            messageUuid: '',
+            messageName: self::expectedMessageName(),
+            payload: []
         );
     }
 
-    final public static function withOrder(
-        string $sessionId,
-        string $orderId,
-        ?string $commandId = null
-    ): self {
-        return new self($sessionId, $orderId, $commandId ?? '');
-    }
-
-    final public static function expectedMessageName(): string
+    public static function expectedMessageName(): string
     {
         return 'storebunk.pos.session.start_new_order_offline';
-    }
-
-    final public function sessionId(): SessionId
-    {
-        return SessionId::fromNative($this->sessionId);
-    }
-
-    final public function orderId(): OrderId
-    {
-        return OrderId::fromNative($this->orderId);
     }
 }

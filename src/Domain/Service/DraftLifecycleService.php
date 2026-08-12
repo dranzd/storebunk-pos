@@ -27,7 +27,7 @@ final class DraftLifecycleService
         foreach ($this->sessionReadModel->getSessionsWithActiveOrder() as $row) {
             if ($this->shouldDeactivateOrder($row['last_activity_at'], $currentTime)) {
                 $this->commandBus->dispatch(
-                    DeactivateOrder::because(
+                    new DeactivateOrder(
                         $row['session_id'],
                         'Automatically deactivated due to inactivity'
                     )
@@ -41,7 +41,7 @@ final class DraftLifecycleService
         foreach ($this->sessionReadModel->getSessionsWithActiveOrder() as $row) {
             if ($this->isOrderExpired($row['last_activity_at'], $currentTime)) {
                 $this->commandBus->dispatch(
-                    CancelOrder::because(
+                    new CancelOrder(
                         $row['session_id'],
                         'Automatically cancelled due to expiry'
                     )
