@@ -5,42 +5,27 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Application\Terminal\Command;
 
 use Dranzd\Common\Cqrs\Domain\Message\AbstractCommand;
-use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
+/**
+ * RecommissionTerminal
+ *
+ * Command to bring a decommissioned terminal back into service, with the reason recorded.
+ */
 final class RecommissionTerminal extends AbstractCommand
 {
-    private function __construct(
-        private readonly string $terminalId,
-        private readonly string $reason,
-        string $commandId = ''
+    public function __construct(
+        public readonly string $terminalId,
+        public readonly string $reason
     ) {
         parent::__construct(
-            $commandId,
-            self::expectedMessageName(),
-            [
-                'terminal_id' => $this->terminalId,
-                'reason' => $this->reason,
-            ]
+            messageUuid: '',
+            messageName: self::expectedMessageName(),
+            payload: []
         );
     }
 
-    final public static function because(string $terminalId, string $reason, ?string $commandId = null): self
-    {
-        return new self($terminalId, $reason, $commandId ?? '');
-    }
-
-    final public static function expectedMessageName(): string
+    public static function expectedMessageName(): string
     {
         return 'storebunk.pos.terminal.recommission';
-    }
-
-    final public function terminalId(): TerminalId
-    {
-        return TerminalId::fromNative($this->terminalId);
-    }
-
-    final public function reason(): string
-    {
-        return $this->reason;
     }
 }

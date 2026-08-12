@@ -70,7 +70,7 @@ function terminalRegister(
     $terminalId = new TerminalId();
 
     try {
-        $command = new RegisterTerminal($terminalId, $branchId, $name);
+        $command = new RegisterTerminal($terminalId->toNative(), $branchId->toNative(), $name);
         $commandBus->dispatch($command);
 
         // Project into read model
@@ -107,7 +107,7 @@ function terminalActivate(
     $terminalId = new TerminalId($terminalIdRaw);
 
     try {
-        $commandBus->dispatch(new ActivateTerminal($terminalId));
+        $commandBus->dispatch(new ActivateTerminal($terminalId->toNative()));
         global $eventStore;
         projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
 
@@ -137,7 +137,7 @@ function terminalDisable(
     $terminalId = new TerminalId($terminalIdRaw);
 
     try {
-        $commandBus->dispatch(new DisableTerminal($terminalId));
+        $commandBus->dispatch(new DisableTerminal($terminalId->toNative()));
         global $eventStore;
         projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
 
@@ -167,7 +167,7 @@ function terminalMaintenance(
     $terminalId = new TerminalId($terminalIdRaw);
 
     try {
-        $commandBus->dispatch(new SetTerminalMaintenance($terminalId));
+        $commandBus->dispatch(new SetTerminalMaintenance($terminalId->toNative()));
         global $eventStore;
         projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
 
