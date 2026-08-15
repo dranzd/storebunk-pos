@@ -4,6 +4,40 @@ This directory contains all reported issues, improvements, and architectural con
 
 ---
 
+## Start Here — Reporting a New Issue
+
+**Write the raw report into [`incoming-report.md`](incoming-report.md), then run `/triage`.**
+
+`incoming-report.md` is the **inbox** for this directory — the one file to drop a new concern into. It is:
+
+- **Freeform.** A paragraph, bullets, a pasted error, a transcript fragment, or a full AI-dev spec all work. No template to fill in.
+- **A scratchpad, not a record.** It is user-owned and git-ignored. Triage never edits, clears, or commits it — you manage that file yourself.
+- **The `/triage` entry point.** `/triage` reads it, investigates each concern against the codebase, proposes an outcome per concern (file / merge with existing / already resolved / external / needs clarification), and on your confirmation writes the properly-numbered issue file, updates [`open-issues.md`](open-issues.md), and walks the Open Questions interactively.
+
+Nothing else in this directory is hand-authored: **do not create a `NNNN-*.md` issue file by hand** — let triage number it and apply the template below.
+
+> **Filename matters.** The inbox must be exactly `incoming-report.md`. Reports left under any other name (e.g. `issue.md`, `report.md`) are not picked up by `/triage` and are not git-ignored, so they show up as untracked noise.
+
+### The files in this directory
+
+| File | Role | Who writes it |
+|------|------|---------------|
+| **`incoming-report.md`** | **Inbox** — raw, freeform, unfiled reports awaiting triage | **You.** Git-ignored; triage never touches it. |
+| `open-issues.md` | Living checklist of unresolved issues, by severity | Triage / resolver. Update when an issue resolves — not this README. |
+| `NNNN-<slug>.md` | One filed issue, following the template below | Triage, on your confirmation. |
+| `NNNN-report-<origin-id>.md` | **Optional** — the originating report, archived **verbatim** next to the issue it produced | Moved from the inbox on request. Never edited: it is the record of what was reported, not what was concluded. |
+
+**Archiving a report (optional).** The inbox is a scratchpad and is normally discarded. When a
+report is worth keeping — an external LIR, an AI-dev spec, anything with its own identity — move
+it next to the issue it produced as `NNNN-report-<origin-id>.md`, where `NNNN` is the issue and
+`<origin-id>` is the report's own id in its home system (e.g.
+`6001-report-00014-dev3.md`). Cite it from the issue's `Source:` line. Keep the content
+**verbatim**: its value is being the unaltered "what was reported", which the issue's Findings
+may later contradict. (Where a spec is authored locally rather than received, `docs/discussions/`
+remains its home — that folder is user-owned and is not touched by triage.)
+
+---
+
 ## Open Issues
 
 See **[open-issues.md](open-issues.md)** for the current checklist of all unresolved issues, ordered by severity. Update that file when issues are resolved — not this one.
@@ -17,6 +51,8 @@ Issues are grouped by domain area, mirroring the feature series numbering used i
 ```
 docs/reported-issues/
 ├── README.md                          ← this file (standards reference)
+├── incoming-report.md                 ← inbox for new raw reports (git-ignored, user-owned)
+├── open-issues.md                     ← living checklist of unresolved issues
 ├── 2000-terminal/                     ← Terminal aggregate
 │   └── 2001-terminal-events-missing-fromarray.md
 ├── 3000-shift/                        ← Shift aggregate
@@ -231,4 +267,4 @@ The merge is **never executed automatically** — it is always presented as a su
 
 ---
 
-**Last Updated:** 2026-06-01 (9001 rejected — get-prefix is the ADR-001 standard; no open issues)
+**Last Updated:** 2026-08-12 (added the incoming-report.md inbox standard, matching storebunk-inventory)
