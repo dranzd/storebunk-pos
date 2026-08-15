@@ -11,8 +11,10 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
+use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\EndSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\CancelOrderHandler;
+use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\DeactivateOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\CompleteOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\EndSessionHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\InitiateCheckoutHandler;
@@ -135,6 +137,7 @@ $handlers = [
     StartNewOrder::class    => new StartNewOrderHandler($sessionRepository),
     ParkOrder::class        => new ParkOrderHandler($sessionRepository),
     ResumeOrder::class      => new ResumeOrderHandler($sessionRepository),
+    DeactivateOrder::class  => new DeactivateOrderHandler($sessionRepository),
     ReactivateOrder::class  => new ReactivateOrderHandler($sessionRepository, $inventoryService),
     InitiateCheckout::class => new InitiateCheckoutHandler($sessionRepository, $orderingService, $inventoryService),
     RequestPayment::class   => new RequestPaymentHandler($sessionRepository, $paymentService),
