@@ -200,6 +200,12 @@ final class PosSession implements AggregateRoot
             throw InvariantViolationException::withMessage('No active order to deactivate');
         }
 
+        if ($this->state->isCheckout()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot deactivate an order during checkout'
+            );
+        }
+
         $this->recordThat(
             OrderDeactivated::occur(
                 $this->sessionId,

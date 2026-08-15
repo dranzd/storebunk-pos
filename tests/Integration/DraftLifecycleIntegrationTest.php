@@ -13,6 +13,8 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\ReactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\Common\Cqrs\Application\Command\Bus as CommandBus;
+use Dranzd\Common\Cqrs\Application\Command\Exception\ExecutionFailedException;
+use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\ReadModel\PosSessionReadModelInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
@@ -166,5 +168,99 @@ final class DraftLifecycleIntegrationTest extends TestCase
         $shouldDeactivate = $this->lifecycleService->shouldDeactivateOrder($lastActivity, $currentTime);
 
         $this->assertFalse($shouldDeactivate);
+    }
+
+    public function test_inactivity_sweep_skips_sessions_that_refuse_on_a_domain_invariant(): void
+    {
+        $refusingSessionId = (new SessionId())->toNative();
+        $readModel = $this->readModelWithTwoStaleSessions($refusingSessionId);
+
+        $commandBus = new class ($refusingSessionId) implements CommandBus {
+            /** @var string[] */
+            public array $dispatchedSessionIds = [];
+
+            public function __construct(private readonly string $refusingSessionId)
+            {
+            }
+
+            public function dispatch(object $command): void
+            {
+                if (!$command instanceof DeactivateOrder) {
+                    return;
+                }
+                $this->dispatchedSessionIds[] = $command->sessionId;
+                if ($command->sessionId === $this->refusingSessionId) {
+                    throw ExecutionFailedException::duringHandling(
+                        $command,
+                        InvariantViolationException::withMessage('Cannot deactivate an order during checkout')
+                    );
+                }
+            }
+        };
+
+        $service = new DraftLifecycleService($readModel, $commandBus);
+        $service->checkAndDeactivateInactiveOrders(new DateTimeImmutable('2024-01-01 11:00:00'));
+
+        // The refusing session is skipped, but the sweep still reaches the other one.
+        $this->assertCount(2, $commandBus->dispatchedSessionIds);
+    }
+
+    public function test_inactivity_sweep_rethrows_unexpected_failures(): void
+    {
+        $failingSessionId = (new SessionId())->toNative();
+        $readModel = $this->readModelWithTwoStaleSessions($failingSessionId);
+
+        $commandBus = new class ($failingSessionId) implements CommandBus {
+            public function __construct(private readonly string $failingSessionId)
+            {
+            }
+
+            public function dispatch(object $command): void
+            {
+                if (!$command instanceof DeactivateOrder) {
+                    return;
+                }
+                if ($command->sessionId === $this->failingSessionId) {
+                    throw ExecutionFailedException::duringHandling(
+                        $command,
+                        new \RuntimeException('event store unavailable')
+                    );
+                }
+            }
+        };
+
+        $service = new DraftLifecycleService($readModel, $commandBus);
+
+        $this->expectException(ExecutionFailedException::class);
+
+        $service->checkAndDeactivateInactiveOrders(new DateTimeImmutable('2024-01-01 11:00:00'));
+    }
+
+    private function readModelWithTwoStaleSessions(string $firstSessionId): PosSessionReadModelInterface
+    {
+        return new class ($firstSessionId) implements PosSessionReadModelInterface {
+            public function __construct(private readonly string $firstSessionId)
+            {
+            }
+
+            public function getSessionsWithActiveOrder(): array
+            {
+                return [
+                    [
+                        'session_id'       => $this->firstSessionId,
+                        'last_activity_at' => new DateTimeImmutable('2024-01-01 10:00:00'),
+                    ],
+                    [
+                        'session_id'       => (new SessionId())->toNative(),
+                        'last_activity_at' => new DateTimeImmutable('2024-01-01 10:00:00'),
+                    ],
+                ];
+            }
+
+            public function findActiveByShiftId(string $shiftId): array
+            {
+                return [];
+            }
+        };
     }
 }
