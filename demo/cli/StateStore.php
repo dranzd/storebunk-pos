@@ -39,28 +39,48 @@ final class StateStore
         }
     }
 
-    private function save(): void
+    /**
+     * Persist the given state, committing it to $data only on success. The
+     * new state is written to a temp file and atomically renamed over the
+     * store, so a failed or partial write can neither corrupt the previous
+     * file nor leave this instance holding unsaved state.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function persist(array $data): void
     {
-        $encoded = json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($encoded === false) {
             throw new \RuntimeException('Demo state could not be JSON-encoded; state NOT saved.');
         }
 
-        // Fail loudly: an unchecked write here would let the CLI report
-        // success while the state file still holds the previous contents.
-        $written = @file_put_contents($this->filePath, $encoded);
+        // Native warnings are suppressed because every failure path throws
+        // its own descriptive exception.
+        $tmpPath = $this->filePath . '.tmp';
+        $written = @file_put_contents($tmpPath, $encoded);
         if ($written !== strlen($encoded)) {
+            @unlink($tmpPath);
             throw new \RuntimeException(sprintf(
-                'Demo state file %s could not be written; state NOT saved.',
+                'Demo state file %s could not be written; state NOT saved, previous state left untouched.',
                 $this->filePath
             ));
         }
+        if (!@rename($tmpPath, $this->filePath)) {
+            @unlink($tmpPath);
+            throw new \RuntimeException(sprintf(
+                'Demo state file %s could not be replaced; state NOT saved, previous state left untouched.',
+                $this->filePath
+            ));
+        }
+
+        $this->data = $data;
     }
 
     public function set(string $key, mixed $value): void
     {
-        $this->data[$key] = $value;
-        $this->save();
+        $data = $this->data;
+        $data[$key] = $value;
+        $this->persist($data);
     }
 
     public function get(string $key, mixed $default = null): mixed
@@ -75,11 +95,12 @@ final class StateStore
 
     public function push(string $key, mixed $value): void
     {
-        if (!isset($this->data[$key]) || !is_array($this->data[$key])) {
-            $this->data[$key] = [];
+        $data = $this->data;
+        if (!isset($data[$key]) || !is_array($data[$key])) {
+            $data[$key] = [];
         }
-        $this->data[$key][] = $value;
-        $this->save();
+        $data[$key][] = $value;
+        $this->persist($data);
     }
 
     /** @return list<mixed> */
@@ -91,14 +112,14 @@ final class StateStore
 
     public function remove(string $key): void
     {
-        unset($this->data[$key]);
-        $this->save();
+        $data = $this->data;
+        unset($data[$key]);
+        $this->persist($data);
     }
 
     public function clear(): void
     {
-        $this->data = [];
-        $this->save();
+        $this->persist([]);
     }
 
     public function filePath(): string

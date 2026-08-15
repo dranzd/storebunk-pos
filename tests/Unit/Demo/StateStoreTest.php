@@ -24,9 +24,11 @@ final class StateStoreTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (is_file($this->filePath)) {
-            @chmod($this->filePath, 0o600);
-            unlink($this->filePath);
+        foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
+            if (is_file($path)) {
+                @chmod($path, 0o600);
+                unlink($path);
+            }
         }
     }
 
@@ -40,45 +42,63 @@ final class StateStoreTest extends TestCase
         $this->assertSame('session-uuid-1', $reloaded->get('session_id'));
     }
 
-    public function test_a_failed_state_write_fails_loudly(): void
+    public function test_a_failed_state_write_fails_loudly_and_preserves_state(): void
     {
         $this->skipIfRunningAsRoot();
 
-        $store = new StateStore($this->filePath);
+        [$dir, $path, $store] = $this->storeInGuardedDirectory();
         $store->set('session_id', 'session-uuid-1');
-        chmod($this->filePath, 0o400);
+        $persisted = file_get_contents($path);
+
+        // The temp-file write needs directory write permission; revoking it
+        // makes persistence fail without touching the existing state file.
+        chmod($dir, 0o500);
 
         try {
             $store->set('order_id', 'order-uuid-1');
             $this->fail('Expected a RuntimeException for the failed state write');
         } catch (\RuntimeException $exception) {
-            $this->assertStringContainsString('state NOT saved', $exception->getMessage());
+            $this->assertStringContainsString('previous state left untouched', $exception->getMessage());
         } finally {
-            chmod($this->filePath, 0o600);
+            chmod($dir, 0o700);
         }
 
-        // The persisted state still holds the last successful write.
-        $this->assertSame('session-uuid-1', (new StateStore($this->filePath))->get('session_id'));
+        try {
+            // The previous file survives byte-for-byte, and the SAME instance
+            // did not keep the unsaved mutation in memory.
+            $this->assertSame($persisted, file_get_contents($path));
+            $this->assertNull($store->get('order_id'));
+            $this->assertSame('session-uuid-1', $store->get('session_id'));
+        } finally {
+            $this->removeDirectory($dir);
+        }
     }
 
-    public function test_a_failed_clear_write_fails_loudly(): void
+    public function test_a_failed_clear_write_fails_loudly_and_preserves_state(): void
     {
         $this->skipIfRunningAsRoot();
 
-        $store = new StateStore($this->filePath);
+        [$dir, $path, $store] = $this->storeInGuardedDirectory();
         $store->set('session_id', 'session-uuid-1');
-        chmod($this->filePath, 0o400);
+        $persisted = file_get_contents($path);
+
+        chmod($dir, 0o500);
 
         try {
             $store->clear();
             $this->fail('Expected a RuntimeException for the failed state clear');
         } catch (\RuntimeException $exception) {
-            $this->assertStringContainsString('state NOT saved', $exception->getMessage());
+            $this->assertStringContainsString('previous state left untouched', $exception->getMessage());
         } finally {
-            chmod($this->filePath, 0o600);
+            chmod($dir, 0o700);
         }
 
-        $this->assertSame('session-uuid-1', (new StateStore($this->filePath))->get('session_id'));
+        try {
+            $this->assertSame($persisted, file_get_contents($path));
+            $this->assertSame('session-uuid-1', $store->get('session_id'));
+        } finally {
+            $this->removeDirectory($dir);
+        }
     }
 
     public function test_cli_clear_order_preserves_state_when_event_clear_fails(): void
@@ -113,6 +133,24 @@ final class StateStoreTest extends TestCase
             array_map('unlink', glob($dir . '/*') ?: []);
             rmdir($dir);
         }
+    }
+
+    /**
+     * @return array{string, string, StateStore}
+     */
+    private function storeInGuardedDirectory(): array
+    {
+        $dir = $this->filePath . '-dir';
+        mkdir($dir, 0o700);
+        $path = $dir . '/demo-state.json';
+
+        return [$dir, $path, new StateStore($path)];
+    }
+
+    private function removeDirectory(string $dir): void
+    {
+        array_map('unlink', glob($dir . '/*') ?: []);
+        rmdir($dir);
     }
 
     private function skipIfRunningAsRoot(): void
