@@ -20,6 +20,16 @@ final class FileEventStore implements EventStore
     /** @var array<string, array<int, AggregateEvent>> */
     private array $events = [];
 
+    /**
+     * Events appended by THIS process and not yet flushed. save() merges these
+     * onto the on-disk state under an exclusive lock instead of dumping the
+     * whole in-memory snapshot, so two concurrent demo processes cannot erase
+     * each other's writes.
+     *
+     * @var array<int, AggregateEvent>
+     */
+    private array $unpersisted = [];
+
     public function __construct(
         private readonly string $filePath
     ) {
@@ -34,6 +44,7 @@ final class FileEventStore implements EventStore
     public function append(AggregateEvent $event): void
     {
         $this->events[$event->getAggregateRootUuid()][] = $event;
+        $this->unpersisted[] = $event;
         $this->save();
     }
 
@@ -41,6 +52,7 @@ final class FileEventStore implements EventStore
     {
         foreach ($events as $event) {
             $this->events[$event->getAggregateRootUuid()][] = $event;
+            $this->unpersisted[] = $event;
         }
         $this->save();
     }
@@ -128,20 +140,36 @@ final class FileEventStore implements EventStore
 
     private function save(): void
     {
-        $serialized = [];
-        foreach ($this->events as $aggregateRootUuid => $events) {
-            foreach ($events as $event) {
-                $serialized[$aggregateRootUuid][] = [
-                    'class' => get_class($event),
-                    'data'  => $event->toArray(),
-                ];
-            }
+        $handle = fopen($this->filePath, 'c+');
+        if ($handle === false) {
+            return;
         }
 
-        file_put_contents(
-            $this->filePath,
-            json_encode($serialized, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
-            LOCK_EX
-        );
+        flock($handle, LOCK_EX);
+
+        // Re-read the file INSIDE the lock and append only this process's
+        // unpersisted events, so concurrent demo processes never overwrite
+        // each other with stale construction-time snapshots.
+        $raw = stream_get_contents($handle);
+        $onDisk = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
+        if (!is_array($onDisk)) {
+            $onDisk = [];
+        }
+
+        foreach ($this->unpersisted as $event) {
+            $onDisk[$event->getAggregateRootUuid()][] = [
+                'class' => get_class($event),
+                'data'  => $event->toArray(),
+            ];
+        }
+
+        rewind($handle);
+        ftruncate($handle, 0);
+        fwrite($handle, json_encode($onDisk, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        fflush($handle);
+        flock($handle, LOCK_UN);
+        fclose($handle);
+
+        $this->unpersisted = [];
     }
 }
