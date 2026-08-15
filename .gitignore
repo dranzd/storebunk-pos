@@ -5,5 +5,7 @@
 /.phpunit.result.cache
 /demo/data/demo-state.json
 /demo/data/events.json
+/demo/data/events.json.lock
+/demo/data/events.json.tmp
 /coverage
 /docs/reported-issues/incoming-report.md
