@@ -654,17 +654,10 @@ Concurrency conflict: <ConcurrencyException message>
 
 ## Configuration
 
-`demo/data/config.json` (copy from `config.json.dist`):
-
-```json
-{
-    "actor": {
-        "id": "cli-user",
-        "name": "CLI Demo User"
-    },
-    "currency": "PHP"
-}
-```
+No config file was implemented (the spec's `config.json.dist` idea was
+dropped). Defaults live in the CLI handlers: currency defaults to `PHP`
+via `--currency`, and ids default to the `last_*` entries in
+`demo/data/demo-state.json`.
 
 ---
 
