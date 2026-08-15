@@ -115,8 +115,16 @@ final class FileEventStore implements EventStore
             return;
         }
 
-        $raw = file_get_contents($this->filePath);
-        if ($raw === false || $raw === '') {
+        $raw = @file_get_contents($this->filePath);
+        if ($raw === false) {
+            // Fail loudly: silently starting from an empty in-memory view of
+            // an existing store would later persist a truncated history.
+            throw new \RuntimeException(sprintf(
+                'Demo event store file %s exists but could not be read.',
+                $this->filePath
+            ));
+        }
+        if ($raw === '') {
             return;
         }
 
@@ -166,7 +174,19 @@ final class FileEventStore implements EventStore
             // Re-read the file INSIDE the lock and append only this process's
             // unpersisted events, so concurrent demo processes never overwrite
             // each other with stale construction-time snapshots.
-            $raw = is_file($this->filePath) ? file_get_contents($this->filePath) : false;
+            $raw = false;
+            if (is_file($this->filePath)) {
+                $raw = @file_get_contents($this->filePath);
+                if ($raw === false) {
+                    // An existing store that cannot be read is NOT an empty
+                    // store — replacing it would erase all persisted history.
+                    throw new \RuntimeException(sprintf(
+                        'Demo event store file %s exists but could not be read; ' .
+                        'refusing to replace it. Event NOT persisted.',
+                        $this->filePath
+                    ));
+                }
+            }
             if (is_string($raw) && trim($raw) !== '') {
                 $onDisk = json_decode($raw, true);
                 if (!is_array($onDisk)) {

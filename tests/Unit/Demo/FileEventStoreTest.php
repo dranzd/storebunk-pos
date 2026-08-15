@@ -136,6 +136,49 @@ final class FileEventStoreTest extends TestCase
         }
     }
 
+    public function test_an_existing_unreadable_store_is_not_replaced(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+        $persisted = file_get_contents($this->filePath);
+
+        // The store becomes unreadable AFTER this process loaded it — e.g. a
+        // permission change between two demo commands. Saving must refuse to
+        // replace it rather than treat it as empty and erase agg-1's history.
+        chmod($this->filePath, 0o000);
+
+        try {
+            $store->append($this->terminalRegistered('agg-2'));
+            $this->fail('Expected a RuntimeException for the unreadable store file');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('could not be read', $exception->getMessage());
+        } finally {
+            chmod($this->filePath, 0o600);
+        }
+
+        $this->assertSame($persisted, file_get_contents($this->filePath));
+    }
+
+    public function test_loading_an_existing_unreadable_store_fails_loudly(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+        chmod($this->filePath, 0o000);
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('could not be read');
+
+            new FileEventStore($this->filePath);
+        } finally {
+            chmod($this->filePath, 0o600);
+        }
+    }
+
     private function skipIfRunningAsRoot(): void
     {
         // Root ignores directory permission bits, so the read-only-directory
