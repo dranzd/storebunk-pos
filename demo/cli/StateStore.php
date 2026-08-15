@@ -23,7 +23,9 @@ final class StateStore
 
     public static function defaultPath(): string
     {
-        $dir = dirname(__DIR__) . '/data';
+        // POS_DEMO_DATA_DIR lets tests point the CLI at a scratch directory
+        // instead of the real demo data.
+        $dir = getenv('POS_DEMO_DATA_DIR') ?: dirname(__DIR__) . '/data';
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
@@ -80,20 +82,28 @@ final class StateStore
      */
     private function acquireLock()
     {
+        return self::acquireLockFor($this->filePath);
+    }
+
+    /**
+     * @return resource
+     */
+    private static function acquireLockFor(string $filePath)
+    {
         // Native warnings are suppressed because every failure path throws
         // its own descriptive exception.
-        $lockHandle = @fopen($this->filePath . '.lock', 'c');
+        $lockHandle = @fopen($filePath . '.lock', 'c');
         if ($lockHandle === false) {
             throw new \RuntimeException(sprintf(
                 'Demo state store cannot open lock file %s.lock.',
-                $this->filePath
+                $filePath
             ));
         }
         if (!flock($lockHandle, LOCK_EX)) {
             fclose($lockHandle);
             throw new \RuntimeException(sprintf(
                 'Demo state store cannot lock %s.lock.',
-                $this->filePath
+                $filePath
             ));
         }
 
@@ -130,6 +140,15 @@ final class StateStore
      */
     private function persist(array $data): void
     {
+        self::persistTo($this->filePath, $data);
+        $this->data = $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function persistTo(string $filePath, array $data): void
+    {
         $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($encoded === false) {
             throw new \RuntimeException('Demo state could not be JSON-encoded; state NOT saved.');
@@ -137,24 +156,22 @@ final class StateStore
 
         // Native warnings are suppressed because every failure path throws
         // its own descriptive exception.
-        $tmpPath = $this->filePath . '.tmp';
+        $tmpPath = $filePath . '.tmp';
         $written = @file_put_contents($tmpPath, $encoded);
         if ($written !== strlen($encoded)) {
             @unlink($tmpPath);
             throw new \RuntimeException(sprintf(
                 'Demo state file %s could not be written; state NOT saved, previous state left untouched.',
-                $this->filePath
+                $filePath
             ));
         }
-        if (!@rename($tmpPath, $this->filePath)) {
+        if (!@rename($tmpPath, $filePath)) {
             @unlink($tmpPath);
             throw new \RuntimeException(sprintf(
                 'Demo state file %s could not be replaced; state NOT saved, previous state left untouched.',
-                $this->filePath
+                $filePath
             ));
         }
-
-        $this->data = $data;
     }
 
     public function set(string $key, mixed $value): void
@@ -206,13 +223,22 @@ final class StateStore
 
     public function clear(): void
     {
-        // Deliberately does NOT read current state first: clearing is the
-        // documented remedy for a corrupt state file, so it must work even
-        // when that file cannot be read or decoded.
-        $lockHandle = $this->acquireLock();
+        self::clearAt($this->filePath);
+        $this->data = [];
+    }
+
+    /**
+     * Clear the persisted state WITHOUT constructing (and thus loading) the
+     * store — the recovery path for a corrupt state file. Deliberately never
+     * reads current state: clearing is the documented remedy for corruption,
+     * so it must work even when the file cannot be read or decoded.
+     */
+    public static function clearAt(string $filePath): void
+    {
+        $lockHandle = self::acquireLockFor($filePath);
 
         try {
-            $this->persist([]);
+            self::persistTo($filePath, []);
         } finally {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);

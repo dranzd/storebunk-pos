@@ -38,7 +38,14 @@ final class FileEventStore implements EventStore
 
     public static function defaultPath(): string
     {
-        return dirname(__DIR__) . '/data/events.json';
+        // POS_DEMO_DATA_DIR lets tests point the CLI at a scratch directory
+        // instead of the real demo data.
+        $dir = getenv('POS_DEMO_DATA_DIR') ?: dirname(__DIR__) . '/data';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        return $dir . '/events.json';
     }
 
     public function append(AggregateEvent $event): void
@@ -96,17 +103,31 @@ final class FileEventStore implements EventStore
 
     public function clear(): void
     {
-        // Clearing coordinates on the same sidecar lock as save(), and the
-        // lock file itself is retained: deleting it would let a writer that
-        // already opened it keep locking the old inode while new processes
-        // lock a fresh one, silently breaking mutual exclusion.
-        $lockHandle = $this->acquireLock();
+        // Disk is cleared BEFORE the in-memory reset: if a file cannot be
+        // removed, "State cleared." would be a lie — the next process would
+        // reload the supposedly cleared history.
+        self::clearAt($this->filePath);
+
+        $this->events = [];
+        // Drop pending events too — a save that failed before clear()
+        // must not resurrect cleared history on the next append.
+        $this->unpersisted = [];
+    }
+
+    /**
+     * Clear the persisted store WITHOUT constructing (and thus loading) it —
+     * the recovery path for a corrupt store, whose load would throw. Takes
+     * the same sidecar lock as save(); the lock file itself is retained:
+     * deleting it would let a writer that already opened it keep locking the
+     * old inode while new processes lock a fresh one, silently breaking
+     * mutual exclusion.
+     */
+    public static function clearAt(string $filePath): void
+    {
+        $lockHandle = self::acquireLockFor($filePath);
 
         try {
-            // Delete from disk BEFORE committing the in-memory reset: if a
-            // file cannot be removed, "State cleared." would be a lie — the
-            // next process would reload the supposedly cleared history.
-            foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
+            foreach ([$filePath, $filePath . '.tmp'] as $path) {
                 if (is_file($path) && !@unlink($path)) {
                     throw new \RuntimeException(sprintf(
                         'Demo event store could not delete %s; state NOT cleared.',
@@ -114,11 +135,6 @@ final class FileEventStore implements EventStore
                     ));
                 }
             }
-
-            $this->events = [];
-            // Drop pending events too — a save that failed before clear()
-            // must not resurrect cleared history on the next append.
-            $this->unpersisted = [];
         } finally {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
@@ -215,20 +231,28 @@ final class FileEventStore implements EventStore
      */
     private function acquireLock()
     {
+        return self::acquireLockFor($this->filePath);
+    }
+
+    /**
+     * @return resource
+     */
+    private static function acquireLockFor(string $filePath)
+    {
         // Native warnings are suppressed because every failure path throws
         // its own descriptive exception.
-        $lockHandle = @fopen($this->filePath . '.lock', 'c');
+        $lockHandle = @fopen($filePath . '.lock', 'c');
         if ($lockHandle === false) {
             throw new \RuntimeException(sprintf(
                 'Demo event store cannot open lock file %s.lock.',
-                $this->filePath
+                $filePath
             ));
         }
         if (!flock($lockHandle, LOCK_EX)) {
             fclose($lockHandle);
             throw new \RuntimeException(sprintf(
                 'Demo event store cannot lock %s.lock.',
-                $this->filePath
+                $filePath
             ));
         }
 

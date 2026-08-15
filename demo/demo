@@ -4,7 +4,27 @@
 declare(strict_types=1);
 
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
+use Dranzd\StorebunkPos\Demo\Cli\StateStore;
+
+// "state clear" is handled BEFORE bootstrap: bootstrap constructs (and thus
+// loads) both stores, which rightly throw on corrupt persisted data — but the
+// clear command is the documented recovery for exactly that situation, so it
+// must not depend on loading the files it is meant to reset.
+if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
+    require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+    // Event store first: state/ID references must survive an event-store
+    // clear failure, or persisted aggregates become hard to reach.
+    FileEventStore::clearAt(FileEventStore::defaultPath());
+    StateStore::clearAt(StateStore::defaultPath());
+
+    Output::success('State cleared.');
+    Output::info('File: ' . StateStore::defaultPath());
+    Output::info('Events: ' . FileEventStore::defaultPath());
+    exit(0);
+}
 
 $container = require __DIR__ . '/bootstrap.php';
 
@@ -49,16 +69,8 @@ $args    = new CliArgs(array_slice($argv, 2));
 
 if ($service === 'state') {
     $subcommand = $args->positional(0);
-    if ($subcommand === 'clear') {
-        // Event store first: its clear can throw (locking or deletion
-        // failure), and the state/ID references must survive in that case —
-        // erasing them while event history remains would strand aggregates.
-        $eventStore->clear();
-        $stateStore->clear();
-        Output::success('State cleared.');
-        Output::info('File: ' . $stateStore->filePath());
-        Output::info('Events: ' . $eventStore->filePath());
-    } elseif ($subcommand === 'show') {
+    // 'clear' is handled before bootstrap (top of this script).
+    if ($subcommand === 'show') {
         $data = json_encode(
             json_decode(file_get_contents($stateStore->filePath()), true),
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
