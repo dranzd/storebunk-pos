@@ -55,57 +55,46 @@ Ports for external bounded context integration:
 
 Orchestrates use cases and business workflows.
 
-#### **Commands** (`src/Application/Command/`)
-Write operations that change state:
+#### **Commands** (`src/Application/<Aggregate>/Command/`)
+Write operations that change state. Commands carry no `Command` suffix
+(see `docs/standards/architecture/command-naming-convention.md`) and follow
+the ADR-003 shape: public constructor, `public readonly` primitive
+properties, handlers own value-object conversion.
 
-**Terminal Commands:**
-- `RegisterTerminalCommand` / `RegisterTerminalHandler`
-- `ActivateTerminalCommand` / `ActivateTerminalHandler`
-- `DisableTerminalCommand` / `DisableTerminalHandler`
+**Terminal** (`src/Application/Terminal/Command/`):
+- `RegisterTerminal`, `ActivateTerminal`, `DisableTerminal`,
+  `SetTerminalMaintenance`, `RenameTerminal`, `ReassignTerminal`,
+  `DecommissionTerminal`, `RecommissionTerminal` — each with a
+  `<Name>Handler` in `Command/Handler/`
 
-**Shift Commands:**
-- `OpenShiftCommand` / `OpenShiftHandler`
-- `CloseShiftCommand` / `CloseShiftHandler`
-- `ForceCloseShiftCommand` / `ForceCloseShiftHandler`
-- `RecordCashDropCommand` / `RecordCashDropHandler`
+**Shift** (`src/Application/Shift/Command/`):
+- `OpenShift`, `AssignShift`, `UnassignShift`, `CloseShift`,
+  `ForceCloseShift`, `RecordCashDrop` — each with a `<Name>Handler`
 
-**Session Commands:**
-- `StartSessionCommand` / `StartSessionHandler`
-- `StartNewOrderCommand` / `StartNewOrderHandler`
-- `ParkOrderCommand` / `ParkOrderHandler`
-- `ResumeOrderCommand` / `ResumeOrderHandler`
+**PosSession** (`src/Application/PosSession/Command/`):
+- `StartSession`, `StartNewOrder`, `ParkOrder`, `ResumeOrder`,
+  `DeactivateOrder`, `ReactivateOrder`, `InitiateCheckout`,
+  `RequestPayment`, `CompleteOrder`, `CancelOrder`, `EndSession`,
+  `StartNewOrderOffline`, `SyncOrderOnline` — each with a `<Name>Handler`
 
-**Checkout Commands:**
-- `InitiateCheckoutCommand` / `InitiateCheckoutHandler`
-- `RequestPaymentCommand` / `RequestPaymentHandler`
-- `CompleteOrderCommand` / `CompleteOrderHandler`
-- `CancelOrderCommand` / `CancelOrderHandler`
-
-#### **Queries** (`src/Application/Query/`)
-Read operations that retrieve data:
-- `GetTerminalQuery` / `GetTerminalHandler`
-- `GetShiftQuery` / `GetShiftHandler`
-- `GetActiveSessionQuery` / `GetActiveSessionHandler`
-- `GetShiftCashSummaryQuery` / `GetShiftCashSummaryHandler`
-- `ListOpenOrdersQuery` / `ListOpenOrdersHandler`
-
-#### **Event Handlers** (`src/Application/EventHandler/`)
-React to domain events for cross-aggregate coordination:
-- `OnCheckoutInitiated` — Convert soft reservation to hard
-- `OnOrderCompleted` — Trigger inventory deduction
-- `OnOrderCancelled` — Release reservations
+#### **Read side**
+This library ships **no query layer** (accepted deviation, ADR-005). It
+exposes per-aggregate read-model **interfaces** only
+(`TerminalReadModelInterface`, `ShiftReadModelInterface`,
+`PosSessionReadModelInterface`); consumers build their own projections
+from the domain events, in whatever shape they need.
 
 ### 3. Infrastructure Layer (`src/Infrastructure/`)
 
 Concrete implementations of ports and technical concerns.
 
-#### **Persistence** (`src/Infrastructure/Persistence/`)
-- **EventStore**: `InMemoryEventStore` — In-memory implementation for testing
-- **Repositories**: `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemorySessionRepository`
-- **Read Models**: `InMemoryTerminalProjection`, `InMemoryShiftProjection`, `InMemorySessionProjection`
+#### **Persistence** (`src/Infrastructure/<Aggregate>/`)
+- **EventStore**: `InMemoryEventStore` comes from `dranzd/common-event-sourcing`; repositories depend on the `EventStore` interface
+- **Repositories** (`<Aggregate>/Repository/`): `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`
+- **Read Models** (`<Aggregate>/ReadModel/`): `InMemoryTerminalReadModel`, `InMemoryPosSessionReadModel`
 
-#### **Service Adapters** (`src/Infrastructure/Service/`)
-- Example/stub adapters for Ordering, Inventory, and Payment service interfaces
+#### **Service Adapters**
+- Stub adapters for the Ordering, Inventory, and Payment ports live in `tests/Stub/Service/` (test/demo doubles); consumers implement the real adapters
 
 **Note:** Repository and event store implementations are examples for testing. Consumers should implement their own repositories using proper event store libraries and handle event publishing according to their infrastructure choices.
 

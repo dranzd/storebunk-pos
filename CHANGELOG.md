@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+> **Breaking changes pending release.** All command factory methods are gone —
+> commands are constructed with `new` (ADR-003) — and `SyncOrderOnline` now
+> carries an opaque context array (ADR-006).
+
+### Changed
+
+- **BREAKING** — All 27 application commands follow the storebunk-inventory
+  standard ([ADR-003](docs/adr/003-command-structure-inventory-alignment.md)):
+  public constructor, `public readonly` primitive properties, no static
+  factories, no accessor methods; handlers own value-object conversion.
+  Migrate `CancelOrder::because($id, $reason)` →
+  `new CancelOrder($id, $reason)`, `StartSession::onTerminalForCashier(...)` →
+  `new StartSession($sessionId, $shiftId, $terminalId, $cashierId)`, etc.
+  Deterministic command ids (offline replay) now use the base-class
+  `withMessageUuid()` instead of a constructor parameter. Message name
+  strings are unchanged and frozen ([ADR-004](docs/adr/004-message-name-immutability.md)).
+- **BREAKING** — `SyncOrderOnline` no longer takes `branchId`/`customerId`;
+  it carries an opaque `array $context` forwarded verbatim to
+  `OrderingServiceInterface::createDraftOrder(OrderId, array $context)`.
+  The `DraftOrderContext` DTO is removed. Context keys belong to the
+  consumer ([ADR-006](docs/adr/006-opaque-ordering-context.md)).
+- House code style: strings use single quotes unless interpolation or escape
+  sequences are needed (enforced via `Squiz.Strings.DoubleQuoteUsage.NotRequired`).
+
+### Added
+
+- ADR-003/004/005/006; `docs/reported-issues` inbox standard
+  (`incoming-report.md` + `/triage`).
+- Demo: file-backed event store so multi-step scenarios work across CLI
+  invocations; `session deactivate` subcommand; scenario fixes.
+
+### Fixed
+
+- Repositories now depend on the `EventStore` interface instead of the
+  concrete `InMemoryEventStore`.
+- Demo: shift open no longer crashes without `--cashier-id`; resumed or
+  reactivated orders are targeted correctly by the follow-on
+  checkout/pay/complete defaults.
+
 ## [2.0.0] - 2026-06-01
 
 > **Breaking release.** Starting a POS session now requires an operating cashier. Consumers calling `StartSession::onTerminal(...)` must migrate to `StartSession::onTerminalForCashier(...)`.

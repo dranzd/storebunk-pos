@@ -1,8 +1,9 @@
 # StoreBunk POS — Demo CLI Specification
 
-> **Status:** Specification only — no implementation yet.
+> **Status:** Implemented — see `demo/` and `demo/README.md` for usage.
 > This document defines the design, structure, commands, and scenarios for the POS Demo CLI.
-> Implementation follows the same patterns as `storebunk-inventory/demo/`.
+> Implementation follows the same patterns as `storebunk-inventory/demo/`. Where this
+> spec and the implementation differ, the implementation (and `demo/README.md`) win.
 
 ---
 
@@ -23,7 +24,7 @@ It is **not** a production UI. It is a developer tool for:
 
 1. **No framework** — pure PHP CLI, bootstrapped manually
 2. **Uses CQRS buses** — all operations go through `SimpleCommandBus` / `SimpleQueryBus`
-3. **In-memory infrastructure** — `InMemoryEventStore`, `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`, `InMemoryTerminalReadModel`
+3. **File-backed event store, in-memory repositories** — `FileEventStore` (demo-only, JSON write-through) feeds `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`, `InMemoryTerminalReadModel`
 4. **Stub BC services** — `StubOrderingService`, `StubInventoryService`, `StubPaymentService` from `tests/Stub/`
 5. **JSON event store persistence** — events persisted to a JSON file (like inventory demo), enabling stateful multi-command sessions
 6. **Idempotency support** — `IdempotencyRegistry` wired for offline commands
@@ -63,8 +64,7 @@ demo/
 │       ├── terminal.php          # Terminal service CLI handler
 │       ├── shift.php             # Shift service CLI handler
 │       └── session.php           # Session service CLI handler
-├── infrastructure/
-│   └── JsonFileEventStore.php    # JSON-backed event store for demo persistence
+│       ├── FileEventStore.php    # JSON-backed event store for demo persistence
 ├── scenarios/
 │   ├── full-shift-lifecycle.sh   # Complete shift open → orders → close
 │   ├── checkout-flow.sh          # Draft → checkout → payment → complete
@@ -360,6 +360,26 @@ Resume a parked order.
 
 ---
 
+#### `deactivate`
+
+Deactivate the active order (simulates the `DraftLifecycleService` TTL expiry).
+
+```bash
+./demo session deactivate --session-id=<uuid> [--reason=<text>]
+```
+
+---
+
+#### `reactivate`
+
+Reactivate an inactive order (re-reserves inventory).
+
+```bash
+./demo session reactivate --session-id=<uuid> --order-id=<uuid>
+```
+
+---
+
 #### `checkout`
 
 Initiate checkout for the active order (Draft → Confirmed).
@@ -651,29 +671,24 @@ Concurrency conflict: <ConcurrencyException message>
 
 ## Data Persistence
 
-Events are persisted to a JSON file via `JsonFileEventStore`. Each demo command appends events to the file, enabling stateful multi-command sessions.
+Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventStore.php`). Each demo command appends events to the file (merge-on-write under an exclusive lock), enabling stateful multi-command sessions.
 
-Default data file: `demo/data/demo-<timestamp>.json`
+Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`.
 
-Custom data file:
-```bash
-./demo terminal register --name="POS 1" --data-file=my-session.json
-```
-
-Scenario scripts use a temporary data file and clean up on exit via a trap.
+Scenario scripts start with `state clear` instead of using per-run data files.
 
 ---
 
 ## Implementation Notes
 
-> These are design decisions for when implementation begins.
+> Status of the original design decisions, now that the demo is implemented.
 
-- `JsonFileEventStore` implements the same `EventStore` interface from `dranzd/common-event-sourcing`
-- `IdResolver` maps short aliases (e.g. `terminal-1`) to UUIDs stored in the data file
-- `Output::php` follows the same API as the inventory demo `Output` class
-- Stub services (`StubOrderingService`, etc.) are already implemented in `tests/Stub/Service/`
-- `IdempotencyRegistry` and `PendingSyncQueue` are already implemented in `src/`
-- The `utils` script should gain a `demo` subcommand (like inventory's `./utils demo`)
+- `FileEventStore` implements the `EventStore` interface from `dranzd/common-event-sourcing` (spec's `JsonFileEventStore` name was not kept)
+- `IdResolver` (short aliases like `terminal-1`) was **not implemented** — the state file's `last_*` defaults cover the same need
+- `Output` follows the same API as the inventory demo `Output` class
+- Stub services (`StubOrderingService`, etc.) live in `tests/Stub/Service/`
+- `IdempotencyRegistry` and `PendingSyncQueue` live in `src/`; the demo bootstrap rebuilds both from persisted events on every invocation
+- A `./utils demo` subcommand was **not added** — run `./demo/demo` directly (inside the container: `./utils exec php demo/demo …`)
 
 ---
 
