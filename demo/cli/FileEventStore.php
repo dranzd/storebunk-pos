@@ -103,15 +103,22 @@ final class FileEventStore implements EventStore
         $lockHandle = $this->acquireLock();
 
         try {
+            // Delete from disk BEFORE committing the in-memory reset: if a
+            // file cannot be removed, "State cleared." would be a lie — the
+            // next process would reload the supposedly cleared history.
+            foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
+                if (is_file($path) && !@unlink($path)) {
+                    throw new \RuntimeException(sprintf(
+                        'Demo event store could not delete %s; state NOT cleared.',
+                        $path
+                    ));
+                }
+            }
+
             $this->events = [];
             // Drop pending events too — a save that failed before clear()
             // must not resurrect cleared history on the next append.
             $this->unpersisted = [];
-            foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
-                if (is_file($path)) {
-                    unlink($path);
-                }
-            }
         } finally {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);

@@ -265,6 +265,39 @@ final class FileEventStoreTest extends TestCase
         $this->assertSame($inodeBeforeClear, fileinode($lockPath));
     }
 
+    public function test_a_failed_deletion_fails_clear_and_keeps_history_coherent(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $dir = $this->filePath . '-dir';
+        mkdir($dir, 0o700);
+        $path = $dir . '/events.json';
+        $store = new FileEventStore($path);
+        $store->append($this->terminalRegistered('agg-1'));
+
+        // Deleting a file needs write permission on its DIRECTORY; locking
+        // still works because the existing sidecar only needs to be opened.
+        chmod($dir, 0o500);
+
+        try {
+            $store->clear();
+            $this->fail('Expected a RuntimeException for the failed deletion');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('state NOT cleared', $exception->getMessage());
+        } finally {
+            chmod($dir, 0o700);
+        }
+
+        try {
+            // Neither the persisted nor the in-memory history was half-cleared.
+            $this->assertTrue($store->hasEvents('agg-1'));
+            $this->assertTrue((new FileEventStore($path))->hasEvents('agg-1'));
+        } finally {
+            array_map('unlink', glob($dir . '/*') ?: []);
+            rmdir($dir);
+        }
+    }
+
     private function skipIfRunningAsRoot(): void
     {
         // Root ignores directory permission bits, so the read-only-directory
