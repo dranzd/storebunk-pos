@@ -25,8 +25,10 @@ final class FileEventStoreTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (is_file($this->filePath)) {
-            unlink($this->filePath);
+        foreach ([$this->filePath, $this->filePath . '.lock', $this->filePath . '.tmp'] as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
         }
     }
 
@@ -75,6 +77,72 @@ final class FileEventStoreTest extends TestCase
         }
 
         $this->assertSame('{"torn write', file_get_contents($this->filePath));
+    }
+
+    public function test_an_unwritable_store_location_fails_loudly(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $dir = $this->filePath . '-dir';
+        mkdir($dir, 0o500);
+        $store = new FileEventStore($dir . '/events.json');
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('event NOT persisted');
+
+            $store->append($this->terminalRegistered('agg-1'));
+        } finally {
+            chmod($dir, 0o700);
+            rmdir($dir);
+        }
+    }
+
+    public function test_a_failed_write_leaves_existing_history_untouched(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+        $persisted = file_get_contents($this->filePath);
+
+        // Make the directory read-only so the temp-file write fails; the
+        // store must throw and the previously persisted history must survive
+        // byte-for-byte (no in-place truncation).
+        $dir = $this->filePath . '-dir';
+        mkdir($dir, 0o700);
+        $path = $dir . '/events.json';
+        copy($this->filePath, $path);
+        // Pre-create the lock sidecar so only the temp-file write (not the
+        // lock open) hits the read-only directory.
+        touch($path . '.lock');
+        $guarded = new FileEventStore($path);
+        chmod($dir, 0o500);
+
+        try {
+            $guarded->append($this->terminalRegistered('agg-2'));
+            $this->fail('Expected a RuntimeException for the failed write');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('existing history left untouched', $exception->getMessage());
+        } finally {
+            chmod($dir, 0o700);
+        }
+
+        try {
+            $this->assertSame($persisted, file_get_contents($path));
+        } finally {
+            array_map('unlink', glob($dir . '/*') ?: []);
+            rmdir($dir);
+        }
+    }
+
+    private function skipIfRunningAsRoot(): void
+    {
+        // Root ignores directory permission bits, so the read-only-directory
+        // failure injection below cannot work.
+        if (function_exists('posix_getuid') && posix_getuid() === 0) {
+            $this->markTestSkipped('Permission-based failure injection does not work as root.');
+        }
     }
 
     private function terminalRegistered(string $aggregateRootUuid): AggregateEvent
