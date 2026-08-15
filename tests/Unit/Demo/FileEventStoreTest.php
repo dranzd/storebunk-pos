@@ -89,6 +89,34 @@ final class FileEventStoreTest extends TestCase
         new FileEventStore($this->filePath);
     }
 
+    public function test_loading_an_unknown_event_class_fails_loudly(): void
+    {
+        file_put_contents($this->filePath, json_encode([
+            'agg-1' => [
+                ['class' => 'Vendor\\Gone\\RemovedEvent', 'data' => []],
+            ],
+        ]));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('event class "Vendor\\Gone\\RemovedEvent" is unknown');
+
+        new FileEventStore($this->filePath);
+    }
+
+    public function test_loading_a_malformed_event_record_fails_loudly(): void
+    {
+        file_put_contents($this->filePath, json_encode([
+            'agg-1' => [
+                ['class' => TerminalRegistered::class], // no 'data' key
+            ],
+        ]));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('the record structure is malformed');
+
+        new FileEventStore($this->filePath);
+    }
+
     public function test_an_unwritable_store_location_fails_loudly(): void
     {
         $this->skipIfRunningAsRoot();

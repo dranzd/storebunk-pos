@@ -141,18 +141,48 @@ final class FileEventStore implements EventStore
         }
 
         foreach ($decoded as $aggregateRootUuid => $records) {
-            foreach ($records as $record) {
-                $class = $record['class'] ?? '';
-                if (
-                    !is_string($class)
-                    || !class_exists($class)
-                    || !is_subclass_of($class, AggregateEvent::class)
-                ) {
-                    continue;
+            if (!is_array($records)) {
+                throw $this->unreconstitutableRecord((string) $aggregateRootUuid, null, 'its record list is not an array');
+            }
+            foreach ($records as $index => $record) {
+                if (!is_array($record) || !is_array($record['data'] ?? null)) {
+                    throw $this->unreconstitutableRecord((string) $aggregateRootUuid, $index, 'the record structure is malformed');
+                }
+                $class = $record['class'] ?? null;
+                if (!is_string($class) || !class_exists($class)) {
+                    throw $this->unreconstitutableRecord(
+                        (string) $aggregateRootUuid,
+                        $index,
+                        sprintf('event class "%s" is unknown', is_string($class) ? $class : gettype($class))
+                    );
+                }
+                if (!is_subclass_of($class, AggregateEvent::class)) {
+                    throw $this->unreconstitutableRecord(
+                        (string) $aggregateRootUuid,
+                        $index,
+                        sprintf('class "%s" is not an aggregate event', $class)
+                    );
                 }
                 $this->events[$aggregateRootUuid][] = $class::fromArray($record['data']);
             }
         }
+    }
+
+    /**
+     * Silently skipping a persisted record would reconstruct aggregates from
+     * an incomplete history while presenting the store as healthy — fail
+     * loudly instead, naming the offending aggregate and record.
+     */
+    private function unreconstitutableRecord(string $aggregateRootUuid, int|string|null $index, string $reason): \RuntimeException
+    {
+        return new \RuntimeException(sprintf(
+            'Demo event store file %s contains an event that cannot be reconstituted ' .
+            '(aggregate "%s"%s): %s. Inspect or delete the file (./demo/demo state clear) and retry.',
+            $this->filePath,
+            $aggregateRootUuid,
+            $index === null ? '' : sprintf(', record #%s', (string) $index),
+            $reason
+        ));
     }
 
     private function save(): void
