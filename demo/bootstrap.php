@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\Common\Cqrs\Infrastructure\HandlerRegistry\InMemoryHandlerRegistry;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
+use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\EndSession;
@@ -64,7 +68,9 @@ use Dranzd\StorebunkPos\Tests\Stub\Service\StubPaymentService;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 // ── Event Store (shared across all repositories) ─────────────────────────────
-$eventStore = new InMemoryEventStore();
+// File-backed: every demo command runs in its own PHP process, so events must
+// survive process boundaries for multi-step scenarios to work.
+$eventStore = new FileEventStore(FileEventStore::defaultPath());
 
 // ── Repositories ─────────────────────────────────────────────────────────────
 $terminalRepository   = new InMemoryTerminalRepository($eventStore);
@@ -84,6 +90,29 @@ $paymentService    = new StubPaymentService();
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
+
+// ── Rebuild offline-sync state from persisted events ─────────────────────────
+// The queue and registry are plain in-memory objects; replay the persisted
+// session events so offline orders queued in an earlier process are still
+// pending here. Events per aggregate are in append order, so an
+// OrderCreatedOffline is always seen before its OrderMarkedPendingSync.
+$offlineCommandIdsByOrder = [];
+foreach ($eventStore->allEvents() as $aggregateEvents) {
+    foreach ($aggregateEvents as $event) {
+        if ($event instanceof OrderCreatedOffline) {
+            $idempotencyRegistry->markAsProcessed($event->getCommandId());
+            $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] = $event->getCommandId();
+        } elseif ($event instanceof OrderMarkedPendingSync) {
+            $pendingSyncQueue->enqueue(
+                $event->getSessionId(),
+                $event->getOrderId(),
+                $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] ?? ''
+            );
+        } elseif ($event instanceof OrderSyncedOnline) {
+            $pendingSyncQueue->dequeueByOrderId($event->getOrderId());
+        }
+    }
+}
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -134,7 +163,7 @@ $commandBus = new SimpleCommandBus($registry);
 // After each terminal command we replay all terminal events into the read model.
 // This is a simple approach suitable for a demo (not production).
 function projectTerminalReadModel(
-    InMemoryEventStore $eventStore,
+    EventStore $eventStore,
     InMemoryTerminalReadModel $readModel,
     string $terminalId
 ): void {

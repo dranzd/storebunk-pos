@@ -51,8 +51,10 @@ if ($service === 'state') {
     $subcommand = $args->positional(0);
     if ($subcommand === 'clear') {
         $stateStore->clear();
+        $eventStore->clear();
         Output::success('State cleared.');
         Output::info('File: ' . $stateStore->filePath());
+        Output::info('Events: ' . $eventStore->filePath());
     } elseif ($subcommand === 'show') {
         $data = json_encode(
             json_decode(file_get_contents($stateStore->filePath()), true),

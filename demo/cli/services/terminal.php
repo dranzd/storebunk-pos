@@ -194,6 +194,11 @@ function terminalGet(
         exit(1);
     }
 
+    // Each CLI invocation is a fresh process — rebuild the read model from
+    // the persisted events before querying it.
+    global $eventStore;
+    projectTerminalReadModel($eventStore, $terminalReadModel, $terminalIdRaw);
+
     $terminal = $terminalReadModel->getTerminal($terminalIdRaw);
     if ($terminal === null) {
         Output::error("Terminal not found: {$terminalIdRaw}");
@@ -212,6 +217,13 @@ function terminalList(
     InMemoryTerminalReadModel $terminalReadModel,
     CliArgs $args
 ): void {
+    // Each CLI invocation is a fresh process — rebuild the read model from
+    // the persisted events before querying it.
+    global $eventStore, $stateStore;
+    foreach ($stateStore->getList('terminal_ids') as $knownTerminalId) {
+        projectTerminalReadModel($eventStore, $terminalReadModel, $knownTerminalId);
+    }
+
     $branchFilter = $args->get('branch-id');
     $statusFilter = $args->get('status');
 

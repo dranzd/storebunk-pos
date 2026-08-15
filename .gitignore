@@ -4,4 +4,6 @@
 /.env
 /.phpunit.result.cache
 /demo/data/demo-state.json
+/demo/data/events.json
 /coverage
+/docs/reported-issues/incoming-report.md
