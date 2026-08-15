@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Infrastructure\PosSession\Repository;
 
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
@@ -14,7 +14,7 @@ use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 final class InMemoryPosSessionRepository implements PosSessionRepositoryInterface
 {
     public function __construct(
-        private readonly InMemoryEventStore $eventStore
+        private readonly EventStore $eventStore
     ) {
     }
 
