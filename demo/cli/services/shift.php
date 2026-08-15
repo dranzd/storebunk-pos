@@ -74,7 +74,7 @@ function shiftOpen(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs
     $shiftId    = new ShiftId();
     $terminalId = new TerminalId($terminalIdRaw);
     $branchId   = new BranchId($branchIdRaw);
-    $cashierId  = new CashierId($cashierIdRaw);
+    $cashierId  = $cashierIdRaw !== '' ? new CashierId($cashierIdRaw) : new CashierId();
 
     try {
         $commandBus->dispatch(new OpenShift(
