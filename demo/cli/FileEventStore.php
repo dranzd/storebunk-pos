@@ -148,6 +148,23 @@ final class FileEventStore implements EventStore
 
     private function load(): void
     {
+        // A SHARED lock: readers don't serialise each other, but they do
+        // wait out writers and DemoReset. Without it, a reader landing in
+        // DemoReset's move-aside window (data file renamed to .bak while the
+        // state store commits) would see "no file" and silently report an
+        // empty store even though real history exists.
+        $lockHandle = self::acquireLockFor($this->filePath, LOCK_SH);
+
+        try {
+            $this->loadLocked();
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
+        }
+    }
+
+    private function loadLocked(): void
+    {
         if (!is_file($this->filePath)) {
             return;
         }
@@ -237,7 +254,7 @@ final class FileEventStore implements EventStore
     /**
      * @return resource
      */
-    private static function acquireLockFor(string $filePath)
+    private static function acquireLockFor(string $filePath, int $operation = LOCK_EX)
     {
         // Native warnings are suppressed because every failure path throws
         // its own descriptive exception.
@@ -248,7 +265,7 @@ final class FileEventStore implements EventStore
                 $filePath
             ));
         }
-        if (!flock($lockHandle, LOCK_EX)) {
+        if (!flock($lockHandle, $operation)) {
             fclose($lockHandle);
             throw new \RuntimeException(sprintf(
                 'Demo event store cannot lock %s.lock.',

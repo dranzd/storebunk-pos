@@ -123,13 +123,14 @@ final class FileEventStoreTest extends TestCase
 
         $dir = $this->filePath . '-dir';
         mkdir($dir, 0o500);
-        $store = new FileEventStore($dir . '/events.json');
 
         try {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessage('cannot open lock file');
 
-            $store->append($this->terminalRegistered('agg-1'));
+            // Construction already takes the shared read lock, so an
+            // unwritable location fails loudly before any command runs.
+            new FileEventStore($dir . '/events.json');
         } finally {
             chmod($dir, 0o700);
             rmdir($dir);
@@ -295,6 +296,64 @@ final class FileEventStoreTest extends TestCase
         } finally {
             array_map('unlink', glob($dir . '/*') ?: []);
             rmdir($dir);
+        }
+    }
+
+    public function test_a_reader_waits_out_a_coordinated_reset_window(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+
+        // Background process: holds the exclusive sidecar lock while the data
+        // file is temporarily moved aside — DemoReset's move-aside window.
+        // A reader constructed inside that window must block on the shared
+        // lock and then see the restored history, never a silently empty
+        // store.
+        $script = $this->filePath . '-holder.php';
+        file_put_contents($script, <<<'PHP'
+            <?php
+            $path = $argv[1];
+            $handle = fopen($path . '.lock', 'c');
+            flock($handle, LOCK_EX);
+            rename($path, $path . '.bak');
+            touch($path . '.window');
+            usleep(1200000);
+            rename($path . '.bak', $path);
+            flock($handle, LOCK_UN);
+            fclose($handle);
+            unlink($path . '.window');
+            PHP);
+        exec(sprintf(
+            '%s %s %s > /dev/null 2>&1 &',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg($script),
+            escapeshellarg($this->filePath)
+        ));
+
+        try {
+            // Wait until the holder has the lock and the file is moved aside.
+            $deadline = microtime(true) + 5.0;
+            while (!is_file($this->filePath . '.window')) {
+                if (microtime(true) > $deadline) {
+                    $this->fail('Lock-holder process never signalled the reset window');
+                }
+                usleep(20000);
+            }
+
+            $reader = new FileEventStore($this->filePath);
+
+            $this->assertTrue($reader->hasEvents('agg-1'));
+        } finally {
+            // Let the holder finish before cleanup so tearDown sees stable files.
+            $deadline = microtime(true) + 5.0;
+            while (is_file($this->filePath . '.window') && microtime(true) < $deadline) {
+                usleep(20000);
+            }
+            foreach ([$script, $this->filePath . '.bak', $this->filePath . '.window'] as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
+            }
         }
     }
 
