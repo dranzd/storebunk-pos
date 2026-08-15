@@ -144,6 +144,56 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->assertSame(['foo' => 'bar', 'nested' => ['id' => '123']], $context);
     }
 
+    public function test_redelivered_sync_command_with_same_message_uuid_is_not_reprocessed(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+
+        // A real-world retry redelivers as a NEW object carrying the SAME
+        // deterministic id — withMessageUuid() returns a clone, so each
+        // delivery is built fresh from its own constructor call.
+        $firstDelivery = (new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1');
+        $secondDelivery = (new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1');
+
+        $syncHandler($firstDelivery);
+        $syncHandler($secondDelivery);
+
+        $this->assertSame(1, $this->orderingService->draftOrderCreationCount($orderId));
+    }
+
     public function test_sync_online_forwards_empty_context_when_omitted(): void
     {
         $sessionId  = new SessionId();
