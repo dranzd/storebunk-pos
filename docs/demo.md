@@ -52,30 +52,30 @@ Services: `terminal`, `shift`, `session`
 
 ```
 demo/
-├── demo                          # Main entry point (PHP CLI script)
-├── bootstrap.php                 # Wires repos, buses, stubs, event store
-├── lib/
-│   └── common.sh                 # Shared bash helpers (step, banner, parse_id, etc.)
+├── demo                              # Main entry point (PHP CLI script)
+├── bootstrap.php                     # Wires repos, buses, stubs, event store,
+│                                     #   and rebuilds offline-sync state from events
 ├── cli/
-│   ├── Output.php                # Colored terminal output helpers
-│   ├── CliArgs.php               # Argument/option parser
-│   ├── IdResolver.php            # Resolve short names/aliases to UUIDs
+│   ├── Output.php                    # Colored terminal output helpers
+│   ├── CliArgs.php                   # Argument/option parser
+│   ├── StateStore.php                # JSON state file (last_* ids, id lists)
+│   ├── FileEventStore.php            # JSON-backed event store for demo persistence
+│   ├── Utils.php                     # Formatting helpers
 │   └── services/
-│       ├── terminal.php          # Terminal service CLI handler
-│       ├── shift.php             # Shift service CLI handler
-│       └── session.php           # Session service CLI handler
-│       ├── FileEventStore.php    # JSON-backed event store for demo persistence
+│       ├── terminal.php              # Terminal service CLI handler
+│       ├── shift.php                 # Shift service CLI handler
+│       └── session.php               # Session service CLI handler
 ├── scenarios/
-│   ├── full-shift-lifecycle.sh   # Complete shift open → orders → close
-│   ├── checkout-flow.sh          # Draft → checkout → payment → complete
-│   ├── park-and-resume.sh        # Park order, start new, resume parked
-│   ├── draft-ttl-expiry.sh       # Deactivate order, reactivate with re-reservation
-│   ├── force-close-shift.sh      # Supervisor force-close scenario
-│   ├── offline-sync.sh           # Offline order creation and sync
-│   └── concurrency-conflict.sh   # Optimistic locking conflict demonstration
+│   ├── 01-full-shift-lifecycle.sh    # Complete shift open → orders → close
+│   ├── 02-checkout-flow.sh           # Draft → checkout → payment → complete
+│   ├── 03-park-and-resume.sh         # Park order, start new, resume parked
+│   ├── 04-draft-ttl-expiry.sh        # Deactivate order, reactivate with re-reservation
+│   ├── 05-force-close-shift.sh       # Supervisor force-close scenario
+│   ├── 06-offline-sync.sh            # Offline order creation and sync
+│   └── 07-concurrency-conflict.sh    # Optimistic locking conflict demonstration
 └── data/
-    ├── config.json.dist           # Default config (actor, currency)
-    └── .gitkeep
+    ├── demo-state.json               # ID state (git-ignored at runtime)
+    └── events.json                   # Persisted events (git-ignored)
 ```
 
 ---
@@ -85,20 +85,19 @@ demo/
 Wires the full application stack:
 
 ```
-JsonFileEventStore
+FileEventStore (demo/data/events.json)
     → InMemoryTerminalRepository
     → InMemoryShiftRepository
     → InMemoryPosSessionRepository
-    → InMemoryTerminalReadModel
+    → InMemoryTerminalReadModel (projected per invocation)
 
 StubOrderingService
 StubInventoryService
 StubPaymentService
 
-IdempotencyRegistry
-PendingSyncQueue
-MultiTerminalEnforcementService
-DraftLifecycleService
+IdempotencyRegistry ─┐ rebuilt from persisted session events
+PendingSyncQueue   ──┘ on every bootstrap
+ShiftClosePolicy
 
 CommandRegistry (InMemoryHandlerRegistry)
     → RegisterTerminalHandler
@@ -106,6 +105,8 @@ CommandRegistry (InMemoryHandlerRegistry)
     → DisableTerminalHandler
     → SetTerminalMaintenanceHandler
     → OpenShiftHandler
+    → AssignShiftHandler
+    → UnassignShiftHandler
     → CloseShiftHandler
     → ForceCloseShiftHandler
     → RecordCashDropHandler
@@ -113,6 +114,7 @@ CommandRegistry (InMemoryHandlerRegistry)
     → StartNewOrderHandler
     → ParkOrderHandler
     → ResumeOrderHandler
+    → DeactivateOrderHandler
     → ReactivateOrderHandler
     → InitiateCheckoutHandler
     → RequestPaymentHandler
@@ -123,7 +125,6 @@ CommandRegistry (InMemoryHandlerRegistry)
     → SyncOrderOnlineHandler
 
 SimpleCommandBus
-SimpleQueryBus
 ```
 
 ---
@@ -137,12 +138,12 @@ SimpleQueryBus
 Register a new POS terminal for a branch.
 
 ```bash
-./demo terminal register --branch-id=<uuid> --name="Cashier 1"
+./demo terminal register --name="Cashier 1" [--branch-id=<uuid>]
 ```
 
 Options:
-- `--branch-id=<uuid>` — Branch UUID (required)
 - `--name=<string>` — Terminal display name (required)
+- `--branch-id=<uuid>` — Branch UUID (optional; auto-generated when omitted)
 
 Output:
 ```
@@ -224,15 +225,15 @@ List all terminals (optionally filtered by branch or status).
 Open a new cashier shift on a terminal.
 
 ```bash
-./demo shift open --terminal-id=<uuid> --branch-id=<uuid> --cashier-id=<uuid> --opening-cash=10000
+./demo shift open --opening-cash=10000 [--terminal-id=<uuid>] [--branch-id=<uuid>] [--cashier-id=<uuid>]
 ```
 
 Options:
-- `--terminal-id=<uuid>` — Terminal UUID (required)
-- `--branch-id=<uuid>` — Branch UUID (required)
-- `--cashier-id=<uuid>` — Cashier UUID (required)
-- `--opening-cash=<int>` — Opening cash amount in minor units (required, e.g. `10000` = $100.00)
-- `--currency=<string>` — Currency code (default: from config, e.g. `PHP`)
+- `--terminal-id=<uuid>` — Terminal UUID (defaults to the last registered terminal)
+- `--branch-id=<uuid>` — Branch UUID (defaults to the last used branch)
+- `--cashier-id=<uuid>` — Cashier UUID (optional; auto-generated when omitted)
+- `--opening-cash=<int>` — Opening cash amount in minor units (e.g. `10000` = 100.00)
+- `--currency=<string>` — Currency code (default `PHP`)
 
 Output:
 ```
@@ -505,11 +506,13 @@ Order synced online.
 
 ## Scenarios
 
-Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-contained bash script using `demo/lib/common.sh` helpers.
+Scripted end-to-end scenarios live in `demo/scenarios/` as numbered,
+self-contained bash scripts (`01-…` through `07-…`). Each starts with
+`./demo/demo state clear` and drives the CLI step by step.
 
 ---
 
-### `full-shift-lifecycle.sh`
+### `01-full-shift-lifecycle.sh`
 
 **Title:** Full Shift Lifecycle
 
@@ -529,7 +532,7 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `checkout-flow.sh`
+### `02-checkout-flow.sh`
 
 **Title:** Checkout and Payment Flow
 
@@ -544,7 +547,7 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `park-and-resume.sh`
+### `03-park-and-resume.sh`
 
 **Title:** Park Order and Resume
 
@@ -562,25 +565,22 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `draft-ttl-expiry.sh`
+### `04-draft-ttl-expiry.sh`
 
 **Title:** Draft TTL Expiry and Reactivation
 
 **Demonstrates:**
-1. Start session, start new order
-2. Simulate TTL expiry — deactivate order (via `deactivateOrder`)
-3. Attempt reactivation — inventory re-reservation succeeds
-4. Proceed to checkout and complete
+1. Setup (terminal, shift, session), start new order
+2. Simulate TTL expiry — `session deactivate` (what `DraftLifecycleService`
+   would dispatch in production)
+3. Reactivate the order — inventory re-reservation succeeds
+4. Proceed to checkout, pay, and complete
 
-**Also demonstrates failure case:**
-- Reactivation fails when `StubInventoryService` returns `false` for re-reservation
-- `InvariantViolationException` is caught and displayed
-
-**Expected outcome:** Reactivation succeeds when inventory available; fails gracefully when not.
+**Expected outcome:** Deactivated order reactivates and completes normally.
 
 ---
 
-### `force-close-shift.sh`
+### `05-force-close-shift.sh`
 
 **Title:** Supervisor Force-Close
 
@@ -594,25 +594,24 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `offline-sync.sh`
+### `06-offline-sync.sh`
 
 **Title:** Offline Order Creation and Sync
 
 **Demonstrates:**
-1. Start session
-2. Create order offline (`StartNewOrderOffline` with commandId)
-3. Mark order as pending sync
-4. Reconnect — sync order online (`SyncOrderOnline`)
-5. Verify idempotency: replay same sync command — no duplicate
+1. Setup (terminal, shift, session)
+2. Create two orders offline (`StartNewOrderOffline`; each is auto-queued
+   for sync)
+3. Network restored — sync each order online (`SyncOrderOnline`)
+4. Continue selling with a fresh online order (synced orders now live in
+   the Ordering BC; the POS session no longer tracks them)
 
-**Also demonstrates:**
-- Multiple offline orders queued and synced independently
-
-**Expected outcome:** Offline orders created, queued, synced idempotently.
+**Expected outcome:** Both offline orders queue and sync independently;
+normal online flow resumes afterward.
 
 ---
 
-### `concurrency-conflict.sh`
+### `07-concurrency-conflict.sh`
 
 **Title:** Optimistic Locking Conflict
 
@@ -692,5 +691,5 @@ Scenario scripts start with `state clear` instead of using per-run data files.
 
 ---
 
-**Last Updated:** February 18, 2026
+**Last Updated:** August 15, 2026 (synced to the implemented demo)
 **Status:** Specification — awaiting implementation
