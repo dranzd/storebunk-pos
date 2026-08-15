@@ -212,6 +212,10 @@ function sessionResume(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
             $orderId->toNative()
         ));
 
+        // The resumed order is now the active one — later steps (checkout,
+        // pay, complete) default to last_order_id, so keep it in sync.
+        $stateStore->set('last_order_id', $orderId->toNative());
+
         Output::success('Order resumed.');
         Output::field('Session ID', $sessionId->toNative());
         Output::field('Order ID', $orderId->toNative());
@@ -247,6 +251,10 @@ function sessionReactivate(SimpleCommandBus $commandBus, StateStore $stateStore,
             $sessionId->toNative(),
             $orderId->toNative()
         ));
+
+        // The reactivated order is now the active one — keep last_order_id
+        // in sync for the follow-on checkout/pay/complete defaults.
+        $stateStore->set('last_order_id', $orderId->toNative());
 
         Output::success('Order reactivated (inventory re-reserved).');
         Output::field('Session ID', $sessionId->toNative());
