@@ -64,6 +64,35 @@ final class DemoCliRecoveryTest extends TestCase
         $this->assertStoresAreUsable();
     }
 
+    public function test_a_state_store_failure_leaves_both_stores_untouched(): void
+    {
+        if (function_exists('posix_getuid') && posix_getuid() === 0) {
+            $this->markTestSkipped('Permission-based failure injection does not work as root.');
+        }
+
+        $eventsJson = '{"agg-1": []}';
+        $stateJson  = '{"session_id": "session-uuid-1"}';
+        file_put_contents($this->dataDir . '/events.json', $eventsJson);
+        file_put_contents($this->dataDir . '/demo-state.json', $stateJson);
+
+        // The state-store lock cannot be opened for writing, so the reset
+        // must fail BEFORE any event history is touched.
+        touch($this->dataDir . '/demo-state.json.lock');
+        chmod($this->dataDir . '/demo-state.json.lock', 0o400);
+
+        try {
+            [$exitCode, $output] = $this->runDemoCli('state clear');
+        } finally {
+            chmod($this->dataDir . '/demo-state.json.lock', 0o600);
+        }
+
+        $this->assertNotSame(0, $exitCode);
+        $this->assertStringContainsString('nothing was cleared', $output);
+        // Both stores remain coherent — no partial reset.
+        $this->assertSame($eventsJson, file_get_contents($this->dataDir . '/events.json'));
+        $this->assertSame($stateJson, file_get_contents($this->dataDir . '/demo-state.json'));
+    }
+
     public function test_normal_commands_still_fail_loudly_on_corrupt_stores(): void
     {
         file_put_contents($this->dataDir . '/events.json', '{"torn write');

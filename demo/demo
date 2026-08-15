@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\DemoReset;
 use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
@@ -15,10 +16,10 @@ use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
     require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-    // Event store first: state/ID references must survive an event-store
-    // clear failure, or persisted aggregates become hard to reach.
-    FileEventStore::clearAt(FileEventStore::defaultPath());
-    StateStore::clearAt(StateStore::defaultPath());
+    // Coordinated reset: both sidecar locks are taken up front and every
+    // fallible write is staged before either store commits, so a failure
+    // partway through cannot leave one store cleared and the other not.
+    DemoReset::clearAll(FileEventStore::defaultPath(), StateStore::defaultPath());
 
     Output::success('State cleared.');
     Output::info('File: ' . StateStore::defaultPath());
