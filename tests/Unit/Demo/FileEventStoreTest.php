@@ -18,7 +18,9 @@ final class FileEventStoreTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->filePath = tempnam(sys_get_temp_dir(), 'pos-demo-events-') . '.json';
+        // tempnam() creates the placeholder file it returns; reuse that exact
+        // path so nothing is left behind in the temp dir after tearDown.
+        $this->filePath = tempnam(sys_get_temp_dir(), 'pos-demo-events-');
     }
 
     protected function tearDown(): void
@@ -58,6 +60,21 @@ final class FileEventStoreTest extends TestCase
 
         $this->assertTrue($reloaded->hasEvents('agg-a'));
         $this->assertTrue($reloaded->hasEvents('agg-b'));
+    }
+
+    public function test_a_corrupt_store_file_is_never_overwritten(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        file_put_contents($this->filePath, '{"torn write');
+
+        try {
+            $store->append($this->terminalRegistered('agg-1'));
+            $this->fail('Expected a RuntimeException for the corrupt store file');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('not valid JSON', $exception->getMessage());
+        }
+
+        $this->assertSame('{"torn write', file_get_contents($this->filePath));
     }
 
     private function terminalRegistered(string $aggregateRootUuid): AggregateEvent

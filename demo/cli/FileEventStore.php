@@ -151,8 +151,21 @@ final class FileEventStore implements EventStore
         // unpersisted events, so concurrent demo processes never overwrite
         // each other with stale construction-time snapshots.
         $raw = stream_get_contents($handle);
-        $onDisk = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
-        if (!is_array($onDisk)) {
+        if (is_string($raw) && trim($raw) !== '') {
+            $onDisk = json_decode($raw, true);
+            if (!is_array($onDisk)) {
+                // Corrupt store file (e.g. torn write from a crash). Bail out
+                // rather than overwrite it with only this process's events —
+                // that would silently erase every other aggregate's history.
+                flock($handle, LOCK_UN);
+                fclose($handle);
+                throw new \RuntimeException(sprintf(
+                    'Demo event store file %s is not valid JSON; refusing to overwrite it. ' .
+                    'Inspect or delete the file (./demo/demo state clear) and retry.',
+                    $this->filePath
+                ));
+            }
+        } else {
             $onDisk = [];
         }
 
@@ -163,13 +176,18 @@ final class FileEventStore implements EventStore
             ];
         }
 
+        $encoded = json_encode($onDisk, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         rewind($handle);
         ftruncate($handle, 0);
-        fwrite($handle, json_encode($onDisk, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        $written = fwrite($handle, $encoded);
         fflush($handle);
         flock($handle, LOCK_UN);
         fclose($handle);
 
-        $this->unpersisted = [];
+        // Only forget the pending events once they demonstrably reached disk;
+        // a short write keeps them queued for the next save attempt.
+        if ($written === strlen($encoded)) {
+            $this->unpersisted = [];
+        }
     }
 }
