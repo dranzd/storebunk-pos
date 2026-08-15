@@ -665,7 +665,9 @@ via `--currency`, and ids default to the `last_*` entries in
 
 Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventStore.php`). Each demo command appends events to the file (merge-on-write under an exclusive lock), enabling stateful multi-command sessions.
 
-Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`.
+Both stores (`FileEventStore` and `StateStore`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets both files as a coordinated all-or-nothing operation.
+
+Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)
 
 Scenario scripts start with `state clear` instead of using per-run data files.
 
@@ -684,5 +686,5 @@ Scenario scripts start with `state clear` instead of using per-run data files.
 
 ---
 
-**Last Updated:** August 15, 2026 (synced to the implemented demo)
-**Status:** Specification — awaiting implementation
+**Last Updated:** August 16, 2026 (synced to the implemented demo)
+**Status:** Implemented — see `demo/` and `demo/README.md` for usage

@@ -42,9 +42,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Repositories now depend on the `EventStore` interface instead of the
   concrete `InMemoryEventStore`.
+- `PosSession` now refuses to deactivate or park an order during checkout
+  (`InvariantViolationException`) — either would strand the hard inventory
+  reservation taken at checkout initiation.
+- `DraftLifecycleService` sweeps (inactivity deactivation and expiry
+  cancellation) are best-effort per session: a session that refuses on a
+  domain invariant is skipped and the sweep continues; any other failure
+  still propagates.
 - Demo: shift open no longer crashes without `--cashier-id`; resumed or
   reactivated orders are targeted correctly by the follow-on
   checkout/pay/complete defaults.
+- Demo persistence hardening: `FileEventStore` and `StateStore` now merge
+  concurrent writes under a sidecar lock, write atomically via temp file +
+  rename, fail loudly on unreadable/corrupt/unwritable files instead of
+  silently losing or resurrecting data, and `./demo/demo state clear` works
+  even when a store is corrupt (handled before bootstrap) as a coordinated
+  all-or-nothing reset of both files.
 
 ## [2.0.0] - 2026-06-01
 
