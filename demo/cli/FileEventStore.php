@@ -124,13 +124,20 @@ final class FileEventStore implements EventStore
                 $this->filePath
             ));
         }
-        if ($raw === '') {
+        if (trim($raw) === '') {
             return;
         }
 
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
-            return;
+            // A corrupt store must not masquerade as an empty one: read-only
+            // demo commands would report aggregates as missing when the real
+            // problem is damaged persisted history.
+            throw new \RuntimeException(sprintf(
+                'Demo event store file %s is not valid JSON. ' .
+                'Inspect or delete the file (./demo/demo state clear) and retry.',
+                $this->filePath
+            ));
         }
 
         foreach ($decoded as $aggregateRootUuid => $records) {

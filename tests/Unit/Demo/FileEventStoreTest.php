@@ -79,6 +79,16 @@ final class FileEventStoreTest extends TestCase
         $this->assertSame('{"torn write', file_get_contents($this->filePath));
     }
 
+    public function test_loading_a_corrupt_store_file_fails_loudly(): void
+    {
+        file_put_contents($this->filePath, '{"torn write');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not valid JSON');
+
+        new FileEventStore($this->filePath);
+    }
+
     public function test_an_unwritable_store_location_fails_loudly(): void
     {
         $this->skipIfRunningAsRoot();
