@@ -84,7 +84,7 @@ StartNewOrderOfflineHandler::__invoke()
 Consumer (on reconnect)
   │
   ▼
-new SyncOrderOnline($sessionId, $orderId, $branchId, $customerId?)
+new SyncOrderOnline($sessionId, $orderId, $context = [])
   │
   ▼
 SyncOrderOnlineHandler::__invoke()
@@ -95,8 +95,9 @@ SyncOrderOnlineHandler::__invoke()
   │      └─ Records OrderSyncedOnline event
   │      └─ Removes orderId from pendingSyncOrderIds
   ├─ 4. Store session (persists events to event store)
-  ├─ 5. orderingService->createDraftOrder($orderId, DraftOrderContext)
-  │      └─ Calls Ordering BC to create the actual draft
+  ├─ 5. orderingService->createDraftOrder($orderId, new DraftOrderContext($context))
+  │      └─ Calls Ordering BC to create the actual draft; the context is an
+  │         opaque consumer-owned bag POS never reads (ADR-006)
   ├─ 6. pendingSyncQueue->dequeueByOrderId($orderId)
   └─ 7. idempotencyRegistry->markAsProcessed($commandId)
 ```
@@ -207,8 +208,9 @@ foreach ($pendingSyncQueue->all() as $entry) {
     $command = new SyncOrderOnline(
         $entry['sessionId']->toNative(),
         $entry['orderId']->toNative(),
-        $branchId,
-        $customerId  // optional
+        // Opaque context — whatever YOUR Ordering BC integration needs.
+        // POS forwards it verbatim and never reads the keys (ADR-006).
+        ['branch_id' => $yourBranchId, 'customer_id' => $yourCustomerId]
     );
     $commandBus->dispatch($command);
 }

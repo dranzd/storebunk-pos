@@ -73,7 +73,7 @@ storebunk-pos/
 │   │       ├── InventoryServiceInterface.php
 │   │       ├── PaymentServiceInterface.php
 │   │       ├── DraftLifecycleService.php
-│   │       ├── DraftOrderContext.php
+│   │       ├── DraftOrderContext.php        ← opaque context bag (ADR-006)
 │   │       ├── MultiTerminalEnforcementService.php
 │   │       ├── ShiftClosePolicy.php
 │   │       └── PendingSyncQueue.php

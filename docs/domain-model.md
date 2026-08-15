@@ -246,7 +246,7 @@ PosSession aggregate must enforce UI session invariants and order reference mana
 | `InventoryServiceInterface` | `Domain\Service\` | Port: `confirmReservation`, `releaseReservation`, `fulfillOrderReservation`, `attemptReReservation` |
 | `PaymentServiceInterface` | `Domain\Service\` | Port: `requestPaymentAuthorization`, `applyPayment` |
 | `ShiftClosePolicy` | `Domain\Service\` | Enforces invariant: shift cannot close if active POS sessions exist |
-| `DraftOrderContext` | `Domain\Service\` | DTO carrying `branchId` and optional `customerId` for draft order creation |
+| `DraftOrderContext` | `Domain\Service\` | Opaque, extensible key-value context bag forwarded to the Ordering BC at draft creation; POS never reads its keys (ADR-006) |
 
 ---
 
