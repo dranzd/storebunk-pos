@@ -41,10 +41,20 @@ final class StateStore
 
     private function save(): void
     {
-        file_put_contents(
-            $this->filePath,
-            json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-        );
+        $encoded = json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            throw new \RuntimeException('Demo state could not be JSON-encoded; state NOT saved.');
+        }
+
+        // Fail loudly: an unchecked write here would let the CLI report
+        // success while the state file still holds the previous contents.
+        $written = @file_put_contents($this->filePath, $encoded);
+        if ($written !== strlen($encoded)) {
+            throw new \RuntimeException(sprintf(
+                'Demo state file %s could not be written; state NOT saved.',
+                $this->filePath
+            ));
+        }
     }
 
     public function set(string $key, mixed $value): void

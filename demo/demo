@@ -50,8 +50,11 @@ $args    = new CliArgs(array_slice($argv, 2));
 if ($service === 'state') {
     $subcommand = $args->positional(0);
     if ($subcommand === 'clear') {
-        $stateStore->clear();
+        // Event store first: its clear can throw (locking or deletion
+        // failure), and the state/ID references must survive in that case —
+        // erasing them while event history remains would strand aggregates.
         $eventStore->clear();
+        $stateStore->clear();
         Output::success('State cleared.');
         Output::info('File: ' . $stateStore->filePath());
         Output::info('Events: ' . $eventStore->filePath());
