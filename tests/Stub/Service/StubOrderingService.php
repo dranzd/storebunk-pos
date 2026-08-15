@@ -15,11 +15,19 @@ final class StubOrderingService implements OrderingServiceInterface
     private array $confirmedOrders = [];
     private array $cancelledOrders = [];
     private array $fullyPaidOrders = [];
+    /** @var array<string, DraftOrderContext> */
+    private array $draftOrderContexts = [];
 
     final public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void
     {
         $key = $orderId->toNative();
         $this->draftOrders[$key] = ($this->draftOrders[$key] ?? 0) + 1;
+        $this->draftOrderContexts[$key] = $context;
+    }
+
+    public function lastDraftOrderContext(OrderId $orderId): ?DraftOrderContext
+    {
+        return $this->draftOrderContexts[$orderId->toNative()] ?? null;
     }
 
     public function draftOrderWasCreated(OrderId $orderId): bool

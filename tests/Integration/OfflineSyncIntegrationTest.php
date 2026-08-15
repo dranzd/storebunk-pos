@@ -133,12 +133,15 @@ final class OfflineSyncIntegrationTest extends TestCase
         $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            'branch-uuid-1',
-            null
+            ['branch_id' => 'branch-uuid-1']
         ));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());
         $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
+
+        $context = $this->orderingService->lastDraftOrderContext($orderId);
+        $this->assertNotNull($context);
+        $this->assertSame(['branch_id' => 'branch-uuid-1'], $context->toArray());
     }
 
     public function test_sync_online_command_is_idempotent(): void
@@ -175,8 +178,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $syncCommand = new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            'branch-uuid-1',
-            null
+            ['branch_id' => 'branch-uuid-1']
         );
         $syncHandler($syncCommand);
         $syncHandler($syncCommand);
@@ -227,8 +229,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId1->toNative(),
-            'branch-uuid-1',
-            null
+            ['branch_id' => 'branch-uuid-1']
         ));
 
         $this->assertSame(1, $this->pendingSyncQueue->count());
@@ -236,8 +237,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId2->toNative(),
-            'branch-uuid-1',
-            null
+            ['branch_id' => 'branch-uuid-1']
         ));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());

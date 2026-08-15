@@ -8,6 +8,10 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 
 interface OrderingServiceInterface
 {
+    /**
+     * @param DraftOrderContext $context Opaque, consumer-provided context.
+     *        POS forwards it verbatim and never reads its keys (ADR-006).
+     */
     public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void;
 
     public function confirmOrder(OrderId $orderId): void;

@@ -523,11 +523,12 @@ function sessionSync(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     $branchId  = new BranchId($branchIdRaw);
 
     try {
+        // The demo plays the CONSUMER here: it decides what context the
+        // Ordering BC needs; POS just passes the array through (ADR-006).
         $commandBus->dispatch(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            $branchId->toNative(),
-            null
+            ['branch_id' => $branchId->toNative()]
         ));
 
         $pending = $stateStore->getList('pending_sync_order_ids');

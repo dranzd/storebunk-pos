@@ -45,7 +45,7 @@ final class SyncOrderOnlineHandler
 
         $this->orderingService->createDraftOrder(
             $orderId,
-            new DraftOrderContext($command->branchId, $command->customerId)
+            new DraftOrderContext($command->context)
         );
 
         $this->pendingSyncQueue->dequeueByOrderId($orderId);

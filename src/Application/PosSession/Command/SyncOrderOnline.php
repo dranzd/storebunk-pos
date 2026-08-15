@@ -15,11 +15,16 @@ use Dranzd\Common\Cqrs\Domain\Message\AbstractCommand;
  */
 final class SyncOrderOnline extends AbstractCommand
 {
+    /**
+     * @param array<string, mixed> $context Opaque context forwarded verbatim
+     *        to the Ordering BC when the draft order is created. POS does not
+     *        interpret it — keys and values are consumer/Ordering vocabulary
+     *        (see ADR-006).
+     */
     public function __construct(
         public readonly string $sessionId,
         public readonly string $orderId,
-        public readonly string $branchId,
-        public readonly ?string $customerId = null
+        public readonly array $context = []
     ) {
         parent::__construct(
             messageUuid: '',
