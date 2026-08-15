@@ -34,14 +34,14 @@ final class ShiftUnassigned extends BaseAggregateEvent implements DomainEventInt
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.unassigned";
+        return 'storebunk.pos.shift.unassigned';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "unassigned_at" => $this->unassignedAt->format(\DateTimeInterface::ATOM),
+            'shift_id' => $this->shiftId->toNative(),
+            'unassigned_at' => $this->unassignedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -50,8 +50,8 @@ final class ShiftUnassigned extends BaseAggregateEvent implements DomainEventInt
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->unassignedAt = new DateTimeImmutable($payload["unassigned_at"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->unassignedAt = new DateTimeImmutable($payload['unassigned_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

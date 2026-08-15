@@ -32,15 +32,15 @@ final class OrderResumed extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_resumed";
+        return 'storebunk.pos.session.order_resumed';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "resumed_at" => $this->resumedAt->format(\DateTimeInterface::ATOM),
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'resumed_at' => $this->resumedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -49,9 +49,9 @@ final class OrderResumed extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->resumedAt = new DateTimeImmutable($payload["resumed_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->resumedAt = new DateTimeImmutable($payload['resumed_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

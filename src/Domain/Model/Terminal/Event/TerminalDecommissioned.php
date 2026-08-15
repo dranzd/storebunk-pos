@@ -30,15 +30,15 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.decommissioned";
+        return 'storebunk.pos.terminal.decommissioned';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "reason" => $this->reason,
-            "decommissioned_at" => $this->decommissionedAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'reason' => $this->reason,
+            'decommissioned_at' => $this->decommissionedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -49,10 +49,10 @@ final class TerminalDecommissioned extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->reason = $payload["reason"];
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->reason = $payload['reason'];
         $this->decommissionedAt = new DateTimeImmutable(
-            $payload["decommissioned_at"],
+            $payload['decommissioned_at'],
         );
     }
 

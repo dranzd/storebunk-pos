@@ -32,15 +32,15 @@ final class CheckoutInitiated extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.checkout_initiated";
+        return 'storebunk.pos.session.checkout_initiated';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "initiated_at" => $this->initiatedAt->format(
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'initiated_at' => $this->initiatedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -51,9 +51,9 @@ final class CheckoutInitiated extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->initiatedAt = new DateTimeImmutable($payload["initiated_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->initiatedAt = new DateTimeImmutable($payload['initiated_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

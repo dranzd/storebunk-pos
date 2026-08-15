@@ -32,16 +32,16 @@ final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventIn
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.force_closed";
+        return 'storebunk.pos.shift.force_closed';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "supervisor_id" => $this->supervisorId,
-            "reason" => $this->reason,
-            "force_closed_at" => $this->forceClosedAt->format(\DateTimeInterface::ATOM),
+            'shift_id' => $this->shiftId->toNative(),
+            'supervisor_id' => $this->supervisorId,
+            'reason' => $this->reason,
+            'force_closed_at' => $this->forceClosedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -50,10 +50,10 @@ final class ShiftForceClosed extends BaseAggregateEvent implements DomainEventIn
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->supervisorId = $payload["supervisor_id"];
-        $this->reason = $payload["reason"];
-        $this->forceClosedAt = new DateTimeImmutable($payload["force_closed_at"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->supervisorId = $payload['supervisor_id'];
+        $this->reason = $payload['reason'];
+        $this->forceClosedAt = new DateTimeImmutable($payload['force_closed_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

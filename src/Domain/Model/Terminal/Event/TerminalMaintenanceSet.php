@@ -28,14 +28,14 @@ final class TerminalMaintenanceSet extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.maintenance_set";
+        return 'storebunk.pos.terminal.maintenance_set';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "maintenance_set_at" => $this->maintenanceSetAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'maintenance_set_at' => $this->maintenanceSetAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -46,9 +46,9 @@ final class TerminalMaintenanceSet extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
         $this->maintenanceSetAt = new DateTimeImmutable(
-            $payload["maintenance_set_at"],
+            $payload['maintenance_set_at'],
         );
     }
 

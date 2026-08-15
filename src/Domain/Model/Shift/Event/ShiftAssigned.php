@@ -48,19 +48,19 @@ final class ShiftAssigned extends BaseAggregateEvent implements DomainEventInter
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.assigned";
+        return 'storebunk.pos.shift.assigned';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "assignee_cashier_id" => $this->assignee->toNative(),
-            "fallback_cashier_ids" => array_map(
+            'shift_id' => $this->shiftId->toNative(),
+            'assignee_cashier_id' => $this->assignee->toNative(),
+            'fallback_cashier_ids' => array_map(
                 static fn (CashierId $cashier): string => $cashier->toNative(),
                 $this->fallbackCashiers
             ),
-            "assigned_at" => $this->assignedAt->format(\DateTimeInterface::ATOM),
+            'assigned_at' => $this->assignedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -69,13 +69,13 @@ final class ShiftAssigned extends BaseAggregateEvent implements DomainEventInter
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->assignee = CashierId::fromNative($payload["assignee_cashier_id"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->assignee = CashierId::fromNative($payload['assignee_cashier_id']);
         $this->fallbackCashiers = array_map(
             static fn (string $id): CashierId => CashierId::fromNative($id),
-            $payload["fallback_cashier_ids"]
+            $payload['fallback_cashier_ids']
         );
-        $this->assignedAt = new DateTimeImmutable($payload["assigned_at"]);
+        $this->assignedAt = new DateTimeImmutable($payload['assigned_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

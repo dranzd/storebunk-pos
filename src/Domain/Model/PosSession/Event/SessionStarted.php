@@ -40,17 +40,17 @@ final class SessionStarted extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.started";
+        return 'storebunk.pos.session.started';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "shift_id" => $this->shiftId->toNative(),
-            "terminal_id" => $this->terminalId->toNative(),
-            "cashier_id" => $this->cashierId->toNative(),
-            "started_at" => $this->startedAt->format(\DateTimeInterface::ATOM),
+            'session_id' => $this->sessionId->toNative(),
+            'shift_id' => $this->shiftId->toNative(),
+            'terminal_id' => $this->terminalId->toNative(),
+            'cashier_id' => $this->cashierId->toNative(),
+            'started_at' => $this->startedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -59,11 +59,11 @@ final class SessionStarted extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->cashierId = CashierId::fromNative($payload["cashier_id"]);
-        $this->startedAt = new DateTimeImmutable($payload["started_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->cashierId = CashierId::fromNative($payload['cashier_id']);
+        $this->startedAt = new DateTimeImmutable($payload['started_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

@@ -28,14 +28,14 @@ final class TerminalActivated extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.activated";
+        return 'storebunk.pos.terminal.activated';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "activated_at" => $this->activatedAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'activated_at' => $this->activatedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -46,8 +46,8 @@ final class TerminalActivated extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->activatedAt = new DateTimeImmutable($payload["activated_at"]);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->activatedAt = new DateTimeImmutable($payload['activated_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

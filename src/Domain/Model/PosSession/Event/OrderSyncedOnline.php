@@ -29,14 +29,14 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_synced_online";
+        return 'storebunk.pos.session.order_synced_online';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
         ];
     }
 
@@ -45,8 +45,8 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
     }
 
     final public function occurredAt(): DateTimeImmutable

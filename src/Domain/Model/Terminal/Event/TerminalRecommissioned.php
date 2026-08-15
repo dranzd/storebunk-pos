@@ -30,15 +30,15 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.recommissioned";
+        return 'storebunk.pos.terminal.recommissioned';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "reason" => $this->reason,
-            "recommissioned_at" => $this->recommissionedAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'reason' => $this->reason,
+            'recommissioned_at' => $this->recommissionedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -49,10 +49,10 @@ final class TerminalRecommissioned extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->reason = $payload["reason"];
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->reason = $payload['reason'];
         $this->recommissionedAt = new DateTimeImmutable(
-            $payload["recommissioned_at"],
+            $payload['recommissioned_at'],
         );
     }
 

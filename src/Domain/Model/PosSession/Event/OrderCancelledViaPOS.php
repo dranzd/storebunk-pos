@@ -35,16 +35,16 @@ final class OrderCancelledViaPOS extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_cancelled_via_pos";
+        return 'storebunk.pos.session.order_cancelled_via_pos';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "reason" => $this->reason,
-            "cancelled_at" => $this->cancelledAt->format(
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'reason' => $this->reason,
+            'cancelled_at' => $this->cancelledAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -55,10 +55,10 @@ final class OrderCancelledViaPOS extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->reason = $payload["reason"];
-        $this->cancelledAt = new DateTimeImmutable($payload["cancelled_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->reason = $payload['reason'];
+        $this->cancelledAt = new DateTimeImmutable($payload['cancelled_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

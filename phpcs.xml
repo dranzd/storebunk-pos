@@ -17,6 +17,10 @@
 
     <!-- Additional rules -->
     <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+    <!-- Single quotes unless interpolation or escape sequences are needed
+         (house standard, not PSR — see standards-doc code-style-standards) -->
+    <rule ref="Squiz.Strings.DoubleQuoteUsage.NotRequired"/>
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="120"/>

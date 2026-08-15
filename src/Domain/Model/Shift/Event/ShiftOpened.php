@@ -43,18 +43,18 @@ final class ShiftOpened extends BaseAggregateEvent implements DomainEventInterfa
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.opened";
+        return 'storebunk.pos.shift.opened';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "terminal_id" => $this->terminalId->toNative(),
-            "branch_id" => $this->branchId->toNative(),
-            "cashier_id" => $this->cashierId->toNative(),
-            "opening_cash_amount" => $this->openingCashAmount->toArray(),
-            "opened_at" => $this->openedAt->format(\DateTimeInterface::ATOM),
+            'shift_id' => $this->shiftId->toNative(),
+            'terminal_id' => $this->terminalId->toNative(),
+            'branch_id' => $this->branchId->toNative(),
+            'cashier_id' => $this->cashierId->toNative(),
+            'opening_cash_amount' => $this->openingCashAmount->toArray(),
+            'opened_at' => $this->openedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -63,12 +63,12 @@ final class ShiftOpened extends BaseAggregateEvent implements DomainEventInterfa
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->branchId = BranchId::fromNative($payload["branch_id"]);
-        $this->cashierId = CashierId::fromNative($payload["cashier_id"]);
-        $this->openingCashAmount = Money::fromArray($payload["opening_cash_amount"]);
-        $this->openedAt = new DateTimeImmutable($payload["opened_at"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->branchId = BranchId::fromNative($payload['branch_id']);
+        $this->cashierId = CashierId::fromNative($payload['cashier_id']);
+        $this->openingCashAmount = Money::fromArray($payload['opening_cash_amount']);
+        $this->openedAt = new DateTimeImmutable($payload['opened_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable
