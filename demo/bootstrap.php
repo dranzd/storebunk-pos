@@ -6,6 +6,7 @@ use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\Common\Cqrs\Infrastructure\HandlerRegistry\InMemoryHandlerRegistry;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
 use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
+use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
@@ -185,7 +186,6 @@ function projectTerminalReadModel(
 }
 
 // ── State Store ───────────────────────────────────────────────────────────────
-use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 $stateStore = new StateStore(StateStore::defaultPath());
 
 return [
