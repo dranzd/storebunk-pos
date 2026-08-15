@@ -19,7 +19,7 @@ All application commands must accept primitive values only, use domain-language 
 
 ## @standard: command-primitive-parameters
 @category: architecture
-@status: stable
+@status: superseded
 
 Commands must accept primitive values only and use expressive static factory methods. This maintains consumer independence from internal value objects and provides intention-revealing APIs.
 
