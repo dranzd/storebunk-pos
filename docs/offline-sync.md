@@ -95,9 +95,9 @@ SyncOrderOnlineHandler::__invoke()
   │      └─ Records OrderSyncedOnline event
   │      └─ Removes orderId from pendingSyncOrderIds
   ├─ 4. Store session (persists events to event store)
-  ├─ 5. orderingService->createDraftOrder($orderId, new DraftOrderContext($context))
+  ├─ 5. orderingService->createDraftOrder($orderId, $command->context)
   │      └─ Calls Ordering BC to create the actual draft; the context is an
-  │         opaque consumer-owned bag POS never reads (ADR-006)
+  │         opaque consumer-owned array POS never reads (ADR-006)
   ├─ 6. pendingSyncQueue->dequeueByOrderId($orderId)
   └─ 7. idempotencyRegistry->markAsProcessed($commandId)
 ```
@@ -210,10 +210,16 @@ foreach ($pendingSyncQueue->all() as $entry) {
         $entry['orderId']->toNative(),
         // Opaque context — whatever YOUR Ordering BC integration needs.
         // POS forwards it verbatim and never reads the keys (ADR-006).
-        ['branch_id' => $yourBranchId, 'customer_id' => $yourCustomerId]
+        // Recommended: build it via a consumer-owned translator so the key
+        // literals live in one place, e.g.:
+        YourDraftOrderContext::toArray(branchId: $branchId, customerId: $customerId)
     );
     $commandBus->dispatch($command);
 }
+
+// Your Ordering adapter is the other edge of the boundary: it receives the
+// raw array and rehydrates the same translator —
+// $ctx = YourDraftOrderContext::fromArray($context). See ADR-006.
 
 // 3. Each successful sync removes the order from the queue
 //    Failed syncs remain in the queue for retry

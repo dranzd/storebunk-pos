@@ -100,5 +100,7 @@ Files to change:
 > **2026-08-15 — mechanism revised by [ADR-006](../../adr/006-opaque-ordering-context.md).**
 > The requirement (context reaches the Ordering BC at draft creation) stands, but the
 > named fields (`branchId`, `customerId`) put external-domain language inside POS.
-> `DraftOrderContext` is now an opaque, extensible key-value bag and `SyncOrderOnline`
-> carries a passthrough `array $context` that POS never reads.
+> The `DraftOrderContext` DTO is removed: `SyncOrderOnline` carries a passthrough
+> `array $context` that POS never reads, and the port receives that raw array.
+> Consumer typing is handled by a consumer-owned translator (see ADR-006), not by
+> POS-provided classes or inheritance.

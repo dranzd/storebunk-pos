@@ -242,11 +242,10 @@ PosSession aggregate must enforce UI session invariants and order reference mana
 | `DraftLifecycleService` | `Domain\Service\` | TTL checks: `shouldDeactivateOrder()` (15 min), `isOrderExpired()` (60 min) |
 | `MultiTerminalEnforcementService` | `Domain\Service\` | Enforces one-shift-per-terminal, one-terminal-per-cashier, order-terminal binding |
 | `PendingSyncQueue` | `Domain\Service\` | Tracks offline orders awaiting sync; supports idempotency via commandId |
-| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder(OrderId, DraftOrderContext)`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
+| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder(OrderId, array $context)`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
 | `InventoryServiceInterface` | `Domain\Service\` | Port: `confirmReservation`, `releaseReservation`, `fulfillOrderReservation`, `attemptReReservation` |
 | `PaymentServiceInterface` | `Domain\Service\` | Port: `requestPaymentAuthorization`, `applyPayment` |
 | `ShiftClosePolicy` | `Domain\Service\` | Enforces invariant: shift cannot close if active POS sessions exist |
-| `DraftOrderContext` | `Domain\Service\` | Opaque, extensible key-value context bag forwarded to the Ordering BC at draft creation; POS never reads its keys (ADR-006) |
 
 ---
 
@@ -397,7 +396,7 @@ For the complete technical reference — including command flow, idempotency mod
 ```php
 interface OrderingServiceInterface
 {
-    public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void;
+    public function createDraftOrder(OrderId $orderId, array $context): void;
     public function confirmOrder(OrderId $orderId): void;
     public function cancelOrder(OrderId $orderId, string $reason): void;
     public function isOrderFullyPaid(OrderId $orderId): bool;
