@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Tests\Stub\Service;
 
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
-use Dranzd\StorebunkPos\Domain\Service\DraftOrderContext;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 
 final class StubOrderingService implements OrderingServiceInterface
@@ -15,17 +14,20 @@ final class StubOrderingService implements OrderingServiceInterface
     private array $confirmedOrders = [];
     private array $cancelledOrders = [];
     private array $fullyPaidOrders = [];
-    /** @var array<string, DraftOrderContext> */
+    /** @var array<string, array<string, mixed>> */
     private array $draftOrderContexts = [];
 
-    final public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void
+    final public function createDraftOrder(OrderId $orderId, array $context): void
     {
         $key = $orderId->toNative();
         $this->draftOrders[$key] = ($this->draftOrders[$key] ?? 0) + 1;
         $this->draftOrderContexts[$key] = $context;
     }
 
-    public function lastDraftOrderContext(OrderId $orderId): ?DraftOrderContext
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function lastDraftOrderContext(OrderId $orderId): ?array
     {
         return $this->draftOrderContexts[$orderId->toNative()] ?? null;
     }
