@@ -96,11 +96,25 @@ final class FileEventStore implements EventStore
 
     public function clear(): void
     {
-        $this->events = [];
-        foreach ([$this->filePath, $this->filePath . '.lock', $this->filePath . '.tmp'] as $path) {
-            if (is_file($path)) {
-                unlink($path);
+        // Clearing coordinates on the same sidecar lock as save(), and the
+        // lock file itself is retained: deleting it would let a writer that
+        // already opened it keep locking the old inode while new processes
+        // lock a fresh one, silently breaking mutual exclusion.
+        $lockHandle = $this->acquireLock();
+
+        try {
+            $this->events = [];
+            // Drop pending events too — a save that failed before clear()
+            // must not resurrect cleared history on the next append.
+            $this->unpersisted = [];
+            foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
             }
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
         }
     }
 
@@ -185,27 +199,38 @@ final class FileEventStore implements EventStore
         ));
     }
 
-    private function save(): void
+    /**
+     * The lock lives on a sidecar file whose inode is never replaced or
+     * deleted, so every process — writer or clearer — always serialises on
+     * the same lock even though the data file is swapped atomically.
+     *
+     * @return resource
+     */
+    private function acquireLock()
     {
-        // The lock lives on a sidecar file whose inode is never replaced, so
-        // every process always serialises on the same lock even though the
-        // data file itself is swapped atomically below.
-        // Native warnings are suppressed on the filesystem calls below because
-        // every failure path already throws its own descriptive exception.
+        // Native warnings are suppressed because every failure path throws
+        // its own descriptive exception.
         $lockHandle = @fopen($this->filePath . '.lock', 'c');
         if ($lockHandle === false) {
             throw new \RuntimeException(sprintf(
-                'Demo event store cannot open lock file %s.lock; event NOT persisted.',
+                'Demo event store cannot open lock file %s.lock.',
                 $this->filePath
             ));
         }
         if (!flock($lockHandle, LOCK_EX)) {
             fclose($lockHandle);
             throw new \RuntimeException(sprintf(
-                'Demo event store cannot lock %s.lock; event NOT persisted.',
+                'Demo event store cannot lock %s.lock.',
                 $this->filePath
             ));
         }
+
+        return $lockHandle;
+    }
+
+    private function save(): void
+    {
+        $lockHandle = $this->acquireLock();
 
         try {
             // Re-read the file INSIDE the lock and append only this process's

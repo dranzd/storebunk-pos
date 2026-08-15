@@ -127,7 +127,7 @@ final class FileEventStoreTest extends TestCase
 
         try {
             $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('event NOT persisted');
+            $this->expectExceptionMessage('cannot open lock file');
 
             $store->append($this->terminalRegistered('agg-1'));
         } finally {
@@ -215,6 +215,54 @@ final class FileEventStoreTest extends TestCase
         } finally {
             chmod($this->filePath, 0o600);
         }
+    }
+
+    public function test_a_failed_pending_event_cannot_reappear_after_clear(): void
+    {
+        $this->skipIfRunningAsRoot();
+
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+
+        // Make the save fail so 'agg-2' stays queued in $unpersisted.
+        chmod($this->filePath, 0o000);
+        try {
+            $store->append($this->terminalRegistered('agg-2'));
+            $this->fail('Expected the append over an unreadable store to throw');
+        } catch (\RuntimeException) {
+        } finally {
+            chmod($this->filePath, 0o600);
+        }
+
+        $store->clear();
+        // The next append must not merge the cleared pending 'agg-2' back in.
+        $store->append($this->terminalRegistered('agg-3'));
+
+        $reloaded = new FileEventStore($this->filePath);
+        $this->assertFalse($reloaded->hasEvents('agg-1'));
+        $this->assertFalse($reloaded->hasEvents('agg-2'));
+        $this->assertTrue($reloaded->hasEvents('agg-3'));
+    }
+
+    public function test_clear_retains_the_shared_lock_sidecar(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1'));
+
+        $lockPath = $this->filePath . '.lock';
+        $this->assertFileExists($lockPath);
+        $inodeBeforeClear = fileinode($lockPath);
+
+        $store->clear();
+
+        // Writers coordinate on this one inode; clear() must never replace it.
+        clearstatcache();
+        $this->assertFileExists($lockPath);
+        $this->assertSame($inodeBeforeClear, fileinode($lockPath));
+
+        $store->append($this->terminalRegistered('agg-2'));
+        clearstatcache();
+        $this->assertSame($inodeBeforeClear, fileinode($lockPath));
     }
 
     private function skipIfRunningAsRoot(): void
