@@ -53,12 +53,21 @@ final class DraftLifecycleService
     {
         foreach ($this->sessionReadModel->getSessionsWithActiveOrder() as $row) {
             if ($this->isOrderExpired($row['last_activity_at'], $currentTime)) {
-                $this->commandBus->dispatch(
-                    new CancelOrder(
-                        $row['session_id'],
-                        'Automatically cancelled due to expiry'
-                    )
-                );
+                try {
+                    $this->commandBus->dispatch(
+                        new CancelOrder(
+                            $row['session_id'],
+                            'Automatically cancelled due to expiry'
+                        )
+                    );
+                } catch (ExecutionFailedException $exception) {
+                    // Same best-effort discipline as the inactivity sweep:
+                    // skip sessions that refuse on a domain invariant, but
+                    // surface every other failure.
+                    if (!$exception->getPrevious() instanceof InvariantViolationException) {
+                        throw $exception;
+                    }
+                }
             }
         }
     }

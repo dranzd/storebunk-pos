@@ -422,6 +422,19 @@ final class PosSessionTest extends TestCase
         $session->deactivateOrder('TTL expired');
     }
 
+    public function test_it_cannot_park_order_during_checkout(): void
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->initiateCheckout();
+        $session->popRecordedEvents();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot park an order during checkout');
+
+        $session->parkOrder();
+    }
+
     public function test_it_can_reactivate_deactivated_order(): void
     {
         $session = $this->createStartedSession();

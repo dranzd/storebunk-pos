@@ -91,6 +91,12 @@ final class PosSession implements AggregateRoot
             throw InvariantViolationException::withMessage('No active order to park');
         }
 
+        if ($this->state->isCheckout()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot park an order during checkout'
+            );
+        }
+
         $this->recordThat(
             OrderParked::occur(
                 $this->sessionId,
