@@ -24,7 +24,7 @@ final class StateStoreTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach ([$this->filePath, $this->filePath . '.tmp'] as $path) {
+        foreach ([$this->filePath, $this->filePath . '.tmp', $this->filePath . '.lock'] as $path) {
             if (is_file($path)) {
                 @chmod($path, 0o600);
                 unlink($path);
@@ -40,6 +40,45 @@ final class StateStoreTest extends TestCase
         $reloaded = new StateStore($this->filePath);
 
         $this->assertSame('session-uuid-1', $reloaded->get('session_id'));
+    }
+
+    public function test_concurrent_writers_do_not_lose_each_others_keys(): void
+    {
+        // Both instances load the (empty) file BEFORE either writes — the
+        // shape of two demo CLI processes running side by side. Mutations
+        // must apply to the CURRENT disk state, not the stale snapshot.
+        $storeA = new StateStore($this->filePath);
+        $storeB = new StateStore($this->filePath);
+
+        $storeB->set('session_id', 'session-uuid-1');
+        $storeA->set('order_id', 'order-uuid-1');
+
+        $reloaded = new StateStore($this->filePath);
+
+        $this->assertSame('session-uuid-1', $reloaded->get('session_id'));
+        $this->assertSame('order-uuid-1', $reloaded->get('order_id'));
+    }
+
+    public function test_loading_a_corrupt_state_file_fails_loudly(): void
+    {
+        file_put_contents($this->filePath, '{"torn write');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not valid JSON');
+
+        new StateStore($this->filePath);
+    }
+
+    public function test_clear_still_works_on_a_corrupt_state_file(): void
+    {
+        $store = new StateStore($this->filePath);
+        file_put_contents($this->filePath, '{"torn write');
+
+        // clear() is the documented remedy for corruption, so it must not
+        // choke on the very file it is asked to reset.
+        $store->clear();
+
+        $this->assertNull((new StateStore($this->filePath))->get('session_id'));
     }
 
     public function test_a_failed_state_write_fails_loudly_and_preserves_state(): void
