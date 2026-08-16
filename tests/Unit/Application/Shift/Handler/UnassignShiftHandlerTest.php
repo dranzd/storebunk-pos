@@ -37,7 +37,7 @@ final class UnassignShiftHandlerTest extends TestCase
     {
         $shiftId = $this->openAssignedShift();
 
-        ($this->handler)(UnassignShift::shift($shiftId->toNative()));
+        ($this->handler)(new UnassignShift($shiftId->toNative()));
 
         $unassigned = array_values(array_filter(
             $this->eventStore->loadEvents($shiftId->toNative()),
@@ -58,14 +58,14 @@ final class UnassignShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Shift is not assigned');
 
-        ($this->handler)(UnassignShift::shift($shiftId->toNative()));
+        ($this->handler)(new UnassignShift($shiftId->toNative()));
     }
 
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
         $openHandler = new OpenShiftHandler($this->shiftRepository);
-        $openHandler(OpenShift::forCashier(
+        $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),
             (new BranchId())->toNative(),
@@ -81,7 +81,7 @@ final class UnassignShiftHandlerTest extends TestCase
     {
         $shiftId = $this->openShift();
         $assignHandler = new AssignShiftHandler($this->shiftRepository);
-        $assignHandler(AssignShift::toCashier(
+        $assignHandler(new AssignShift(
             $shiftId->toNative(),
             (new CashierId())->toNative(),
             [(new CashierId())->toNative()]

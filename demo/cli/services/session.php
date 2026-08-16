@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
+use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\EndSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\InitiateCheckout;
 use Dranzd\StorebunkPos\Application\PosSession\Command\ParkOrder;
@@ -51,6 +52,9 @@ function handleSession(
         case 'resume':
             sessionResume($commandBus, $stateStore, $args);
             break;
+        case 'deactivate':
+            sessionDeactivate($commandBus, $stateStore, $args);
+            break;
         case 'reactivate':
             sessionReactivate($commandBus, $stateStore, $args);
             break;
@@ -78,7 +82,7 @@ function handleSession(
         default:
             Output::error("Unknown session subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo session <start|new-order|park|resume|reactivate|checkout|pay|complete|cancel|end|new-order-offline|sync> [options]');
+            Output::usage('./demo session <start|new-order|park|resume|deactivate|reactivate|checkout|pay|complete|cancel|end|new-order-offline|sync> [options]');
             exit(1);
     }
 }
@@ -109,7 +113,7 @@ function sessionStart(SimpleCommandBus $commandBus, StateStore $stateStore, CliA
     $cashierId  = new CashierId($cashierIdRaw);
 
     try {
-        $commandBus->dispatch(StartSession::onTerminalForCashier(
+        $commandBus->dispatch(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -143,7 +147,7 @@ function sessionNewOrder(SimpleCommandBus $commandBus, StateStore $stateStore, C
     $orderId   = new OrderId();
 
     try {
-        $commandBus->dispatch(StartNewOrder::withOrder(
+        $commandBus->dispatch(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -175,7 +179,7 @@ function sessionPark(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(ParkOrder::forSession($sessionId->toNative()));
+        $commandBus->dispatch(new ParkOrder($sessionId->toNative()));
 
         Output::success('Order parked.');
         Output::field('Session ID', $sessionId->toNative());
@@ -207,15 +211,50 @@ function sessionResume(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $orderId   = new OrderId($orderIdRaw);
 
     try {
-        $commandBus->dispatch(ResumeOrder::withOrder(
+        $commandBus->dispatch(new ResumeOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
+
+        // The resumed order is now the active one — later steps (checkout,
+        // pay, complete) default to last_order_id, so keep it in sync.
+        $stateStore->set('last_order_id', $orderId->toNative());
 
         Output::success('Order resumed.');
         Output::field('Session ID', $sessionId->toNative());
         Output::field('Order ID', $orderId->toNative());
         Output::field('State', 'Building');
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function sessionDeactivate(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
+{
+    $sessionIdRaw = $args->get('session-id', $stateStore->get('last_session_id', ''));
+    if ($sessionIdRaw === '') {
+        Output::error('--session-id is required');
+        exit(1);
+    }
+
+    $reason = $args->get('reason', 'Deactivated due to inactivity (TTL expiry)');
+
+    $sessionId = new SessionId($sessionIdRaw);
+
+    try {
+        $commandBus->dispatch(new DeactivateOrder(
+            $sessionId->toNative(),
+            $reason
+        ));
+
+        Output::success('Active order deactivated.');
+        Output::field('Session ID', $sessionId->toNative());
+        Output::field('Reason', $reason);
+        Output::field('State', 'Idle');
     } catch (AggregateNotFoundException $e) {
         Output::domainError($e->getMessage());
         exit(1);
@@ -243,10 +282,14 @@ function sessionReactivate(SimpleCommandBus $commandBus, StateStore $stateStore,
     $orderId   = new OrderId($orderIdRaw);
 
     try {
-        $commandBus->dispatch(ReactivateOrder::withOrder(
+        $commandBus->dispatch(new ReactivateOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
+
+        // The reactivated order is now the active one — keep last_order_id
+        // in sync for the follow-on checkout/pay/complete defaults.
+        $stateStore->set('last_order_id', $orderId->toNative());
 
         Output::success('Order reactivated (inventory re-reserved).');
         Output::field('Session ID', $sessionId->toNative());
@@ -272,7 +315,7 @@ function sessionCheckout(SimpleCommandBus $commandBus, StateStore $stateStore, C
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(InitiateCheckout::forSession($sessionId->toNative()));
+        $commandBus->dispatch(new InitiateCheckout($sessionId->toNative()));
 
         Output::success('Checkout initiated (order confirmed, reservation converted to hard).');
         Output::field('Session ID', $sessionId->toNative());
@@ -309,7 +352,7 @@ function sessionPay(
 
     $sessionId = new SessionId($sessionIdRaw);
     try {
-        $commandBus->dispatch(RequestPayment::via(
+        $commandBus->dispatch(new RequestPayment(
             $sessionId->toNative(),
             $amount,
             $currency,
@@ -353,7 +396,7 @@ function sessionComplete(
     $orderingService->markOrderAsFullyPaid($orderId);
 
     try {
-        $commandBus->dispatch(CompleteOrder::forSession($sessionId->toNative()));
+        $commandBus->dispatch(new CompleteOrder($sessionId->toNative()));
 
         Output::success('Order completed (inventory deducted).');
         Output::field('Session ID', $sessionId->toNative());
@@ -381,7 +424,7 @@ function sessionCancel(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(CancelOrder::because(
+        $commandBus->dispatch(new CancelOrder(
             $sessionId->toNative(),
             $reason
         ));
@@ -410,7 +453,7 @@ function sessionEnd(SimpleCommandBus $commandBus, StateStore $stateStore, CliArg
     $sessionId = new SessionId($sessionIdRaw);
 
     try {
-        $commandBus->dispatch(EndSession::withId($sessionId->toNative()));
+        $commandBus->dispatch(new EndSession($sessionId->toNative()));
 
         Output::success('POS session ended.');
         Output::field('Session ID', $sessionId->toNative());
@@ -436,7 +479,7 @@ function sessionNewOrderOffline(SimpleCommandBus $commandBus, StateStore $stateS
     $orderId   = new OrderId();
 
     try {
-        $commandBus->dispatch(StartNewOrderOffline::withOrder(
+        $commandBus->dispatch(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -480,15 +523,16 @@ function sessionSync(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     $branchId  = new BranchId($branchIdRaw);
 
     try {
-        $commandBus->dispatch(SyncOrderOnline::forOrder(
+        // The demo plays the CONSUMER here: it decides what context the
+        // Ordering BC needs; POS just passes the array through (ADR-006).
+        $commandBus->dispatch(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            $branchId->toNative(),
-            null
+            ['branch_id' => $branchId->toNative()]
         ));
 
         $pending = $stateStore->getList('pending_sync_order_ids');
-        $pending = array_filter($pending, fn($id) => $id !== $orderId->toNative());
+        $pending = array_filter($pending, static fn (string $id): bool => $id !== $orderId->toNative());
         $stateStore->set('pending_sync_order_ids', array_values($pending));
 
         Output::success('Order synced online (draft created in ordering BC).');

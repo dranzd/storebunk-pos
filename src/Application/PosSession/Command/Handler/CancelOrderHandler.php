@@ -7,9 +7,16 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Service\InventoryServiceInterface;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 
+/**
+ * CancelOrderHandler
+ *
+ * Handles the CancelOrder command by cancelling the session's active order
+ * and releasing any inventory reservation.
+ */
 final class CancelOrderHandler
 {
     public function __construct(
@@ -19,16 +26,16 @@ final class CancelOrderHandler
     ) {
     }
 
-    final public function __invoke(CancelOrder $command): void
+    public function __invoke(CancelOrder $command): void
     {
-        $session = $this->sessionRepository->load($command->sessionId());
+        $session = $this->sessionRepository->load(SessionId::fromNative($command->sessionId));
         $orderId = $session->activeOrderId();
 
-        $session->cancelOrder($command->reason());
+        $session->cancelOrder($command->reason);
         $this->sessionRepository->store($session);
 
         if ($orderId instanceof OrderId) {
-            $this->orderingService->cancelOrder($orderId, $command->reason());
+            $this->orderingService->cancelOrder($orderId, $command->reason);
             $this->inventoryService->releaseReservation($orderId);
         }
     }

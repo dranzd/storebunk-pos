@@ -6,10 +6,12 @@ namespace Dranzd\StorebunkPos\Domain\Service;
 
 use DateTimeImmutable;
 use Dranzd\Common\Cqrs\Application\Command\Bus as CommandBus;
+use Dranzd\Common\Cqrs\Application\Command\Exception\ExecutionFailedException;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\ReadModel\PosSessionReadModelInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
+use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 final class DraftLifecycleService
 {
@@ -26,12 +28,23 @@ final class DraftLifecycleService
     {
         foreach ($this->sessionReadModel->getSessionsWithActiveOrder() as $row) {
             if ($this->shouldDeactivateOrder($row['last_activity_at'], $currentTime)) {
-                $this->commandBus->dispatch(
-                    DeactivateOrder::because(
-                        $row['session_id'],
-                        'Automatically deactivated due to inactivity'
-                    )
-                );
+                try {
+                    $this->commandBus->dispatch(
+                        new DeactivateOrder(
+                            $row['session_id'],
+                            'Automatically deactivated due to inactivity'
+                        )
+                    );
+                } catch (ExecutionFailedException $exception) {
+                    // Best-effort sweep: a session may legitimately refuse
+                    // (e.g. its order is mid-checkout, which the aggregate
+                    // guards against). Skip it and keep sweeping the rest.
+                    // Anything other than a domain refusal (repository or
+                    // storage failure, programming error) must surface.
+                    if (!$exception->getPrevious() instanceof InvariantViolationException) {
+                        throw $exception;
+                    }
+                }
             }
         }
     }
@@ -40,12 +53,21 @@ final class DraftLifecycleService
     {
         foreach ($this->sessionReadModel->getSessionsWithActiveOrder() as $row) {
             if ($this->isOrderExpired($row['last_activity_at'], $currentTime)) {
-                $this->commandBus->dispatch(
-                    CancelOrder::because(
-                        $row['session_id'],
-                        'Automatically cancelled due to expiry'
-                    )
-                );
+                try {
+                    $this->commandBus->dispatch(
+                        new CancelOrder(
+                            $row['session_id'],
+                            'Automatically cancelled due to expiry'
+                        )
+                    );
+                } catch (ExecutionFailedException $exception) {
+                    // Same best-effort discipline as the inactivity sweep:
+                    // skip sessions that refuse on a domain invariant, but
+                    // surface every other failure.
+                    if (!$exception->getPrevious() instanceof InvariantViolationException) {
+                        throw $exception;
+                    }
+                }
             }
         }
     }

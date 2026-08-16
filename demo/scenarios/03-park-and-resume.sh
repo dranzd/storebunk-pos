@@ -36,7 +36,7 @@ $DEMO session park
 
 echo ""
 echo "Step 6: Resume Order #1 (first customer returns)"
-ORDER_1=$(cat demo/data/demo-state.json | grep -o '"order_ids":\[[^]]*\]' | grep -o '"[^"]*"' | sed -n '2p' | tr -d '"')
+ORDER_1=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][0] ?? "";')
 $DEMO session resume --order-id="$ORDER_1"
 
 echo ""
@@ -47,7 +47,7 @@ $DEMO session complete
 
 echo ""
 echo "Step 8: Resume Order #2 (second customer)"
-ORDER_2=$(cat demo/data/demo-state.json | grep -o '"order_ids":\[[^]]*\]' | grep -o '"[^"]*"' | sed -n '3p' | tr -d '"')
+ORDER_2=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][1] ?? "";')
 $DEMO session resume --order-id="$ORDER_2"
 
 echo ""

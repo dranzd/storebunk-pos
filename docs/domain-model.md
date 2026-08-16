@@ -161,7 +161,7 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `parkedOrderIds` | `OrderId[]` | Orders parked for later |
 | `inactiveOrderIds` | `OrderId[]` | Orders deactivated due to TTL expiry |
 | `pendingSyncOrderIds` | `OrderId[]` | Offline orders awaiting sync |
-| `state` | `SessionState` (Enum) | Idle, Building, Checkout |
+| `state` | `SessionState` (Enum) | Idle, Building, Checkout, Payment |
 
 #### Invariants
 
@@ -229,7 +229,7 @@ PosSession aggregate must enforce UI session invariants and order reference mana
 | `CashDrop` | Shift | Cash drop record (amount + timestamp) | Value Object |
 | `SessionId` | PosSession | UUID for session | `Uuid` (common-valueobject) |
 | `OrderId` | PosSession | UUID for order reference | `Uuid` (common-valueobject) |
-| `SessionState` | PosSession | Enum: `Idle`, `Building`, `Checkout` | PHP Enum |
+| `SessionState` | PosSession | Enum: `Idle`, `Building`, `Checkout`, `Payment` | PHP Enum |
 | `OfflineMode` | PosSession | Offline mode flag/metadata | Value Object |
 | `Money` | Shared | Monetary amount (amount + currency) | `Money\Basic` (common-valueobject) |
 
@@ -242,11 +242,10 @@ PosSession aggregate must enforce UI session invariants and order reference mana
 | `DraftLifecycleService` | `Domain\Service\` | TTL checks: `shouldDeactivateOrder()` (15 min), `isOrderExpired()` (60 min) |
 | `MultiTerminalEnforcementService` | `Domain\Service\` | Enforces one-shift-per-terminal, one-terminal-per-cashier, order-terminal binding |
 | `PendingSyncQueue` | `Domain\Service\` | Tracks offline orders awaiting sync; supports idempotency via commandId |
-| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder(OrderId, DraftOrderContext)`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
+| `OrderingServiceInterface` | `Domain\Service\` | Port: `createDraftOrder(OrderId, array $context)`, `confirmOrder`, `cancelOrder`, `isOrderFullyPaid` |
 | `InventoryServiceInterface` | `Domain\Service\` | Port: `confirmReservation`, `releaseReservation`, `fulfillOrderReservation`, `attemptReReservation` |
 | `PaymentServiceInterface` | `Domain\Service\` | Port: `requestPaymentAuthorization`, `applyPayment` |
 | `ShiftClosePolicy` | `Domain\Service\` | Enforces invariant: shift cannot close if active POS sessions exist |
-| `DraftOrderContext` | `Domain\Service\` | DTO carrying `branchId` and optional `customerId` for draft order creation |
 
 ---
 
@@ -256,7 +255,7 @@ PosSession aggregate must enforce UI session invariants and order reference mana
 |------|--------|-------------|
 | `TerminalStatus` | `Active`, `Disabled`, `Maintenance`, `Decommissioned` | Terminal lifecycle states |
 | `ShiftStatus` | `Open`, `Closed`, `ForceClosed` | Shift lifecycle states |
-| `SessionState` | `Idle`, `Building`, `Checkout` | Session UI lifecycle |
+| `SessionState` | `Idle`, `Building`, `Checkout`, `Payment` | Session UI lifecycle |
 
 ---
 
@@ -304,6 +303,13 @@ POS interacts with SalesOrder states managed by the Ordering BC. POS does NOT ow
 - Allowed: apply additional payment, process return (future)
 - Not allowed: edit lines, edit price, edit quantity
 - Shift close must block if Confirmed but not Completed orders exist
+
+### Payment Received (session `Payment` state)
+
+- The session enters `Payment` on the first `PaymentRequested` (cash and card alike — both apply payment through the payment port)
+- From here the order can only be **completed** (or receive further split payments) — POS never cancels, parks, or deactivates it; money has been received
+- Post-payment cancellation is a **manual sales-order operation downstream**, never a POS action
+- The lifecycle sweeps skip such sessions (domain refusal), so a paid-but-uncompleted order stays visibly active for operational review — it should never occur, and warrants investigation when it does
 
 ---
 
@@ -397,7 +403,7 @@ For the complete technical reference — including command flow, idempotency mod
 ```php
 interface OrderingServiceInterface
 {
-    public function createDraftOrder(OrderId $orderId, DraftOrderContext $context): void;
+    public function createDraftOrder(OrderId $orderId, array $context): void;
     public function confirmOrder(OrderId $orderId): void;
     public function cancelOrder(OrderId $orderId, string $reason): void;
     public function isOrderFullyPaid(OrderId $orderId): bool;

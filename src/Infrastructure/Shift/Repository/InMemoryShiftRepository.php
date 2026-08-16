@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Infrastructure\Shift\Repository;
 
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Shift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -14,7 +14,7 @@ use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 final class InMemoryShiftRepository implements ShiftRepositoryInterface
 {
     public function __construct(
-        private readonly InMemoryEventStore $eventStore
+        private readonly EventStore $eventStore
     ) {
     }
 

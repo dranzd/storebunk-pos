@@ -35,16 +35,16 @@ final class OrderDeactivated extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_deactivated";
+        return 'storebunk.pos.session.order_deactivated';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "reason" => $this->reason,
-            "deactivated_at" => $this->deactivatedAt->format(
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'reason' => $this->reason,
+            'deactivated_at' => $this->deactivatedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -55,11 +55,11 @@ final class OrderDeactivated extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->reason = $payload["reason"];
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->reason = $payload['reason'];
         $this->deactivatedAt = new DateTimeImmutable(
-            $payload["deactivated_at"],
+            $payload['deactivated_at'],
         );
     }
 

@@ -32,15 +32,15 @@ final class OrderCompleted extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_completed";
+        return 'storebunk.pos.session.order_completed';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "completed_at" => $this->completedAt->format(
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'completed_at' => $this->completedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -51,9 +51,9 @@ final class OrderCompleted extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->completedAt = new DateTimeImmutable($payload["completed_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->completedAt = new DateTimeImmutable($payload['completed_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

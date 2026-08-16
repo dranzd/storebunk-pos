@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+> **Breaking changes pending release.** All command factory methods are gone —
+> commands are constructed with `new` (ADR-003) — and `SyncOrderOnline` now
+> carries an opaque context array (ADR-006).
+
+### Changed
+
+- **BREAKING** — All 27 application commands follow the storebunk-inventory
+  standard ([ADR-003](docs/adr/003-command-structure-inventory-alignment.md)):
+  public constructor, `public readonly` primitive properties, no static
+  factories, no accessor methods; handlers own value-object conversion.
+  Migrate `CancelOrder::because($id, $reason)` →
+  `new CancelOrder($id, $reason)`, `StartSession::onTerminalForCashier(...)` →
+  `new StartSession($sessionId, $shiftId, $terminalId, $cashierId)`, etc.
+  Deterministic command ids (offline replay) now use the base-class
+  `withMessageUuid()` instead of a constructor parameter. Message name
+  strings are unchanged and frozen ([ADR-004](docs/adr/004-message-name-immutability.md)).
+- **BREAKING** — `SyncOrderOnline` no longer takes `branchId`/`customerId`;
+  it carries an opaque `array $context` forwarded verbatim to
+  `OrderingServiceInterface::createDraftOrder(OrderId, array $context)`.
+  The `DraftOrderContext` DTO is removed. Context keys belong to the
+  consumer ([ADR-006](docs/adr/006-opaque-ordering-context.md)).
+- House code style: strings use single quotes unless interpolation or escape
+  sequences are needed (enforced via `Squiz.Strings.DoubleQuoteUsage.NotRequired`).
+
+### Added
+
+- ADR-003/004/005/006; `docs/reported-issues` inbox standard
+  (`incoming-report.md` + `/triage`).
+- Demo: file-backed event store so multi-step scenarios work across CLI
+  invocations; `session deactivate` subcommand; scenario fixes.
+
+### Fixed
+
+- Repositories now depend on the `EventStore` interface instead of the
+  concrete `InMemoryEventStore`.
+- Redelivering a `SyncOrderOnline` with the same deterministic message uuid
+  now succeeds instead of tripping the "Order is not in pending sync list"
+  invariant (the in-memory idempotency registry is rebuilt from events on
+  restart and cannot recover the command id; the aggregate now remembers
+  synced orders). The retry re-issues the draft-order call, healing a prior
+  failure between the stored sync event and `createDraftOrder()`. Delivery
+  to `OrderingServiceInterface::createDraftOrder()` is therefore
+  **at-least-once**: consumer implementations must be idempotent per order
+  id (documented on the interface).
+- `PosSession` now refuses to deactivate or park an order during checkout
+  (`InvariantViolationException`) — either would strand the hard inventory
+  reservation taken at checkout initiation.
+- `SessionState` gains a `Payment` state, entered on the first
+  `PaymentRequested`. Once payment has been received the order can only be
+  completed (or receive further split payments) — `cancelOrder`,
+  `deactivateOrder`, and `parkOrder` all refuse, so the expiry sweep can
+  never silently cancel a paid order (inventory released, money kept).
+  A paid-but-uncompleted order deliberately stays active for manual
+  operational review; post-payment cancellation is a downstream sales-order
+  operation, never a POS action. Message names are unchanged.
+- `DraftLifecycleService` sweeps (inactivity deactivation and expiry
+  cancellation) are best-effort per session: a session that refuses on a
+  domain invariant is skipped and the sweep continues; any other failure
+  still propagates.
+- Demo: shift open no longer crashes without `--cashier-id`; resumed or
+  reactivated orders are targeted correctly by the follow-on
+  checkout/pay/complete defaults.
+- Demo persistence hardening: `FileEventStore` and `StateStore` now merge
+  concurrent writes under a sidecar lock, write atomically via temp file +
+  rename, fail loudly on unreadable/corrupt/unwritable files instead of
+  silently losing or resurrecting data, and `./demo/demo state clear` works
+  even when a store is corrupt (handled before bootstrap) as a coordinated
+  all-or-nothing reset of both files.
+
 ## [2.0.0] - 2026-06-01
 
 > **Breaking release.** Starting a POS session now requires an operating cashier. Consumers calling `StartSession::onTerminal(...)` must migrate to `StartSession::onTerminalForCashier(...)`.

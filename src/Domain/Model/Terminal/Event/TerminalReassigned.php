@@ -35,16 +35,16 @@ final class TerminalReassigned extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.reassigned";
+        return 'storebunk.pos.terminal.reassigned';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "old_branch_id" => $this->oldBranchId->toNative(),
-            "new_branch_id" => $this->newBranchId->toNative(),
-            "reassigned_at" => $this->reassignedAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'old_branch_id' => $this->oldBranchId->toNative(),
+            'new_branch_id' => $this->newBranchId->toNative(),
+            'reassigned_at' => $this->reassignedAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -55,10 +55,10 @@ final class TerminalReassigned extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->oldBranchId = BranchId::fromNative($payload["old_branch_id"]);
-        $this->newBranchId = BranchId::fromNative($payload["new_branch_id"]);
-        $this->reassignedAt = new DateTimeImmutable($payload["reassigned_at"]);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->oldBranchId = BranchId::fromNative($payload['old_branch_id']);
+        $this->newBranchId = BranchId::fromNative($payload['new_branch_id']);
+        $this->reassignedAt = new DateTimeImmutable($payload['reassigned_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

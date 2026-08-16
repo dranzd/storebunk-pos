@@ -51,7 +51,7 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(CloseShift::withCashAmount(
+        ($this->handler)(new CloseShift(
             $shiftId->toNative(),
             50000,
             'PHP'
@@ -66,7 +66,7 @@ final class CloseShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Cannot close shift');
 
-        ($this->handler)(CloseShift::withCashAmount(
+        ($this->handler)(new CloseShift(
             $shiftId->toNative(),
             50000,
             'PHP'
@@ -82,7 +82,7 @@ final class CloseShiftHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('2 active POS session(s)');
 
-        ($this->handler)(CloseShift::withCashAmount(
+        ($this->handler)(new CloseShift(
             $shiftId->toNative(),
             50000,
             'PHP'
@@ -103,7 +103,7 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(CloseShift::withCashAmount(
+        ($this->handler)(new CloseShift(
             $shiftId->toNative(),
             50000,
             'PHP'
@@ -128,7 +128,7 @@ final class CloseShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
 
-        ($this->handler)(CloseShift::withCashAmount(
+        ($this->handler)(new CloseShift(
             $shiftId->toNative(),
             50000,
             'PHP'
@@ -139,7 +139,7 @@ final class CloseShiftHandlerTest extends TestCase
     {
         $shiftId = new ShiftId();
         $openHandler = new OpenShiftHandler($this->shiftRepository);
-        $openHandler(OpenShift::forCashier(
+        $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),
             (new BranchId())->toNative(),
@@ -157,7 +157,7 @@ final class CloseShiftHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startHandler = new StartSessionHandler($this->sessionRepository);
-        $startHandler(StartSession::onTerminalForCashier(
+        $startHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),

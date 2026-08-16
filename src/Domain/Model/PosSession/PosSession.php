@@ -46,6 +46,8 @@ final class PosSession implements AggregateRoot
     private array $inactiveOrderIds = [];
     /** @var OrderId[] */
     private array $pendingSyncOrderIds = [];
+    /** @var OrderId[] Orders already synced online; lets a redelivered sync command heal/no-op instead of tripping the pending-sync invariant. Grows with session lifetime, like the other order-id lists. */
+    private array $syncedOrderIds = [];
 
     final public static function start(
         SessionId $sessionId,
@@ -89,6 +91,12 @@ final class PosSession implements AggregateRoot
     {
         if ($this->activeOrderId === null) {
             throw InvariantViolationException::withMessage('No active order to park');
+        }
+
+        if ($this->state->isCheckout() || $this->state->isPayment()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot park an order during checkout'
+            );
         }
 
         $this->recordThat(
@@ -156,7 +164,8 @@ final class PosSession implements AggregateRoot
             throw InvariantViolationException::withMessage('No active order for payment');
         }
 
-        if (!$this->state->isCheckout()) {
+        // Payment state stays payable so split/partial payments keep working.
+        if (!$this->state->isCheckout() && !$this->state->isPayment()) {
             throw InvariantViolationException::withMessage(
                 'Can only request payment in Checkout state'
             );
@@ -179,7 +188,7 @@ final class PosSession implements AggregateRoot
             throw InvariantViolationException::withMessage('No active order to complete');
         }
 
-        if (!$this->state->isCheckout()) {
+        if (!$this->state->isCheckout() && !$this->state->isPayment()) {
             throw InvariantViolationException::withMessage(
                 'Can only complete order in Checkout state'
             );
@@ -198,6 +207,12 @@ final class PosSession implements AggregateRoot
     {
         if ($this->activeOrderId === null) {
             throw InvariantViolationException::withMessage('No active order to deactivate');
+        }
+
+        if ($this->state->isCheckout() || $this->state->isPayment()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot deactivate an order during checkout'
+            );
         }
 
         $this->recordThat(
@@ -267,6 +282,23 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    /**
+     * Whether this order has already been synced online. Lets a redelivered
+     * sync command (deterministic message uuid, e.g. after a process restart
+     * rebuilt the idempotency registry) be treated as a no-op instead of
+     * tripping the pending-sync invariant.
+     */
+    final public function isOrderSynced(OrderId $orderId): bool
+    {
+        foreach ($this->syncedOrderIds as $syncedId) {
+            if ($syncedId->sameValueAs($orderId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     final public function syncOrderOnline(OrderId $orderId): void
     {
         $isPending = false;
@@ -292,6 +324,12 @@ final class PosSession implements AggregateRoot
     {
         if ($this->activeOrderId === null) {
             throw InvariantViolationException::withMessage('No active order to cancel');
+        }
+
+        if ($this->state->isPayment()) {
+            throw InvariantViolationException::withMessage(
+                'Cannot cancel an order after payment has been received; complete it instead'
+            );
         }
 
         $this->recordThat(
@@ -381,6 +419,11 @@ final class PosSession implements AggregateRoot
 
     private function applyOnPaymentRequested(PaymentRequested $event): void
     {
+        // Money has been received: from here the order can only be completed
+        // (or receive further split payments) — never cancelled, parked, or
+        // deactivated by POS. Post-payment cancellation is a manual
+        // sales-order operation downstream.
+        $this->state = SessionState::Payment;
     }
 
     private function applyOnOrderCompleted(OrderCompleted $event): void
@@ -432,5 +475,6 @@ final class PosSession implements AggregateRoot
             $this->pendingSyncOrderIds,
             fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
+        $this->syncedOrderIds[] = $event->getOrderId();
     }
 }

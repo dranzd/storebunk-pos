@@ -36,17 +36,17 @@ final class ShiftClosed extends BaseAggregateEvent implements DomainEventInterfa
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.closed";
+        return 'storebunk.pos.shift.closed';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "declared_closing_cash_amount" => $this->declaredClosingCashAmount->toArray(),
-            "expected_cash_amount" => $this->expectedCashAmount->toArray(),
-            "variance_amount" => $this->varianceAmount->toArray(),
-            "closed_at" => $this->closedAt->format(\DateTimeInterface::ATOM),
+            'shift_id' => $this->shiftId->toNative(),
+            'declared_closing_cash_amount' => $this->declaredClosingCashAmount->toArray(),
+            'expected_cash_amount' => $this->expectedCashAmount->toArray(),
+            'variance_amount' => $this->varianceAmount->toArray(),
+            'closed_at' => $this->closedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -55,11 +55,11 @@ final class ShiftClosed extends BaseAggregateEvent implements DomainEventInterfa
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->declaredClosingCashAmount = Money::fromArray($payload["declared_closing_cash_amount"]);
-        $this->expectedCashAmount = Money::fromArray($payload["expected_cash_amount"]);
-        $this->varianceAmount = Money::fromArray($payload["variance_amount"]);
-        $this->closedAt = new DateTimeImmutable($payload["closed_at"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->declaredClosingCashAmount = Money::fromArray($payload['declared_closing_cash_amount']);
+        $this->expectedCashAmount = Money::fromArray($payload['expected_cash_amount']);
+        $this->varianceAmount = Money::fromArray($payload['variance_amount']);
+        $this->closedAt = new DateTimeImmutable($payload['closed_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

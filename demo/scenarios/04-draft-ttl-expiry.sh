@@ -23,22 +23,18 @@ echo "Step 2: Start New Order"
 $DEMO session new-order
 
 echo ""
-echo "Step 3: Park Order (simulate inactivity)"
-$DEMO session park
+echo "Step 3: Simulate TTL expiry - order gets deactivated"
+echo "(In production, DraftLifecycleService detects the inactivity and"
+echo " dispatches DeactivateOrder; for the demo we trigger it directly)"
+ORDER_ID=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["last_order_id"] ?? "";')
+$DEMO session deactivate --reason="TTL expired (demo)"
 
 echo ""
-echo "Step 4: Simulate TTL expiry - order gets deactivated"
-echo "(In production, DraftLifecycleService would detect this)"
-echo "For demo, we manually trigger reactivation to show the flow"
-
-echo ""
-echo "Step 5: Attempt to reactivate order (inventory re-reservation)"
-ORDER_ID=$(cat demo/data/demo-state.json | grep -o '"last_order_id":"[^"]*"' | cut -d'"' -f4)
+echo "Step 4: Reactivate order (inventory re-reservation)"
 $DEMO session reactivate --order-id="$ORDER_ID"
 
 echo ""
-echo "Step 6: Complete the reactivated order"
-$DEMO session resume --order-id="$ORDER_ID"
+echo "Step 5: Complete the reactivated order"
 $DEMO session checkout
 $DEMO session pay --amount=12000 --method=cash
 $DEMO session complete

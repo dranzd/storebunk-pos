@@ -1,8 +1,9 @@
 # StoreBunk POS — Demo CLI Specification
 
-> **Status:** Specification only — no implementation yet.
+> **Status:** Implemented — see `demo/` and `demo/README.md` for usage.
 > This document defines the design, structure, commands, and scenarios for the POS Demo CLI.
-> Implementation follows the same patterns as `storebunk-inventory/demo/`.
+> Implementation follows the same patterns as `storebunk-inventory/demo/`. Where this
+> spec and the implementation differ, the implementation (and `demo/README.md`) win.
 
 ---
 
@@ -23,7 +24,7 @@ It is **not** a production UI. It is a developer tool for:
 
 1. **No framework** — pure PHP CLI, bootstrapped manually
 2. **Uses CQRS buses** — all operations go through `SimpleCommandBus` / `SimpleQueryBus`
-3. **In-memory infrastructure** — `InMemoryEventStore`, `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`, `InMemoryTerminalReadModel`
+3. **File-backed event store, in-memory repositories** — `FileEventStore` (demo-only, JSON write-through) feeds `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`, `InMemoryTerminalReadModel`
 4. **Stub BC services** — `StubOrderingService`, `StubInventoryService`, `StubPaymentService` from `tests/Stub/`
 5. **JSON event store persistence** — events persisted to a JSON file (like inventory demo), enabling stateful multi-command sessions
 6. **Idempotency support** — `IdempotencyRegistry` wired for offline commands
@@ -51,31 +52,30 @@ Services: `terminal`, `shift`, `session`
 
 ```
 demo/
-├── demo                          # Main entry point (PHP CLI script)
-├── bootstrap.php                 # Wires repos, buses, stubs, event store
-├── lib/
-│   └── common.sh                 # Shared bash helpers (step, banner, parse_id, etc.)
+├── demo                              # Main entry point (PHP CLI script)
+├── bootstrap.php                     # Wires repos, buses, stubs, event store,
+│                                     #   and rebuilds offline-sync state from events
 ├── cli/
-│   ├── Output.php                # Colored terminal output helpers
-│   ├── CliArgs.php               # Argument/option parser
-│   ├── IdResolver.php            # Resolve short names/aliases to UUIDs
+│   ├── Output.php                    # Colored terminal output helpers
+│   ├── CliArgs.php                   # Argument/option parser
+│   ├── StateStore.php                # JSON state file (last_* ids, id lists)
+│   ├── FileEventStore.php            # JSON-backed event store for demo persistence
+│   ├── Utils.php                     # Formatting helpers
 │   └── services/
-│       ├── terminal.php          # Terminal service CLI handler
-│       ├── shift.php             # Shift service CLI handler
-│       └── session.php           # Session service CLI handler
-├── infrastructure/
-│   └── JsonFileEventStore.php    # JSON-backed event store for demo persistence
+│       ├── terminal.php              # Terminal service CLI handler
+│       ├── shift.php                 # Shift service CLI handler
+│       └── session.php               # Session service CLI handler
 ├── scenarios/
-│   ├── full-shift-lifecycle.sh   # Complete shift open → orders → close
-│   ├── checkout-flow.sh          # Draft → checkout → payment → complete
-│   ├── park-and-resume.sh        # Park order, start new, resume parked
-│   ├── draft-ttl-expiry.sh       # Deactivate order, reactivate with re-reservation
-│   ├── force-close-shift.sh      # Supervisor force-close scenario
-│   ├── offline-sync.sh           # Offline order creation and sync
-│   └── concurrency-conflict.sh   # Optimistic locking conflict demonstration
+│   ├── 01-full-shift-lifecycle.sh    # Complete shift open → orders → close
+│   ├── 02-checkout-flow.sh           # Draft → checkout → payment → complete
+│   ├── 03-park-and-resume.sh         # Park order, start new, resume parked
+│   ├── 04-draft-ttl-expiry.sh        # Deactivate order, reactivate with re-reservation
+│   ├── 05-force-close-shift.sh       # Supervisor force-close scenario
+│   ├── 06-offline-sync.sh            # Offline order creation and sync
+│   └── 07-concurrency-conflict.sh    # Optimistic locking conflict demonstration
 └── data/
-    ├── config.json.dist           # Default config (actor, currency)
-    └── .gitkeep
+    ├── demo-state.json               # ID state (git-ignored at runtime)
+    └── events.json                   # Persisted events (git-ignored)
 ```
 
 ---
@@ -85,20 +85,19 @@ demo/
 Wires the full application stack:
 
 ```
-JsonFileEventStore
+FileEventStore (demo/data/events.json)
     → InMemoryTerminalRepository
     → InMemoryShiftRepository
     → InMemoryPosSessionRepository
-    → InMemoryTerminalReadModel
+    → InMemoryTerminalReadModel (projected per invocation)
 
 StubOrderingService
 StubInventoryService
 StubPaymentService
 
-IdempotencyRegistry
-PendingSyncQueue
-MultiTerminalEnforcementService
-DraftLifecycleService
+IdempotencyRegistry ─┐ rebuilt from persisted session events
+PendingSyncQueue   ──┘ on every bootstrap
+ShiftClosePolicy
 
 CommandRegistry (InMemoryHandlerRegistry)
     → RegisterTerminalHandler
@@ -106,6 +105,8 @@ CommandRegistry (InMemoryHandlerRegistry)
     → DisableTerminalHandler
     → SetTerminalMaintenanceHandler
     → OpenShiftHandler
+    → AssignShiftHandler
+    → UnassignShiftHandler
     → CloseShiftHandler
     → ForceCloseShiftHandler
     → RecordCashDropHandler
@@ -113,6 +114,7 @@ CommandRegistry (InMemoryHandlerRegistry)
     → StartNewOrderHandler
     → ParkOrderHandler
     → ResumeOrderHandler
+    → DeactivateOrderHandler
     → ReactivateOrderHandler
     → InitiateCheckoutHandler
     → RequestPaymentHandler
@@ -123,7 +125,6 @@ CommandRegistry (InMemoryHandlerRegistry)
     → SyncOrderOnlineHandler
 
 SimpleCommandBus
-SimpleQueryBus
 ```
 
 ---
@@ -137,12 +138,12 @@ SimpleQueryBus
 Register a new POS terminal for a branch.
 
 ```bash
-./demo terminal register --branch-id=<uuid> --name="Cashier 1"
+./demo terminal register --name="Cashier 1" [--branch-id=<uuid>]
 ```
 
 Options:
-- `--branch-id=<uuid>` — Branch UUID (required)
 - `--name=<string>` — Terminal display name (required)
+- `--branch-id=<uuid>` — Branch UUID (optional; auto-generated when omitted)
 
 Output:
 ```
@@ -224,15 +225,15 @@ List all terminals (optionally filtered by branch or status).
 Open a new cashier shift on a terminal.
 
 ```bash
-./demo shift open --terminal-id=<uuid> --branch-id=<uuid> --cashier-id=<uuid> --opening-cash=10000
+./demo shift open --opening-cash=10000 [--terminal-id=<uuid>] [--branch-id=<uuid>] [--cashier-id=<uuid>]
 ```
 
 Options:
-- `--terminal-id=<uuid>` — Terminal UUID (required)
-- `--branch-id=<uuid>` — Branch UUID (required)
-- `--cashier-id=<uuid>` — Cashier UUID (required)
-- `--opening-cash=<int>` — Opening cash amount in minor units (required, e.g. `10000` = $100.00)
-- `--currency=<string>` — Currency code (default: from config, e.g. `PHP`)
+- `--terminal-id=<uuid>` — Terminal UUID (defaults to the last registered terminal)
+- `--branch-id=<uuid>` — Branch UUID (defaults to the last used branch)
+- `--cashier-id=<uuid>` — Cashier UUID (optional; auto-generated when omitted)
+- `--opening-cash=<int>` — Opening cash amount in minor units (e.g. `10000` = 100.00)
+- `--currency=<string>` — Currency code (default `PHP`)
 
 Output:
 ```
@@ -342,7 +343,9 @@ New order started.
 
 #### `park`
 
-Park the currently active order.
+Park the currently active order. Refused once checkout has started (and
+after payment) — parking then would strand the confirmed inventory
+reservation.
 
 ```bash
 ./demo session park --session-id=<uuid>
@@ -356,6 +359,28 @@ Resume a parked order.
 
 ```bash
 ./demo session resume --session-id=<uuid> --order-id=<uuid>
+```
+
+---
+
+#### `deactivate`
+
+Deactivate the active order (simulates the `DraftLifecycleService` TTL
+expiry). Refused once checkout has started (and after payment), matching the
+sweep's skip behavior.
+
+```bash
+./demo session deactivate --session-id=<uuid> [--reason=<text>]
+```
+
+---
+
+#### `reactivate`
+
+Reactivate an inactive order (re-reserves inventory).
+
+```bash
+./demo session reactivate --session-id=<uuid> --order-id=<uuid>
 ```
 
 ---
@@ -424,7 +449,10 @@ Order completed.
 
 #### `cancel`
 
-Cancel the active order.
+Cancel the active order. Allowed while building and during checkout before
+any payment; refused once payment has been received — a paid order can only
+be completed (post-payment cancellation is a downstream sales-order
+operation).
 
 ```bash
 ./demo session cancel --session-id=<uuid> --reason="Customer changed mind"
@@ -485,11 +513,13 @@ Order synced online.
 
 ## Scenarios
 
-Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-contained bash script using `demo/lib/common.sh` helpers.
+Scripted end-to-end scenarios live in `demo/scenarios/` as numbered,
+self-contained bash scripts (`01-…` through `07-…`). Each starts with
+`./demo/demo state clear` and drives the CLI step by step.
 
 ---
 
-### `full-shift-lifecycle.sh`
+### `01-full-shift-lifecycle.sh`
 
 **Title:** Full Shift Lifecycle
 
@@ -509,7 +539,7 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `checkout-flow.sh`
+### `02-checkout-flow.sh`
 
 **Title:** Checkout and Payment Flow
 
@@ -524,7 +554,7 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `park-and-resume.sh`
+### `03-park-and-resume.sh`
 
 **Title:** Park Order and Resume
 
@@ -542,25 +572,22 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `draft-ttl-expiry.sh`
+### `04-draft-ttl-expiry.sh`
 
 **Title:** Draft TTL Expiry and Reactivation
 
 **Demonstrates:**
-1. Start session, start new order
-2. Simulate TTL expiry — deactivate order (via `deactivateOrder`)
-3. Attempt reactivation — inventory re-reservation succeeds
-4. Proceed to checkout and complete
+1. Setup (terminal, shift, session), start new order
+2. Simulate TTL expiry — `session deactivate` (what `DraftLifecycleService`
+   would dispatch in production)
+3. Reactivate the order — inventory re-reservation succeeds
+4. Proceed to checkout, pay, and complete
 
-**Also demonstrates failure case:**
-- Reactivation fails when `StubInventoryService` returns `false` for re-reservation
-- `InvariantViolationException` is caught and displayed
-
-**Expected outcome:** Reactivation succeeds when inventory available; fails gracefully when not.
+**Expected outcome:** Deactivated order reactivates and completes normally.
 
 ---
 
-### `force-close-shift.sh`
+### `05-force-close-shift.sh`
 
 **Title:** Supervisor Force-Close
 
@@ -574,25 +601,24 @@ Scripted end-to-end scenarios live in `demo/scenarios/`. Each is a self-containe
 
 ---
 
-### `offline-sync.sh`
+### `06-offline-sync.sh`
 
 **Title:** Offline Order Creation and Sync
 
 **Demonstrates:**
-1. Start session
-2. Create order offline (`StartNewOrderOffline` with commandId)
-3. Mark order as pending sync
-4. Reconnect — sync order online (`SyncOrderOnline`)
-5. Verify idempotency: replay same sync command — no duplicate
+1. Setup (terminal, shift, session)
+2. Create two orders offline (`StartNewOrderOffline`; each is auto-queued
+   for sync)
+3. Network restored — sync each order online (`SyncOrderOnline`)
+4. Continue selling with a fresh online order (synced orders now live in
+   the Ordering BC; the POS session no longer tracks them)
 
-**Also demonstrates:**
-- Multiple offline orders queued and synced independently
-
-**Expected outcome:** Offline orders created, queued, synced idempotently.
+**Expected outcome:** Both offline orders queue and sync independently;
+normal online flow resumes afterward.
 
 ---
 
-### `concurrency-conflict.sh`
+### `07-concurrency-conflict.sh`
 
 **Title:** Optimistic Locking Conflict
 
@@ -635,47 +661,37 @@ Concurrency conflict: <ConcurrencyException message>
 
 ## Configuration
 
-`demo/data/config.json` (copy from `config.json.dist`):
-
-```json
-{
-    "actor": {
-        "id": "cli-user",
-        "name": "CLI Demo User"
-    },
-    "currency": "PHP"
-}
-```
+No config file was implemented (the spec's `config.json.dist` idea was
+dropped). Defaults live in the CLI handlers: currency defaults to `PHP`
+via `--currency`, and ids default to the `last_*` entries in
+`demo/data/demo-state.json`.
 
 ---
 
 ## Data Persistence
 
-Events are persisted to a JSON file via `JsonFileEventStore`. Each demo command appends events to the file, enabling stateful multi-command sessions.
+Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventStore.php`). Each demo command appends events to the file (merge-on-write under an exclusive lock), enabling stateful multi-command sessions.
 
-Default data file: `demo/data/demo-<timestamp>.json`
+Both stores (`FileEventStore` and `StateStore`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets both files as a coordinated all-or-nothing operation.
 
-Custom data file:
-```bash
-./demo terminal register --name="POS 1" --data-file=my-session.json
-```
+Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)
 
-Scenario scripts use a temporary data file and clean up on exit via a trap.
+Scenario scripts start with `state clear` instead of using per-run data files.
 
 ---
 
 ## Implementation Notes
 
-> These are design decisions for when implementation begins.
+> Status of the original design decisions, now that the demo is implemented.
 
-- `JsonFileEventStore` implements the same `EventStore` interface from `dranzd/common-event-sourcing`
-- `IdResolver` maps short aliases (e.g. `terminal-1`) to UUIDs stored in the data file
-- `Output::php` follows the same API as the inventory demo `Output` class
-- Stub services (`StubOrderingService`, etc.) are already implemented in `tests/Stub/Service/`
-- `IdempotencyRegistry` and `PendingSyncQueue` are already implemented in `src/`
-- The `utils` script should gain a `demo` subcommand (like inventory's `./utils demo`)
+- `FileEventStore` implements the `EventStore` interface from `dranzd/common-event-sourcing` (spec's `JsonFileEventStore` name was not kept)
+- `IdResolver` (short aliases like `terminal-1`) was **not implemented** — the state file's `last_*` defaults cover the same need
+- `Output` follows the same API as the inventory demo `Output` class
+- Stub services (`StubOrderingService`, etc.) live in `tests/Stub/Service/`
+- `IdempotencyRegistry` and `PendingSyncQueue` live in `src/`; the demo bootstrap rebuilds both from persisted events on every invocation
+- A `./utils demo` subcommand was **not added** — run `./demo/demo` directly (inside the container: `./utils exec php demo/demo …`)
 
 ---
 
-**Last Updated:** February 18, 2026
-**Status:** Specification — awaiting implementation
+**Last Updated:** August 16, 2026 (synced to the implemented demo)
+**Status:** Implemented — see `demo/` and `demo/README.md` for usage

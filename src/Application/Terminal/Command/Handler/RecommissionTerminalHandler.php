@@ -6,7 +6,13 @@ namespace Dranzd\StorebunkPos\Application\Terminal\Command\Handler;
 
 use Dranzd\StorebunkPos\Application\Terminal\Command\RecommissionTerminal;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Repository\TerminalRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 
+/**
+ * RecommissionTerminalHandler
+ *
+ * Handles the RecommissionTerminal command by bringing the terminal back into service.
+ */
 final class RecommissionTerminalHandler
 {
     public function __construct(
@@ -14,10 +20,10 @@ final class RecommissionTerminalHandler
     ) {
     }
 
-    final public function __invoke(RecommissionTerminal $command): void
+    public function __invoke(RecommissionTerminal $command): void
     {
-        $terminal = $this->terminalRepository->load($command->terminalId());
-        $terminal->recommission($command->reason());
+        $terminal = $this->terminalRepository->load(TerminalId::fromNative($command->terminalId));
+        $terminal->recommission($command->reason);
         $this->terminalRepository->store($terminal);
     }
 }

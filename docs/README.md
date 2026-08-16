@@ -27,7 +27,7 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[Feature Specifications](features/README.md)** — Phased implementation checklist with status tracking
 
 ### Demo
-- **[Demo CLI Specification](demo.md)** — Demo CLI design, commands, and scenario specifications (spec only — no implementation yet)
+- **[Demo CLI Specification](demo.md)** — Demo CLI design, commands, and scenario specifications (implemented under `demo/`; see `demo/README.md` for usage)
 
 ### Quality & Issue Tracking
 - **[Reported Issues](reported-issues/README.md)** — Issue tracking system with standards, template, and resolution workflow
@@ -36,6 +36,11 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 
 ### Architectural Decision Records (ADR)
 - **[ADR-001: Event Property Encapsulation and `get`-Prefixed Accessors](adr/001-event-getter-prefix.md)** — Why all domain events use `private` properties with `get`-prefixed getters instead of `public readonly` properties
+- **[ADR-002: Command Primitive Parameters and Factory Methods](adr/002-command-primitive-parameters.md)** — *Superseded by ADR-003*; kept for historical context
+- **[ADR-003: Command Structure Aligned to the storebunk-inventory Standard](adr/003-command-structure-inventory-alignment.md)** — Public constructors with readonly primitive properties; handlers own value-object conversion
+- **[ADR-004: Message and Event Names Are Immutable](adr/004-message-name-immutability.md)** — Name strings are frozen once released; class renames allowed, held names are not
+- **[ADR-005: Accepted Deviations from the storebunk-inventory Standard](adr/005-accepted-deviations-from-inventory-standard.md)** — Folder layout, no query layer, message-name scheme — intentional, do not "fix"
+- **[ADR-006: Outbound Ordering Context Is Opaque to POS](adr/006-opaque-ordering-context.md)** — Consumer-owned context arrays pass through untyped; the consumer-side translator pattern
 
 ### Process & Guidelines
 - **[Documentation Process](documentation-process.md)** — How standards and project documentation interact, tagging conventions, and sync workflow

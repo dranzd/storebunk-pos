@@ -29,21 +29,21 @@ Interactive command-line demonstration of the StoreBunk POS library v1.0.0.
 ## Architecture
 
 The demo uses:
-- **In-memory event store** - All events stored in memory (lost on exit)
+- **File-backed event store** - `FileEventStore` persists every event to `demo/data/events.json` on append, so aggregates survive across CLI invocations and the scenario scripts work end-to-end
 - **JSON state file** - Persists IDs between invocations (`demo/data/demo-state.json`)
 - **Stub services** - Mock implementations of BC ports (Ordering, Inventory, Payment)
 - **Command bus** - Routes commands to handlers
-- **Read models** - Projections for queries (Terminal only)
+- **Read models** - Projections rebuilt from persisted events per invocation (Terminal only)
 
-**⚠️ CRITICAL LIMITATION**: The event store is in-memory only. Each CLI invocation starts a fresh PHP process with an empty event store. This means:
-- Aggregates created in one command invocation **do not exist** in subsequent invocations
-- The scenario scripts will **not work** as written because they call the demo multiple times
-- For testing, you must either:
-  1. Modify the demo to use a persistent event store (e.g., file-based or database)
-  2. Run all commands in a single PHP session (not currently supported)
-  3. Use the demo for single-command testing only
+Each CLI invocation is its own PHP process. Events are reloaded from
+`demo/data/events.json` at bootstrap, and the offline-sync state
+(pending-sync queue, idempotency registry) is rebuilt by replaying the
+persisted session events. `./demo/demo state clear` resets both the state
+file and the events file.
 
-The JSON state file only persists **IDs**, not the actual aggregate state or events.
+One accepted limitation: sync-command ids are not part of any event, so
+replaying a *sync* command in a fresh process re-executes it (the stub
+ordering service is process-scoped anyway).
 
 ## Services
 
@@ -112,6 +112,9 @@ Manages POS sessions and order lifecycle.
 
 # Resume a parked order
 ./demo/demo session resume --order-id=<uuid> [--session-id=<uuid>]
+
+# Deactivate the active order (simulates the DraftLifecycleService TTL expiry)
+./demo/demo session deactivate [--reason=<text>] [--session-id=<uuid>]
 
 # Reactivate an inactive order (re-reserve inventory)
 ./demo/demo session reactivate --order-id=<uuid> [--session-id=<uuid>]

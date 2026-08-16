@@ -32,16 +32,16 @@ final class TerminalRenamed extends BaseAggregateEvent implements DomainEventInt
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.renamed";
+        return 'storebunk.pos.terminal.renamed';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "old_name" => $this->oldName,
-            "new_name" => $this->newName,
-            "renamed_at" => $this->renamedAt->format(\DateTimeInterface::ATOM),
+            'terminal_id' => $this->terminalId->toNative(),
+            'old_name' => $this->oldName,
+            'new_name' => $this->newName,
+            'renamed_at' => $this->renamedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -50,10 +50,10 @@ final class TerminalRenamed extends BaseAggregateEvent implements DomainEventInt
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->oldName = $payload["old_name"];
-        $this->newName = $payload["new_name"];
-        $this->renamedAt = new DateTimeImmutable($payload["renamed_at"]);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->oldName = $payload['old_name'];
+        $this->newName = $payload['new_name'];
+        $this->renamedAt = new DateTimeImmutable($payload['renamed_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

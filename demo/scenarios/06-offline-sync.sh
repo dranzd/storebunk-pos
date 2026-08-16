@@ -29,17 +29,19 @@ $DEMO session new-order-offline
 
 echo ""
 echo "Step 4: Network restored - sync first order"
-ORDER_1=$(cat demo/data/demo-state.json | grep -o '"order_ids":\[[^]]*\]' | grep -o '"[^"]*"' | sed -n '2p' | tr -d '"')
+ORDER_1=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][0] ?? "";')
 $DEMO session sync --order-id="$ORDER_1"
 
 echo ""
 echo "Step 5: Sync second order"
-ORDER_2=$(cat demo/data/demo-state.json | grep -o '"order_ids":\[[^]]*\]' | grep -o '"[^"]*"' | sed -n '3p' | tr -d '"')
+ORDER_2=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][1] ?? "";')
 $DEMO session sync --order-id="$ORDER_2"
 
 echo ""
-echo "Step 6: Complete first order (now online)"
-$DEMO session resume --order-id="$ORDER_1"
+echo "Step 6: Continue selling online"
+echo "(Synced orders now live in the Ordering BC — the POS session no"
+echo " longer tracks them. A new online order proceeds normally.)"
+$DEMO session new-order
 $DEMO session checkout
 $DEMO session pay --amount=9500 --method=cash
 $DEMO session complete

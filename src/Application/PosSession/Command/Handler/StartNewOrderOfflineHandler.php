@@ -7,8 +7,16 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 
+/**
+ * StartNewOrderOfflineHandler
+ *
+ * Handles the StartNewOrderOffline command idempotently, starting the order
+ * offline and enqueueing it for later online sync.
+ */
 final class StartNewOrderOfflineHandler
 {
     public function __construct(
@@ -18,7 +26,7 @@ final class StartNewOrderOfflineHandler
     ) {
     }
 
-    final public function __invoke(StartNewOrderOffline $command): void
+    public function __invoke(StartNewOrderOffline $command): void
     {
         $commandId = $command->getMessageUuid();
 
@@ -26,18 +34,21 @@ final class StartNewOrderOfflineHandler
             return;
         }
 
-        if ($this->pendingSyncQueue->hasByOrderId($command->orderId())) {
+        $sessionId = SessionId::fromNative($command->sessionId);
+        $orderId = OrderId::fromNative($command->orderId);
+
+        if ($this->pendingSyncQueue->hasByOrderId($orderId)) {
             return;
         }
 
-        $session = $this->sessionRepository->load($command->sessionId());
-        $session->startNewOrderOffline($command->orderId(), $commandId);
-        $session->markOrderPendingSync($command->orderId());
+        $session = $this->sessionRepository->load($sessionId);
+        $session->startNewOrderOffline($orderId, $commandId);
+        $session->markOrderPendingSync($orderId);
         $this->sessionRepository->store($session);
 
         $this->pendingSyncQueue->enqueue(
-            $command->sessionId(),
-            $command->orderId(),
+            $sessionId,
+            $orderId,
             $commandId
         );
 

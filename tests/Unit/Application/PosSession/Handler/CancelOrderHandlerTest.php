@@ -62,7 +62,7 @@ final class CancelOrderHandlerTest extends TestCase
             ->method('releaseReservation')
             ->with($this->callback(fn (OrderId $id) => $id->toNative() === $orderId->toNative()));
 
-        ($this->handler)(CancelOrder::because($sessionId->toNative(), 'customer request'));
+        ($this->handler)(new CancelOrder($sessionId->toNative(), 'customer request'));
 
         $cancelled = array_values(array_filter(
             $this->eventStore->loadEvents($sessionId->toNative()),
@@ -81,7 +81,7 @@ final class CancelOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -94,7 +94,7 @@ final class CancelOrderHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('No active order to cancel');
 
-        ($this->handler)(CancelOrder::because($sessionId->toNative(), 'idle cancel'));
+        ($this->handler)(new CancelOrder($sessionId->toNative(), 'idle cancel'));
     }
 
     private function startSessionWithOrder(SessionId $sessionId, OrderId $orderId): void
@@ -103,7 +103,7 @@ final class CancelOrderHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -111,7 +111,7 @@ final class CancelOrderHandlerTest extends TestCase
         ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
-        $startOrder(StartNewOrder::withOrder(
+        $startOrder(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));

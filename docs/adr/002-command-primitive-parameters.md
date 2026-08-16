@@ -1,12 +1,17 @@
 # ADR-002: Command Primitive Parameters and Domain-Language Factory Methods
 
+> **SUPERSEDED by [ADR-003](003-command-structure-inventory-alignment.md) (2026-08-12).**
+> The factory-method pattern below is no longer the standard. Commands now use
+> public constructors with `public readonly` primitive properties, and handlers
+> own value-object conversion. Kept for historical context only.
+
 ## @standard: command-factory-pattern
 @category: architecture
-@status: stable
+@status: superseded
 
 All application commands must accept primitive values only, use domain-language factory methods, and remain immutable. Commands are consumer-facing and must not expose internal value objects.
 
-**Status:** Accepted
+**Status:** Superseded by ADR-003
 **Date:** 2026-03-03
 **Context:** Application Layer Commands
 
@@ -14,7 +19,7 @@ All application commands must accept primitive values only, use domain-language 
 
 ## @standard: command-primitive-parameters
 @category: architecture
-@status: stable
+@status: superseded
 
 Commands must accept primitive values only and use expressive static factory methods. This maintains consumer independence from internal value objects and provides intention-revealing APIs.
 

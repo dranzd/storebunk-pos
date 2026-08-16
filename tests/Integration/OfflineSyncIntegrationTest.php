@@ -45,7 +45,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -57,7 +57,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $command = StartNewOrderOffline::withOrder(
+        $command = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -75,7 +75,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -88,7 +88,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->idempotencyRegistry
         );
 
-        $command = StartNewOrderOffline::withOrder(
+        $command = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -106,7 +106,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -118,7 +118,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $offlineCommand = StartNewOrderOffline::withOrder(
+        $offlineCommand = new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         );
@@ -130,18 +130,21 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            'branch-uuid-1',
-            null
+            ['foo' => 'bar', 'nested' => ['id' => '123']]
         ));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());
         $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
+
+        $context = $this->orderingService->lastDraftOrderContext($orderId);
+        $this->assertNotNull($context);
+        $this->assertSame(['foo' => 'bar', 'nested' => ['id' => '123']], $context);
     }
 
-    public function test_sync_online_command_is_idempotent(): void
+    public function test_redelivered_sync_command_with_same_message_uuid_is_not_reprocessed(): void
     {
         $sessionId  = new SessionId();
         $shiftId    = new ShiftId();
@@ -149,7 +152,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId    = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -161,7 +164,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId->toNative()
         ));
@@ -172,11 +175,221 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncCommand = SyncOrderOnline::forOrder(
+
+        // A real-world retry redelivers as a NEW object carrying the SAME
+        // deterministic id — withMessageUuid() returns a clone, so each
+        // delivery is built fresh from its own constructor call.
+        $firstDelivery = (new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1');
+        $secondDelivery = (new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1');
+
+        $syncHandler($firstDelivery);
+        $syncHandler($secondDelivery);
+
+        $this->assertSame(1, $this->orderingService->draftOrderCreationCount($orderId));
+    }
+
+    public function test_redelivered_sync_command_is_a_noop_after_a_process_restart(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        // A process restart rebuilds the in-memory idempotency registry from
+        // events, which cannot recover the sync command's id (OrderSyncedOnline
+        // does not persist it). The redelivered command must succeed — resolved
+        // by the aggregate remembering the order as synced — not throw an
+        // "Order is not in pending sync list" invariant violation. Delivery to
+        // the ordering port is at-least-once: the port IS re-invoked (healing a
+        // possible earlier failure between store() and createDraftOrder()) and
+        // is idempotent per order id by contract.
+        $restartRegistry = new IdempotencyRegistry();
+        $restartHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $restartRegistry
+        );
+        $restartHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        $this->assertSame(2, $this->orderingService->draftOrderCreationCount($orderId));
+        $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1'));
+    }
+
+    public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+
+        // Ordering BC fails AFTER the sync event was durably stored: the
+        // attempt throws (loud), nothing is marked processed, and the order
+        // is left synced-but-draftless.
+        $this->orderingService->failNextDraftOrderCreation(new \RuntimeException('Ordering BC unavailable'));
+        try {
+            $syncHandler((new SyncOrderOnline(
+                $sessionId->toNative(),
+                $orderId->toNative()
+            ))->withMessageUuid('replay-key-1'));
+            $this->fail('Expected the Ordering BC failure to propagate');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Ordering BC unavailable', $exception->getMessage());
+        }
+        $this->assertFalse($this->orderingService->draftOrderWasCreated($orderId));
+        $this->assertFalse($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
+
+        // The retry (same deterministic id) must HEAL the window: the draft
+        // order is finally created, the queue is drained, and the command is
+        // marked processed — never a silent skip that strands the order.
+        $syncHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
+        $this->assertTrue($this->pendingSyncQueue->isEmpty());
+        $this->assertTrue($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
+    }
+
+    public function test_sync_online_forwards_empty_context_when_omitted(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncHandler(new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
+        $this->assertSame([], $this->orderingService->lastDraftOrderContext($orderId));
+    }
+
+    public function test_sync_online_command_is_idempotent(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncCommand = new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId->toNative(),
-            'branch-uuid-1',
-            null
+            ['foo' => 'bar', 'nested' => ['id' => '123']]
         );
         $syncHandler($syncCommand);
         $syncHandler($syncCommand);
@@ -193,7 +406,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         $orderId2   = new OrderId();
 
         $startSessionHandler = new StartSessionHandler($this->sessionRepository);
-        $startSessionHandler(StartSession::onTerminalForCashier(
+        $startSessionHandler(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -206,12 +419,12 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->idempotencyRegistry
         );
 
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId1->toNative()
         ));
 
-        $offlineHandler(StartNewOrderOffline::withOrder(
+        $offlineHandler(new StartNewOrderOffline(
             $sessionId->toNative(),
             $orderId2->toNative()
         ));
@@ -224,20 +437,18 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->pendingSyncQueue,
             $this->idempotencyRegistry
         );
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId1->toNative(),
-            'branch-uuid-1',
-            null
+            ['foo' => 'bar', 'nested' => ['id' => '123']]
         ));
 
         $this->assertSame(1, $this->pendingSyncQueue->count());
 
-        $syncHandler(SyncOrderOnline::forOrder(
+        $syncHandler(new SyncOrderOnline(
             $sessionId->toNative(),
             $orderId2->toNative(),
-            'branch-uuid-1',
-            null
+            ['foo' => 'bar', 'nested' => ['id' => '123']]
         ));
 
         $this->assertTrue($this->pendingSyncQueue->isEmpty());

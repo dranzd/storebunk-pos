@@ -31,15 +31,15 @@ final class CashDropRecorded extends BaseAggregateEvent implements DomainEventIn
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.shift.cash_drop_recorded";
+        return 'storebunk.pos.shift.cash_drop_recorded';
     }
 
     final public function getPayload(): array
     {
         return [
-            "shift_id" => $this->shiftId->toNative(),
-            "amount" => $this->amount->toArray(),
-            "recorded_at" => $this->recordedAt->format(\DateTimeInterface::ATOM),
+            'shift_id' => $this->shiftId->toNative(),
+            'amount' => $this->amount->toArray(),
+            'recorded_at' => $this->recordedAt->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -48,9 +48,9 @@ final class CashDropRecorded extends BaseAggregateEvent implements DomainEventIn
         if (empty($payload)) {
             return;
         }
-        $this->shiftId = ShiftId::fromNative($payload["shift_id"]);
-        $this->amount = Money::fromArray($payload["amount"]);
-        $this->recordedAt = new DateTimeImmutable($payload["recorded_at"]);
+        $this->shiftId = ShiftId::fromNative($payload['shift_id']);
+        $this->amount = Money::fromArray($payload['amount']);
+        $this->recordedAt = new DateTimeImmutable($payload['recorded_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

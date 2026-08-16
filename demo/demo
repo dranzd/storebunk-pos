@@ -4,7 +4,28 @@
 declare(strict_types=1);
 
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\DemoReset;
+use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
+use Dranzd\StorebunkPos\Demo\Cli\StateStore;
+
+// "state clear" is handled BEFORE bootstrap: bootstrap constructs (and thus
+// loads) both stores, which rightly throw on corrupt persisted data — but the
+// clear command is the documented recovery for exactly that situation, so it
+// must not depend on loading the files it is meant to reset.
+if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
+    require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+    // Coordinated reset: both sidecar locks are taken up front and every
+    // fallible write is staged before either store commits, so a failure
+    // partway through cannot leave one store cleared and the other not.
+    DemoReset::clearAll(FileEventStore::defaultPath(), StateStore::defaultPath());
+
+    Output::success('State cleared.');
+    Output::info('File: ' . StateStore::defaultPath());
+    Output::info('Events: ' . FileEventStore::defaultPath());
+    exit(0);
+}
 
 $container = require __DIR__ . '/bootstrap.php';
 
@@ -49,11 +70,8 @@ $args    = new CliArgs(array_slice($argv, 2));
 
 if ($service === 'state') {
     $subcommand = $args->positional(0);
-    if ($subcommand === 'clear') {
-        $stateStore->clear();
-        Output::success('State cleared.');
-        Output::info('File: ' . $stateStore->filePath());
-    } elseif ($subcommand === 'show') {
+    // 'clear' is handled before bootstrap (top of this script).
+    if ($subcommand === 'show') {
         $data = json_encode(
             json_decode(file_get_contents($stateStore->filePath()), true),
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
@@ -91,9 +109,23 @@ try {
             exit(1);
     }
 } catch (Throwable $e) {
+    // The command bus wraps every handler failure in ExecutionFailedException,
+    // so a domain refusal (e.g. "cannot cancel after payment") would otherwise
+    // print as a generic vendor error. Unwrap it and present business-rule
+    // refusals as such.
+    if ($e instanceof \Dranzd\Common\Cqrs\Application\Command\Exception\ExecutionFailedException
+        && $e->getPrevious() !== null
+    ) {
+        $e = $e->getPrevious();
+    }
+
     Output::blank();
-    Output::error('Unexpected error: ' . $e->getMessage());
-    Output::info('File: ' . $e->getFile() . ':' . $e->getLine());
+    if ($e instanceof \Dranzd\StorebunkPos\Shared\Exception\DomainException) {
+        Output::error($e->getMessage());
+    } else {
+        Output::error('Unexpected error: ' . $e->getMessage());
+        Output::info('File: ' . $e->getFile() . ':' . $e->getLine());
+    }
     if (getenv('DEBUG') === '1') {
         Output::blank();
         echo $e->getTraceAsString() . "\n";

@@ -4,11 +4,27 @@ declare(strict_types=1);
 
 use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\Common\Cqrs\Infrastructure\HandlerRegistry\InMemoryHandlerRegistry;
-use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
+use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
+use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
+use Dranzd\StorebunkPos\Demo\Cli\StateStore;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderParked;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
+use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\EndSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\CancelOrderHandler;
+use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\DeactivateOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\CompleteOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\EndSessionHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\InitiateCheckoutHandler;
@@ -64,7 +80,9 @@ use Dranzd\StorebunkPos\Tests\Stub\Service\StubPaymentService;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 // ── Event Store (shared across all repositories) ─────────────────────────────
-$eventStore = new InMemoryEventStore();
+// File-backed: every demo command runs in its own PHP process, so events must
+// survive process boundaries for multi-step scenarios to work.
+$eventStore = new FileEventStore(FileEventStore::defaultPath());
 
 // ── Repositories ─────────────────────────────────────────────────────────────
 $terminalRepository   = new InMemoryTerminalRepository($eventStore);
@@ -84,6 +102,48 @@ $paymentService    = new StubPaymentService();
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
+
+// ── Rebuild offline-sync state from persisted events ─────────────────────────
+// The queue and registry are plain in-memory objects; replay the persisted
+// session events so offline orders queued in an earlier process are still
+// pending here. Events per aggregate are in append order, so an
+// OrderCreatedOffline is always seen before its OrderMarkedPendingSync.
+$offlineCommandIdsByOrder = [];
+foreach ($eventStore->allEvents() as $aggregateEvents) {
+    foreach ($aggregateEvents as $event) {
+        if ($event instanceof OrderCreatedOffline) {
+            $idempotencyRegistry->markAsProcessed($event->getCommandId());
+            $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] = $event->getCommandId();
+        } elseif ($event instanceof OrderMarkedPendingSync) {
+            $pendingSyncQueue->enqueue(
+                $event->getSessionId(),
+                $event->getOrderId(),
+                $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] ?? ''
+            );
+        } elseif ($event instanceof OrderSyncedOnline) {
+            $pendingSyncQueue->dequeueByOrderId($event->getOrderId());
+        }
+
+        // Project the session read model too — CloseShiftHandler's
+        // active-session guard reads it, and an unprojected (empty) model
+        // would let a shift close while sessions are still running.
+        match (true) {
+            $event instanceof SessionStarted        => $posSessionReadModel->onSessionStarted($event),
+            $event instanceof NewOrderStarted       => $posSessionReadModel->onNewOrderStarted($event),
+            $event instanceof OrderParked           => $posSessionReadModel->onOrderParked($event),
+            $event instanceof OrderResumed          => $posSessionReadModel->onOrderResumed($event),
+            $event instanceof OrderCompleted        => $posSessionReadModel->onOrderCompleted($event),
+            $event instanceof OrderCancelledViaPOS  => $posSessionReadModel->onOrderCancelledViaPOS($event),
+            $event instanceof OrderDeactivated      => $posSessionReadModel->onOrderDeactivated($event),
+            $event instanceof OrderReactivated      => $posSessionReadModel->onOrderReactivated($event),
+            $event instanceof OrderCreatedOffline   => $posSessionReadModel->onOrderCreatedOffline($event),
+            $event instanceof OrderMarkedPendingSync => $posSessionReadModel->onOrderMarkedPendingSync($event),
+            $event instanceof OrderSyncedOnline     => $posSessionReadModel->onOrderSyncedOnline($event),
+            $event instanceof SessionEnded          => $posSessionReadModel->onSessionEnded($event),
+            default                                 => null,
+        };
+    }
+}
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -106,6 +166,7 @@ $handlers = [
     StartNewOrder::class    => new StartNewOrderHandler($sessionRepository),
     ParkOrder::class        => new ParkOrderHandler($sessionRepository),
     ResumeOrder::class      => new ResumeOrderHandler($sessionRepository),
+    DeactivateOrder::class  => new DeactivateOrderHandler($sessionRepository),
     ReactivateOrder::class  => new ReactivateOrderHandler($sessionRepository, $inventoryService),
     InitiateCheckout::class => new InitiateCheckoutHandler($sessionRepository, $orderingService, $inventoryService),
     RequestPayment::class   => new RequestPaymentHandler($sessionRepository, $paymentService),
@@ -134,7 +195,7 @@ $commandBus = new SimpleCommandBus($registry);
 // After each terminal command we replay all terminal events into the read model.
 // This is a simple approach suitable for a demo (not production).
 function projectTerminalReadModel(
-    InMemoryEventStore $eventStore,
+    EventStore $eventStore,
     InMemoryTerminalReadModel $readModel,
     string $terminalId
 ): void {
@@ -153,7 +214,6 @@ function projectTerminalReadModel(
 }
 
 // ── State Store ───────────────────────────────────────────────────────────────
-use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 $stateStore = new StateStore(StateStore::defaultPath());
 
 return [

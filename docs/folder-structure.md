@@ -73,7 +73,6 @@ storebunk-pos/
 │   │       ├── InventoryServiceInterface.php
 │   │       ├── PaymentServiceInterface.php
 │   │       ├── DraftLifecycleService.php
-│   │       ├── DraftOrderContext.php
 │   │       ├── MultiTerminalEnforcementService.php
 │   │       ├── ShiftClosePolicy.php
 │   │       └── PendingSyncQueue.php

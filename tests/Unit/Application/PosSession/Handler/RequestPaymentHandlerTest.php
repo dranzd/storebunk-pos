@@ -59,7 +59,7 @@ final class RequestPaymentHandlerTest extends TestCase
                 'cash'
             );
 
-        ($this->handler)(RequestPayment::via($sessionId->toNative(), 5000, 'USD', 'cash'));
+        ($this->handler)(new RequestPayment($sessionId->toNative(), 5000, 'USD', 'cash'));
 
         $requested = array_values(array_filter(
             $this->eventStore->loadEvents($sessionId->toNative()),
@@ -87,7 +87,7 @@ final class RequestPaymentHandlerTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Payment authorization failed');
 
-        ($this->handler)(RequestPayment::via($sessionId->toNative(), 5000, 'USD', 'cash'));
+        ($this->handler)(new RequestPayment($sessionId->toNative(), 5000, 'USD', 'cash'));
     }
 
     private function buildCheckoutSession(SessionId $sessionId, OrderId $orderId): void
@@ -96,7 +96,7 @@ final class RequestPaymentHandlerTest extends TestCase
         $terminalId = new TerminalId();
 
         $startSession = new StartSessionHandler($this->sessionRepository);
-        $startSession(StartSession::onTerminalForCashier(
+        $startSession(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -104,7 +104,7 @@ final class RequestPaymentHandlerTest extends TestCase
         ));
 
         $startOrder = new StartNewOrderHandler($this->sessionRepository);
-        $startOrder(StartNewOrder::withOrder(
+        $startOrder(new StartNewOrder(
             $sessionId->toNative(),
             $orderId->toNative()
         ));

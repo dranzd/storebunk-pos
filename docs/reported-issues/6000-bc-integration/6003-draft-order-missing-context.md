@@ -94,3 +94,13 @@ Files to change:
 **Resolved:** 2026-02-19
 **Commit/PR:** fix/6003-draft-order-context
 **Summary:** Implemented Option B. Created `DraftOrderContext` DTO in `src/Domain/Service/` with `branchId` (required) and `customerId` (optional, null = walk-in). Updated `OrderingServiceInterface::createDraftOrder()` to accept the DTO as a second parameter. Added `branchId` and `customerId` to `SyncOrderOnline` command. Updated `SyncOrderOnlineHandler` to build `DraftOrderContext` from command fields. Updated `StubOrderingService` and all integration test call sites. All 121 tests pass.
+
+---
+
+> **2026-08-15 — mechanism revised by [ADR-006](../../adr/006-opaque-ordering-context.md).**
+> The requirement (context reaches the Ordering BC at draft creation) stands, but the
+> named fields (`branchId`, `customerId`) put external-domain language inside POS.
+> The `DraftOrderContext` DTO is removed: `SyncOrderOnline` carries a passthrough
+> `array $context` that POS never reads, and the port receives that raw array.
+> Consumer typing is handled by a consumer-owned translator (see ADR-006), not by
+> POS-provided classes or inheritance.

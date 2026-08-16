@@ -34,16 +34,16 @@ final class OrderCreatedOffline extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.session.order_created_offline";
+        return 'storebunk.pos.session.order_created_offline';
     }
 
     final public function getPayload(): array
     {
         return [
-            "session_id" => $this->sessionId->toNative(),
-            "order_id" => $this->orderId->toNative(),
-            "command_id" => $this->commandId,
-            "occurred_at" => $this->occurredAt->format(
+            'session_id' => $this->sessionId->toNative(),
+            'order_id' => $this->orderId->toNative(),
+            'command_id' => $this->commandId,
+            'occurred_at' => $this->occurredAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -54,10 +54,10 @@ final class OrderCreatedOffline extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->sessionId = SessionId::fromNative($payload["session_id"]);
-        $this->orderId = OrderId::fromNative($payload["order_id"]);
-        $this->commandId = $payload["command_id"];
-        $this->occurredAt = new DateTimeImmutable($payload["occurred_at"]);
+        $this->sessionId = SessionId::fromNative($payload['session_id']);
+        $this->orderId = OrderId::fromNative($payload['order_id']);
+        $this->commandId = $payload['command_id'];
+        $this->occurredAt = new DateTimeImmutable($payload['occurred_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

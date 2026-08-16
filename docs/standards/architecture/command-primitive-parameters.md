@@ -2,7 +2,7 @@
 # command-primitive-parameters
 
 Category: architecture
-Status: stable
+Status: experimental
 Source: storebunk-pos
 
 ---

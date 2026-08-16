@@ -7,10 +7,17 @@ namespace Dranzd\StorebunkPos\Application\PosSession\Command\Handler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Repository\PosSessionRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Service\InventoryServiceInterface;
 use Dranzd\StorebunkPos\Domain\Service\OrderingServiceInterface;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
+/**
+ * CompleteOrderHandler
+ *
+ * Handles the CompleteOrder command by completing the session's active order
+ * once it is fully paid and fulfilling its inventory reservation.
+ */
 final class CompleteOrderHandler
 {
     public function __construct(
@@ -20,9 +27,9 @@ final class CompleteOrderHandler
     ) {
     }
 
-    final public function __invoke(CompleteOrder $command): void
+    public function __invoke(CompleteOrder $command): void
     {
-        $session = $this->sessionRepository->load($command->sessionId());
+        $session = $this->sessionRepository->load(SessionId::fromNative($command->sessionId));
         $orderId = $session->activeOrderId();
 
         if ($orderId instanceof OrderId && !$this->orderingService->isOrderFullyPaid($orderId)) {

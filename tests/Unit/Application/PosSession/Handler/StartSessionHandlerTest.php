@@ -35,7 +35,7 @@ final class StartSessionHandlerTest extends TestCase
         $terminalId = new TerminalId();
         $cashierId  = new CashierId();
 
-        ($this->handler)(StartSession::onTerminalForCashier(
+        ($this->handler)(new StartSession(
             $sessionId->toNative(),
             $shiftId->toNative(),
             $terminalId->toNative(),
@@ -57,7 +57,7 @@ final class StartSessionHandlerTest extends TestCase
         $sessionId = new SessionId();
         $cashierId = new CashierId();
 
-        ($this->handler)(StartSession::onTerminalForCashier(
+        ($this->handler)(new StartSession(
             $sessionId->toNative(),
             (new ShiftId())->toNative(),
             (new TerminalId())->toNative(),

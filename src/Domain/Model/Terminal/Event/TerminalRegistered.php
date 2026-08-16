@@ -35,16 +35,16 @@ final class TerminalRegistered extends BaseAggregateEvent implements
 
     final public static function expectedMessageName(): string
     {
-        return "storebunk.pos.terminal.registered";
+        return 'storebunk.pos.terminal.registered';
     }
 
     final public function getPayload(): array
     {
         return [
-            "terminal_id" => $this->terminalId->toNative(),
-            "branch_id" => $this->branchId->toNative(),
-            "name" => $this->name,
-            "registered_at" => $this->registeredAt->format(
+            'terminal_id' => $this->terminalId->toNative(),
+            'branch_id' => $this->branchId->toNative(),
+            'name' => $this->name,
+            'registered_at' => $this->registeredAt->format(
                 \DateTimeInterface::ATOM,
             ),
         ];
@@ -55,10 +55,10 @@ final class TerminalRegistered extends BaseAggregateEvent implements
         if (empty($payload)) {
             return;
         }
-        $this->terminalId = TerminalId::fromNative($payload["terminal_id"]);
-        $this->branchId = BranchId::fromNative($payload["branch_id"]);
-        $this->name = $payload["name"];
-        $this->registeredAt = new DateTimeImmutable($payload["registered_at"]);
+        $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+        $this->branchId = BranchId::fromNative($payload['branch_id']);
+        $this->name = $payload['name'];
+        $this->registeredAt = new DateTimeImmutable($payload['registered_at']);
     }
 
     final public function occurredAt(): DateTimeImmutable

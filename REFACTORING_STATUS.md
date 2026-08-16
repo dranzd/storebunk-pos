@@ -1,5 +1,12 @@
 # Command Refactoring Status
 
+> **SUPERSEDED (2026-08-15).** This file documents the ADR-002 factory-method
+> refactor, which [ADR-003](docs/adr/003-command-structure-inventory-alignment.md)
+> has since replaced: every command now uses a **public constructor with
+> `public readonly` primitive properties** (`new CancelOrder($sessionId, $reason)`),
+> and the factory methods listed below no longer exist. Kept for historical
+> context only — do not follow anything in this file.
+
 ## Completed
 
 ### 1. All 25 Commands Refactored ✓

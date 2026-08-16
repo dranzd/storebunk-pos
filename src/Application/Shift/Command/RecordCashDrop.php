@@ -5,51 +5,28 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Application\Shift\Command;
 
 use Dranzd\Common\Cqrs\Domain\Message\AbstractCommand;
-use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
-use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 
+/**
+ * RecordCashDrop
+ *
+ * Command to record a cash drop from the shift's drawer.
+ */
 final class RecordCashDrop extends AbstractCommand
 {
-    private function __construct(
-        private readonly string $shiftId,
-        private readonly int $amount,
-        private readonly string $currency,
-        string $commandId = ''
+    public function __construct(
+        public readonly string $shiftId,
+        public readonly int $amount,
+        public readonly string $currency
     ) {
         parent::__construct(
-            $commandId,
-            self::expectedMessageName(),
-            [
-                'shift_id' => $this->shiftId,
-                'amount' => [
-                    'amount' => $this->amount,
-                    'currency' => $this->currency,
-                ],
-            ]
+            messageUuid: '',
+            messageName: self::expectedMessageName(),
+            payload: []
         );
     }
 
-    final public static function ofAmount(
-        string $shiftId,
-        int $amount,
-        string $currency,
-        ?string $commandId = null
-    ): self {
-        return new self($shiftId, $amount, $currency, $commandId ?? '');
-    }
-
-    final public static function expectedMessageName(): string
+    public static function expectedMessageName(): string
     {
         return 'storebunk.pos.shift.record_cash_drop';
-    }
-
-    final public function shiftId(): ShiftId
-    {
-        return ShiftId::fromNative($this->shiftId);
-    }
-
-    final public function amount(): Money
-    {
-        return Money::fromArray(['amount' => $this->amount, 'currency' => $this->currency]);
     }
 }
