@@ -46,7 +46,7 @@ final class PosSession implements AggregateRoot
     private array $inactiveOrderIds = [];
     /** @var OrderId[] */
     private array $pendingSyncOrderIds = [];
-    /** @var OrderId[] */
+    /** @var OrderId[] Orders already synced online; lets a redelivered sync command heal/no-op instead of tripping the pending-sync invariant. Grows with session lifetime, like the other order-id lists. */
     private array $syncedOrderIds = [];
 
     final public static function start(

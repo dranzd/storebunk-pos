@@ -229,6 +229,7 @@ foreach ($pendingSyncQueue->all() as $entry) {
 
 - If `SyncOrderOnlineHandler` fails (e.g., Ordering BC unavailable), the order **remains** in the `PendingSyncQueue` and can be retried.
 - The `IdempotencyRegistry` only marks a command as processed **after** successful completion, so a failed attempt will not block future retries.
+- A failure can land **after** the `OrderSyncedOnline` event is durably stored but before `createDraftOrder()` succeeds. A retry of the same command heals that window: the aggregate is not mutated again, but the draft-order call is re-issued. Delivery to `OrderingServiceInterface::createDraftOrder()` is therefore **at-least-once** — the consumer's implementation MUST be idempotent per order id (see the interface docblock).
 - Consumers should implement retry logic with appropriate backoff.
 
 ### Testing

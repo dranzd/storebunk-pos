@@ -40,12 +40,17 @@ final class SyncOrderOnlineHandler
 
         $session = $this->sessionRepository->load(SessionId::fromNative($command->sessionId));
 
-        // Redelivery after a process restart: the in-memory registry is
-        // rebuilt from events and cannot recover this command's id, but the
-        // aggregate remembers the order was already synced — a repeat is a
-        // no-op, not an invariant violation (and the draft order must not be
-        // created twice).
+        // Redelivery of an already-synced order (the registry was rebuilt
+        // after a restart, or an earlier attempt failed AFTER the sync event
+        // was durably stored). The aggregate is not mutated again, but the
+        // draft-order call IS re-issued: the earlier attempt may have died
+        // between store() and createDraftOrder(), and skipping it here would
+        // silently strand the order with no draft ever created. The port is
+        // idempotent per order id by contract, so a repeat is safe. Nothing
+        // is marked processed until the port call succeeds, keeping failures
+        // loud and retryable.
         if ($session->isOrderSynced($orderId)) {
+            $this->orderingService->createDraftOrder($orderId, $command->context);
             $this->pendingSyncQueue->dequeueByOrderId($orderId);
             $this->idempotencyRegistry->markAsProcessed($commandId);
 

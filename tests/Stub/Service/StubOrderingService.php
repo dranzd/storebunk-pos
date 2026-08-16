@@ -17,11 +17,28 @@ final class StubOrderingService implements OrderingServiceInterface
     /** @var array<string, array<string, mixed>> */
     private array $draftOrderContexts = [];
 
+    private ?\Throwable $nextDraftOrderFailure = null;
+
     final public function createDraftOrder(OrderId $orderId, array $context): void
     {
+        if ($this->nextDraftOrderFailure !== null) {
+            $failure = $this->nextDraftOrderFailure;
+            $this->nextDraftOrderFailure = null;
+            throw $failure;
+        }
+
         $key = $orderId->toNative();
         $this->draftOrders[$key] = ($this->draftOrders[$key] ?? 0) + 1;
         $this->draftOrderContexts[$key] = $context;
+    }
+
+    /**
+     * Make the NEXT createDraftOrder() call fail (once) — simulates the
+     * Ordering BC being unavailable after the sync event was stored.
+     */
+    public function failNextDraftOrderCreation(\Throwable $failure): void
+    {
+        $this->nextDraftOrderFailure = $failure;
     }
 
     /**

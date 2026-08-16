@@ -232,10 +232,12 @@ final class OfflineSyncIntegrationTest extends TestCase
 
         // A process restart rebuilds the in-memory idempotency registry from
         // events, which cannot recover the sync command's id (OrderSyncedOnline
-        // does not persist it). The redelivered command must still be a no-op
-        // — resolved by the aggregate remembering the order as synced — not an
-        // "Order is not in pending sync list" invariant violation, and the
-        // draft order must not be created twice.
+        // does not persist it). The redelivered command must succeed — resolved
+        // by the aggregate remembering the order as synced — not throw an
+        // "Order is not in pending sync list" invariant violation. Delivery to
+        // the ordering port is at-least-once: the port IS re-invoked (healing a
+        // possible earlier failure between store() and createDraftOrder()) and
+        // is idempotent per order id by contract.
         $restartRegistry = new IdempotencyRegistry();
         $restartHandler = new SyncOrderOnlineHandler(
             $this->sessionRepository,
@@ -248,8 +250,69 @@ final class OfflineSyncIntegrationTest extends TestCase
             $orderId->toNative()
         ))->withMessageUuid('replay-key-1'));
 
-        $this->assertSame(1, $this->orderingService->draftOrderCreationCount($orderId));
+        $this->assertSame(2, $this->orderingService->draftOrderCreationCount($orderId));
         $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1'));
+    }
+
+    public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+
+        // Ordering BC fails AFTER the sync event was durably stored: the
+        // attempt throws (loud), nothing is marked processed, and the order
+        // is left synced-but-draftless.
+        $this->orderingService->failNextDraftOrderCreation(new \RuntimeException('Ordering BC unavailable'));
+        try {
+            $syncHandler((new SyncOrderOnline(
+                $sessionId->toNative(),
+                $orderId->toNative()
+            ))->withMessageUuid('replay-key-1'));
+            $this->fail('Expected the Ordering BC failure to propagate');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Ordering BC unavailable', $exception->getMessage());
+        }
+        $this->assertFalse($this->orderingService->draftOrderWasCreated($orderId));
+        $this->assertFalse($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
+
+        // The retry (same deterministic id) must HEAL the window: the draft
+        // order is finally created, the queue is drained, and the command is
+        // marked processed — never a silent skip that strands the order.
+        $syncHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
+        $this->assertTrue($this->pendingSyncQueue->isEmpty());
+        $this->assertTrue($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
     }
 
     public function test_sync_online_forwards_empty_context_when_omitted(): void

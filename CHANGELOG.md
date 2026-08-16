@@ -43,11 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repositories now depend on the `EventStore` interface instead of the
   concrete `InMemoryEventStore`.
 - Redelivering a `SyncOrderOnline` with the same deterministic message uuid
-  is now a no-op even after a process restart. The aggregate remembers
-  synced orders, so a retry no longer trips the "Order is not in pending
-  sync list" invariant when the in-memory idempotency registry was rebuilt
-  from events (which cannot recover the command id). The draft order is
-  never created twice.
+  now succeeds instead of tripping the "Order is not in pending sync list"
+  invariant (the in-memory idempotency registry is rebuilt from events on
+  restart and cannot recover the command id; the aggregate now remembers
+  synced orders). The retry re-issues the draft-order call, healing a prior
+  failure between the stored sync event and `createDraftOrder()`. Delivery
+  to `OrderingServiceInterface::createDraftOrder()` is therefore
+  **at-least-once**: consumer implementations must be idempotent per order
+  id (documented on the interface).
 - `PosSession` now refuses to deactivate or park an order during checkout
   (`InvariantViolationException`) — either would strand the hard inventory
   reservation taken at checkout initiation.
