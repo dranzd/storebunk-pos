@@ -435,6 +435,85 @@ final class PosSessionTest extends TestCase
         $session->parkOrder();
     }
 
+    public function test_it_cannot_cancel_order_after_payment_received(): void
+    {
+        $session = $this->createPaidSession();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot cancel an order after payment has been received');
+
+        $session->cancelOrder('Expiry sweep');
+    }
+
+    public function test_it_can_still_cancel_order_during_checkout_before_payment(): void
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->initiateCheckout();
+        $session->popRecordedEvents();
+
+        $session->cancelOrder('Customer walked away');
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS::class, $events[0]);
+    }
+
+    public function test_it_cannot_deactivate_order_after_payment_received(): void
+    {
+        $session = $this->createPaidSession();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot deactivate an order during checkout');
+
+        $session->deactivateOrder('TTL expired');
+    }
+
+    public function test_it_cannot_park_order_after_payment_received(): void
+    {
+        $session = $this->createPaidSession();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Cannot park an order during checkout');
+
+        $session->parkOrder();
+    }
+
+    public function test_it_can_complete_order_after_payment_received(): void
+    {
+        $session = $this->createPaidSession();
+
+        $session->completeOrder();
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted::class, $events[0]);
+    }
+
+    public function test_it_can_request_a_second_split_payment(): void
+    {
+        $session = $this->createPaidSession();
+
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 5000, 'currency' => 'USD']);
+        $session->requestPayment($amount, 'card');
+
+        $events = $session->popRecordedEvents();
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\Dranzd\StorebunkPos\Domain\Model\PosSession\Event\PaymentRequested::class, $events[0]);
+    }
+
+    private function createPaidSession(): PosSession
+    {
+        $session = $this->createStartedSession();
+        $session->startNewOrder(new OrderId());
+        $session->initiateCheckout();
+        $amount = \Dranzd\Common\Domain\ValueObject\Money\Basic::fromArray(['amount' => 10000, 'currency' => 'USD']);
+        $session->requestPayment($amount, 'cash');
+        $session->popRecordedEvents();
+
+        return $session;
+    }
+
     public function test_it_can_reactivate_deactivated_order(): void
     {
         $session = $this->createStartedSession();

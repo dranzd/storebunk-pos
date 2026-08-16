@@ -11,6 +11,7 @@ enum SessionState: string
     case Idle = 'idle';
     case Building = 'building';
     case Checkout = 'checkout';
+    case Payment = 'payment';
 
     final public function isIdle(): bool
     {
@@ -25,6 +26,11 @@ enum SessionState: string
     final public function isCheckout(): bool
     {
         return $this === self::Checkout;
+    }
+
+    final public function isPayment(): bool
+    {
+        return $this === self::Payment;
     }
 
     final public static function fromString(string $state): self
