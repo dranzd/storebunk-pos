@@ -272,7 +272,7 @@ The merge is **never executed automatically** — it is always presented as a su
 | [9002](9000-offline-sync/9002-deactivate-order-command-missing.md) | Offline/Sync | `DeactivateOrder` CQRS command and handler are missing | Missing Feature | High | Resolved | 2026-02-19 |
 | [1001](1000-foundation/1001-demo-cli-gaps.md) | Foundation | Demo CLI gaps: unregistered commands, silent arg misparse, hardcoded data path | Improvement | Medium | Open | 2026-08-17 |
 | [2002](2000-terminal/2002-terminal-handler-test-coverage-gaps.md) | Terminal | Application-layer handlers have no direct test coverage | Improvement | Medium | Open | 2026-08-17 |
-| [8002](8000-concurrency/8002-multi-terminal-enforcement-never-wired.md) | Concurrency | `MultiTerminalEnforcementService` is never wired into any handler | Missing Feature | High | Open | 2026-08-17 |
+| [8002](8000-concurrency/8002-multi-terminal-enforcement-never-wired.md) | Concurrency | `MultiTerminalEnforcementService` is never wired into any handler | Missing Feature | High | Resolved | 2026-08-17 |
 | [9003](9000-offline-sync/9003-session-sync-stale-state-rmw.md) | Offline/Sync | Demo `session sync` rebuilds pending list from a stale snapshot | Bug | Medium | Open | 2026-08-17 |
 
 ---

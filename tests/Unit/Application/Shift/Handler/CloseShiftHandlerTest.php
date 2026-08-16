@@ -20,6 +20,8 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
+use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
+use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use PHPUnit\Framework\TestCase;
@@ -138,7 +140,11 @@ final class CloseShiftHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository);
+        $openHandler = new OpenShiftHandler(
+            $this->shiftRepository,
+            new MultiTerminalEnforcementService(),
+            new InMemoryShiftReadModel()
+        );
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

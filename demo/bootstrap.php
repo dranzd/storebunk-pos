@@ -19,6 +19,11 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
@@ -66,10 +71,12 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RegisterTerminalHan
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\SetTerminalMaintenanceHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
+use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel\InMemoryTerminalReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\Repository\InMemoryTerminalRepository;
@@ -92,6 +99,7 @@ $sessionRepository    = new InMemoryPosSessionRepository($eventStore);
 // ── Read Models ───────────────────────────────────────────────────────────────
 $terminalReadModel    = new InMemoryTerminalReadModel();
 $posSessionReadModel  = new InMemoryPosSessionReadModel();
+$shiftReadModel       = new InMemoryShiftReadModel();
 
 // ── BC Service Stubs ──────────────────────────────────────────────────────────
 $orderingService   = new StubOrderingService();
@@ -102,6 +110,7 @@ $paymentService    = new StubPaymentService();
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
+$multiTerminalEnforcement = new MultiTerminalEnforcementService();
 
 // ── Rebuild offline-sync state from persisted events ─────────────────────────
 // The queue and registry are plain in-memory objects; replay the persisted
@@ -140,6 +149,13 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
             $event instanceof OrderMarkedPendingSync => $posSessionReadModel->onOrderMarkedPendingSync($event),
             $event instanceof OrderSyncedOnline     => $posSessionReadModel->onOrderSyncedOnline($event),
             $event instanceof SessionEnded          => $posSessionReadModel->onSessionEnded($event),
+            // Shift read model — OpenShiftHandler's one-open-shift-per-
+            // terminal/cashier enforcement reads it (issue 8002).
+            $event instanceof ShiftOpened           => $shiftReadModel->onShiftOpened($event),
+            $event instanceof ShiftAssigned         => $shiftReadModel->onShiftAssigned($event),
+            $event instanceof ShiftUnassigned       => $shiftReadModel->onShiftUnassigned($event),
+            $event instanceof ShiftClosed           => $shiftReadModel->onShiftClosed($event),
+            $event instanceof ShiftForceClosed      => $shiftReadModel->onShiftForceClosed($event),
             default                                 => null,
         };
     }
@@ -154,7 +170,7 @@ $handlers = [
     SetTerminalMaintenance::class => new SetTerminalMaintenanceHandler($terminalRepository),
 
     // Shift
-    OpenShift::class        => new OpenShiftHandler($shiftRepository),
+    OpenShift::class        => new OpenShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
     AssignShift::class      => new AssignShiftHandler($shiftRepository),
     UnassignShift::class    => new UnassignShiftHandler($shiftRepository),
     CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),

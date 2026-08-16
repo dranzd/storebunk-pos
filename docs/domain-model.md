@@ -438,8 +438,8 @@ interface PaymentServiceInterface
 
 | # | Invariant | Enforced By |
 |---|-----------|-------------|
-| 1 | One cashier = one terminal per open shift | Shift aggregate |
-| 2 | One terminal = one open shift | Shift aggregate |
+| 1 | One cashier = one terminal per open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model |
+| 2 | One terminal = one open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model |
 | 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftCloseBlockPolicy |
 | 4 | Checkout locks order lines | PosSession + Ordering BC |
 | 5 | Payment cannot apply without Confirmed state | PosSession |

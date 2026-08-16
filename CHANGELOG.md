@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > commands are constructed with `new` (ADR-003) — and `SyncOrderOnline` now
 > carries an opaque context array (ADR-006).
 
+### Added
+
+- One-open-shift-per-terminal and one-open-shift-per-cashier invariants are
+  now enforced (issue 8002): `OpenShiftHandler` consults
+  `MultiTerminalEnforcementService` against a `ShiftReadModelInterface`,
+  which gains `openShiftsByTerminal()` / `activeTerminalByCashier()` and a
+  first implementation, `InMemoryShiftReadModel` (projected from
+  `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`).
+  A second `OpenShift` on an occupied terminal, or by a cashier already
+  running a shift, is refused with an `InvariantViolationException`.
+  `OpenShiftHandler`'s constructor now requires the service and read model.
+
 ### Changed
 
 - **BREAKING** — All 27 application commands follow the storebunk-inventory

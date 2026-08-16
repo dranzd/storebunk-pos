@@ -12,7 +12,7 @@ _(none)_
 
 #### 🟠 High
 
-- [ ] [8002](8000-concurrency/8002-multi-terminal-enforcement-never-wired.md) — `MultiTerminalEnforcementService` is never wired into any handler; one-terminal/one-cashier-per-open-shift invariants unenforced
+_(none)_
 
 #### 🟡 Medium
 
