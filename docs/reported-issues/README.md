@@ -53,21 +53,27 @@ docs/reported-issues/
 ├── README.md                          ← this file (standards reference)
 ├── incoming-report.md                 ← inbox for new raw reports (git-ignored, user-owned)
 ├── open-issues.md                     ← living checklist of unresolved issues
+├── 1000-foundation/                   ← Foundation / shared kernel / demo tooling
+│   └── 1001-demo-cli-gaps.md
 ├── 2000-terminal/                     ← Terminal aggregate
-│   └── 2001-terminal-events-missing-fromarray.md
+│   ├── 2001-terminal-events-missing-fromarray.md
+│   └── 2002-terminal-handler-test-coverage-gaps.md
 ├── 3000-shift/                        ← Shift aggregate
 │   └── 3001-shift-close-no-session-guard.md
 ├── 4000-possession/                   ← PosSession aggregate
-│   └── 4001-handler-pops-events-before-store.md
+│   ├── 4001-handler-pops-events-before-store.md
+│   └── 4002-session-missing-operator-identity.md
 ├── 6000-bc-integration/               ← External BC ports (Ordering, Inventory, Payment)
 │   ├── 6001-convert-soft-reservation-to-hard.md
 │   ├── 6002-deduct-inventory-mapping.md
 │   └── 6003-draft-order-missing-context.md
 ├── 8000-concurrency/                  ← Multi-terminal, idempotency, versioning
-│   └── 8001-multi-terminal-enforcement-in-memory.md
+│   ├── 8001-multi-terminal-enforcement-in-memory.md
+│   └── 8002-multi-terminal-enforcement-never-wired.md
 └── 9000-offline-sync/                 ← Offline draft creation and sync
     ├── 9001-order-created-offline-accessor-naming.md
-    └── 9002-deactivate-order-command-missing.md
+    ├── 9002-deactivate-order-command-missing.md
+    └── 9003-session-sync-stale-state-rmw.md
 ```
 
 ### Group Series
@@ -264,7 +270,11 @@ The merge is **never executed automatically** — it is always presented as a su
 | [8001](8000-concurrency/8001-multi-terminal-enforcement-in-memory.md) | Concurrency | `MultiTerminalEnforcementService` uses in-memory state | Architecture | Critical | Resolved | 2026-02-19 |
 | [9001](9000-offline-sync/9001-order-created-offline-accessor-naming.md) | Offline/Sync | Offline events use `get`-prefixed accessors, inconsistent convention | Improvement | Low | Rejected | 2026-02-19 |
 | [9002](9000-offline-sync/9002-deactivate-order-command-missing.md) | Offline/Sync | `DeactivateOrder` CQRS command and handler are missing | Missing Feature | High | Resolved | 2026-02-19 |
+| [1001](1000-foundation/1001-demo-cli-gaps.md) | Foundation | Demo CLI gaps: unregistered commands, silent arg misparse, hardcoded data path | Improvement | Medium | Open | 2026-08-17 |
+| [2002](2000-terminal/2002-terminal-handler-test-coverage-gaps.md) | Terminal | Application-layer handlers have no direct test coverage | Improvement | Medium | Open | 2026-08-17 |
+| [8002](8000-concurrency/8002-multi-terminal-enforcement-never-wired.md) | Concurrency | `MultiTerminalEnforcementService` is never wired into any handler | Missing Feature | High | Open | 2026-08-17 |
+| [9003](9000-offline-sync/9003-session-sync-stale-state-rmw.md) | Offline/Sync | Demo `session sync` rebuilds pending list from a stale snapshot | Bug | Medium | Open | 2026-08-17 |
 
 ---
 
-**Last Updated:** 2026-08-12 (added the incoming-report.md inbox standard, matching storebunk-inventory)
+**Last Updated:** 2026-08-17 (filed 1001, 2002, 8002, 9003 from the 2026-08-16 finalize-review triage)
