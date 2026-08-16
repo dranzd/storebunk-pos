@@ -194,6 +194,64 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->assertSame(1, $this->orderingService->draftOrderCreationCount($orderId));
     }
 
+    public function test_redelivered_sync_command_is_a_noop_after_a_process_restart(): void
+    {
+        $sessionId  = new SessionId();
+        $shiftId    = new ShiftId();
+        $terminalId = new TerminalId();
+        $orderId    = new OrderId();
+
+        $startSessionHandler = new StartSessionHandler($this->sessionRepository);
+        $startSessionHandler(new StartSession(
+            $sessionId->toNative(),
+            $shiftId->toNative(),
+            $terminalId->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler(new StartNewOrderOffline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        // A process restart rebuilds the in-memory idempotency registry from
+        // events, which cannot recover the sync command's id (OrderSyncedOnline
+        // does not persist it). The redelivered command must still be a no-op
+        // — resolved by the aggregate remembering the order as synced — not an
+        // "Order is not in pending sync list" invariant violation, and the
+        // draft order must not be created twice.
+        $restartRegistry = new IdempotencyRegistry();
+        $restartHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $restartRegistry
+        );
+        $restartHandler((new SyncOrderOnline(
+            $sessionId->toNative(),
+            $orderId->toNative()
+        ))->withMessageUuid('replay-key-1'));
+
+        $this->assertSame(1, $this->orderingService->draftOrderCreationCount($orderId));
+        $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1'));
+    }
+
     public function test_sync_online_forwards_empty_context_when_omitted(): void
     {
         $sessionId  = new SessionId();

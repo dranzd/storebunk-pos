@@ -46,6 +46,8 @@ final class PosSession implements AggregateRoot
     private array $inactiveOrderIds = [];
     /** @var OrderId[] */
     private array $pendingSyncOrderIds = [];
+    /** @var OrderId[] */
+    private array $syncedOrderIds = [];
 
     final public static function start(
         SessionId $sessionId,
@@ -280,6 +282,23 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    /**
+     * Whether this order has already been synced online. Lets a redelivered
+     * sync command (deterministic message uuid, e.g. after a process restart
+     * rebuilt the idempotency registry) be treated as a no-op instead of
+     * tripping the pending-sync invariant.
+     */
+    final public function isOrderSynced(OrderId $orderId): bool
+    {
+        foreach ($this->syncedOrderIds as $syncedId) {
+            if ($syncedId->sameValueAs($orderId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     final public function syncOrderOnline(OrderId $orderId): void
     {
         $isPending = false;
@@ -456,5 +475,6 @@ final class PosSession implements AggregateRoot
             $this->pendingSyncOrderIds,
             fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
+        $this->syncedOrderIds[] = $event->getOrderId();
     }
 }

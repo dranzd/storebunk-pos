@@ -39,6 +39,19 @@ final class SyncOrderOnlineHandler
         $orderId = OrderId::fromNative($command->orderId);
 
         $session = $this->sessionRepository->load(SessionId::fromNative($command->sessionId));
+
+        // Redelivery after a process restart: the in-memory registry is
+        // rebuilt from events and cannot recover this command's id, but the
+        // aggregate remembers the order was already synced — a repeat is a
+        // no-op, not an invariant violation (and the draft order must not be
+        // created twice).
+        if ($session->isOrderSynced($orderId)) {
+            $this->pendingSyncQueue->dequeueByOrderId($orderId);
+            $this->idempotencyRegistry->markAsProcessed($commandId);
+
+            return;
+        }
+
         $session->syncOrderOnline($orderId);
         $this->sessionRepository->store($session);
 
