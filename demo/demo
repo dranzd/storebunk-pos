@@ -109,9 +109,23 @@ try {
             exit(1);
     }
 } catch (Throwable $e) {
+    // The command bus wraps every handler failure in ExecutionFailedException,
+    // so a domain refusal (e.g. "cannot cancel after payment") would otherwise
+    // print as a generic vendor error. Unwrap it and present business-rule
+    // refusals as such.
+    if ($e instanceof \Dranzd\Common\Cqrs\Application\Command\Exception\ExecutionFailedException
+        && $e->getPrevious() !== null
+    ) {
+        $e = $e->getPrevious();
+    }
+
     Output::blank();
-    Output::error('Unexpected error: ' . $e->getMessage());
-    Output::info('File: ' . $e->getFile() . ':' . $e->getLine());
+    if ($e instanceof \Dranzd\StorebunkPos\Shared\Exception\DomainException) {
+        Output::error($e->getMessage());
+    } else {
+        Output::error('Unexpected error: ' . $e->getMessage());
+        Output::info('File: ' . $e->getFile() . ':' . $e->getLine());
+    }
     if (getenv('DEBUG') === '1') {
         Output::blank();
         echo $e->getTraceAsString() . "\n";

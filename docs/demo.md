@@ -343,7 +343,9 @@ New order started.
 
 #### `park`
 
-Park the currently active order.
+Park the currently active order. Refused once checkout has started (and
+after payment) — parking then would strand the confirmed inventory
+reservation.
 
 ```bash
 ./demo session park --session-id=<uuid>
@@ -363,7 +365,9 @@ Resume a parked order.
 
 #### `deactivate`
 
-Deactivate the active order (simulates the `DraftLifecycleService` TTL expiry).
+Deactivate the active order (simulates the `DraftLifecycleService` TTL
+expiry). Refused once checkout has started (and after payment), matching the
+sweep's skip behavior.
 
 ```bash
 ./demo session deactivate --session-id=<uuid> [--reason=<text>]
@@ -445,7 +449,10 @@ Order completed.
 
 #### `cancel`
 
-Cancel the active order.
+Cancel the active order. Allowed while building and during checkout before
+any payment; refused once payment has been received — a paid order can only
+be completed (post-payment cancellation is a downstream sales-order
+operation).
 
 ```bash
 ./demo session cancel --session-id=<uuid> --reason="Customer changed mind"
