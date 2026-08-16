@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Demo CLI: `terminal rename|reassign|decommission|recommission` subcommands
+  — the four Terminal handlers that existed but were never registered in the
+  demo are now wired and documented (issue 1001).
 - One-open-shift-per-terminal and one-open-shift-per-cashier invariants are
   now enforced (issue 8002): `OpenShiftHandler` consults
   `MultiTerminalEnforcementService` against a `ShiftReadModelInterface`,
@@ -52,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Demo `session sync` removed the synced order from `pending_sync_order_ids`
+  via a stale read-modify-write; a concurrent push from another process could
+  be clobbered. `StateStore::removeFromList()` now filters the current
+  on-disk list under the sidecar lock (issue 9003).
+- Demo CLI arg parsing: the space-separated option form (`--name SpacedName`)
+  silently misparsed (the flag stringified to "1"); it is now rejected loudly
+  with the correct `--name=value` spelling, and scenario scripts honor
+  `POS_DEMO_DATA_DIR` instead of a hardcoded state-file path (issue 1001).
 - Repositories now depend on the `EventStore` interface instead of the
   concrete `InMemoryEventStore`.
 - Redelivering a `SyncOrderOnline` with the same deterministic message uuid

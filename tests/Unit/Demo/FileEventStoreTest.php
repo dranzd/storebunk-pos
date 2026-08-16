@@ -32,6 +32,31 @@ final class FileEventStoreTest extends TestCase
         }
     }
 
+    public function test_version_numbering_survives_a_reload_round_trip(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+        $store->append($this->terminalRegistered('agg-1', 2));
+        $store->append($this->terminalRegistered('agg-1', 3));
+
+        $reloaded = new FileEventStore($this->filePath);
+
+        // A vendor serialization change that dropped or reordered the version
+        // metadata would silently break optimistic concurrency downstream.
+        $versions = array_map(
+            fn (AggregateEvent $event): int => $event->getAggregateRootVersion(),
+            $reloaded->loadEvents('agg-1')
+        );
+        $this->assertSame([1, 2, 3], $versions);
+
+        $tail = $reloaded->loadEventsFromVersion('agg-1', 1);
+        $this->assertSame(
+            [2, 3],
+            array_map(fn (AggregateEvent $event): int => $event->getAggregateRootVersion(), $tail)
+        );
+        $this->assertSame([], $reloaded->loadEventsFromVersion('agg-1', 3));
+    }
+
     public function test_events_survive_a_reload_round_trip(): void
     {
         $store = new FileEventStore($this->filePath);
@@ -366,7 +391,7 @@ final class FileEventStoreTest extends TestCase
         }
     }
 
-    private function terminalRegistered(string $aggregateRootUuid): AggregateEvent
+    private function terminalRegistered(string $aggregateRootUuid, int $version = 1): AggregateEvent
     {
         return TerminalRegistered::occur(
             new TerminalId(),
@@ -376,7 +401,7 @@ final class FileEventStoreTest extends TestCase
         )->withMetadata([
             AggregateEvent::META_AGGREGATE_ROOT_UUID    => $aggregateRootUuid,
             AggregateEvent::META_AGGREGATE_ROOT_TYPE    => 'Terminal',
-            AggregateEvent::META_AGGREGATE_ROOT_VERSION => 1,
+            AggregateEvent::META_AGGREGATE_ROOT_VERSION => $version,
         ]);
     }
 }
