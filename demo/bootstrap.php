@@ -7,9 +7,18 @@ use Dranzd\Common\Cqrs\Infrastructure\HandlerRegistry\InMemoryHandlerRegistry;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
 use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\NewOrderStarted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCancelledViaPOS;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCompleted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderDeactivated;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderParked;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderReactivated;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
@@ -114,6 +123,25 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
         } elseif ($event instanceof OrderSyncedOnline) {
             $pendingSyncQueue->dequeueByOrderId($event->getOrderId());
         }
+
+        // Project the session read model too — CloseShiftHandler's
+        // active-session guard reads it, and an unprojected (empty) model
+        // would let a shift close while sessions are still running.
+        match (true) {
+            $event instanceof SessionStarted        => $posSessionReadModel->onSessionStarted($event),
+            $event instanceof NewOrderStarted       => $posSessionReadModel->onNewOrderStarted($event),
+            $event instanceof OrderParked           => $posSessionReadModel->onOrderParked($event),
+            $event instanceof OrderResumed          => $posSessionReadModel->onOrderResumed($event),
+            $event instanceof OrderCompleted        => $posSessionReadModel->onOrderCompleted($event),
+            $event instanceof OrderCancelledViaPOS  => $posSessionReadModel->onOrderCancelledViaPOS($event),
+            $event instanceof OrderDeactivated      => $posSessionReadModel->onOrderDeactivated($event),
+            $event instanceof OrderReactivated      => $posSessionReadModel->onOrderReactivated($event),
+            $event instanceof OrderCreatedOffline   => $posSessionReadModel->onOrderCreatedOffline($event),
+            $event instanceof OrderMarkedPendingSync => $posSessionReadModel->onOrderMarkedPendingSync($event),
+            $event instanceof OrderSyncedOnline     => $posSessionReadModel->onOrderSyncedOnline($event),
+            $event instanceof SessionEnded          => $posSessionReadModel->onSessionEnded($event),
+            default                                 => null,
+        };
     }
 }
 
