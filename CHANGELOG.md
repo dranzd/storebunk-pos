@@ -45,6 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PosSession` now refuses to deactivate or park an order during checkout
   (`InvariantViolationException`) — either would strand the hard inventory
   reservation taken at checkout initiation.
+- `SessionState` gains a `Payment` state, entered on the first
+  `PaymentRequested`. Once payment has been received the order can only be
+  completed (or receive further split payments) — `cancelOrder`,
+  `deactivateOrder`, and `parkOrder` all refuse, so the expiry sweep can
+  never silently cancel a paid order (inventory released, money kept).
+  A paid-but-uncompleted order deliberately stays active for manual
+  operational review; post-payment cancellation is a downstream sales-order
+  operation, never a POS action. Message names are unchanged.
 - `DraftLifecycleService` sweeps (inactivity deactivation and expiry
   cancellation) are best-effort per session: a session that refuses on a
   domain invariant is skipped and the sweep continues; any other failure
