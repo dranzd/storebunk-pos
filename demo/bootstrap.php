@@ -64,12 +64,20 @@ use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
 use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Terminal\Command\ActivateTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\DecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\DisableTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ActivateTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\DecommissionTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\DisableTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ReassignTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RecommissionTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RegisterTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RenameTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\SetTerminalMaintenanceHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\ReassignTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
@@ -168,6 +176,10 @@ $handlers = [
     ActivateTerminal::class      => new ActivateTerminalHandler($terminalRepository),
     DisableTerminal::class       => new DisableTerminalHandler($terminalRepository),
     SetTerminalMaintenance::class => new SetTerminalMaintenanceHandler($terminalRepository),
+    RenameTerminal::class        => new RenameTerminalHandler($terminalRepository),
+    ReassignTerminal::class      => new ReassignTerminalHandler($terminalRepository),
+    DecommissionTerminal::class  => new DecommissionTerminalHandler($terminalRepository),
+    RecommissionTerminal::class  => new RecommissionTerminalHandler($terminalRepository),
 
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),

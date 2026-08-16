@@ -36,7 +36,7 @@ $DEMO session park
 
 echo ""
 echo "Step 6: Resume Order #1 (first customer returns)"
-ORDER_1=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][0] ?? "";')
+ORDER_1=$(php -r 'echo json_decode(file_get_contents((getenv("POS_DEMO_DATA_DIR") ?: "demo/data") . "/demo-state.json"), true)["order_ids"][0] ?? "";')
 $DEMO session resume --order-id="$ORDER_1"
 
 echo ""
@@ -47,7 +47,7 @@ $DEMO session complete
 
 echo ""
 echo "Step 8: Resume Order #2 (second customer)"
-ORDER_2=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["order_ids"][1] ?? "";')
+ORDER_2=$(php -r 'echo json_decode(file_get_contents((getenv("POS_DEMO_DATA_DIR") ?: "demo/data") . "/demo-state.json"), true)["order_ids"][1] ?? "";')
 $DEMO session resume --order-id="$ORDER_2"
 
 echo ""

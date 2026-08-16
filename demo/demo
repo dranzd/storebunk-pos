@@ -46,7 +46,7 @@ if ($argc < 2) {
     Output::banner('StoreBunk POS Demo CLI');
     Output::info('Available services:');
     Output::blank();
-    Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, get, list)');
+    Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, rename, reassign, decommission, recommission, get, list)');
     Output::info('  shift      - Manage cashier shifts (open, close, force-close, cash-drop)');
     Output::info('  session    - Manage POS sessions (start, new-order, park, resume, checkout, pay, complete, cancel, end)');
     Output::info('               Offline: new-order-offline, sync');
@@ -66,7 +66,12 @@ if ($argc < 2) {
 }
 
 $service = $argv[1];
-$args    = new CliArgs(array_slice($argv, 2));
+try {
+    $args = new CliArgs(array_slice($argv, 2));
+} catch (InvalidArgumentException $e) {
+    Output::error($e->getMessage());
+    exit(1);
+}
 
 if ($service === 'state') {
     $subcommand = $args->positional(0);

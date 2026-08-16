@@ -104,6 +104,10 @@ CommandRegistry (InMemoryHandlerRegistry)
     → ActivateTerminalHandler
     → DisableTerminalHandler
     → SetTerminalMaintenanceHandler
+    → RenameTerminalHandler
+    → ReassignTerminalHandler
+    → DecommissionTerminalHandler
+    → RecommissionTerminalHandler
     → OpenShiftHandler
     → AssignShiftHandler
     → UnassignShiftHandler
@@ -182,6 +186,46 @@ Set terminal to Maintenance mode.
 
 ```bash
 ./demo terminal maintenance --terminal-id=<uuid>
+```
+
+---
+
+#### `rename`
+
+Rename a terminal.
+
+```bash
+./demo terminal rename --name="New Name" [--terminal-id=<uuid>]
+```
+
+---
+
+#### `reassign`
+
+Move a terminal to another branch (refused while the terminal is active — disable or set to maintenance first).
+
+```bash
+./demo terminal reassign --branch-id=<uuid> [--terminal-id=<uuid>]
+```
+
+---
+
+#### `decommission`
+
+Permanently retire a terminal (refused while active). A decommissioned terminal only accepts `recommission`.
+
+```bash
+./demo terminal decommission --reason="end of life" [--terminal-id=<uuid>]
+```
+
+---
+
+#### `recommission`
+
+Return a decommissioned terminal to service; it comes back `disabled` and needs `activate`.
+
+```bash
+./demo terminal recommission --reason="back in service" [--terminal-id=<uuid>]
 ```
 
 ---
