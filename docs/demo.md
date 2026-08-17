@@ -344,6 +344,30 @@ Cash drop recorded.
 
 ---
 
+#### `reconcile`
+
+Rebuild the shift-slot file from the shifts the event store says are open —
+the recovery step for the "slot state is uncertain" error, which a command
+raises when it persisted a shift but could not update its slots (or was
+killed between claiming a cashier and committing the change). Without it a
+terminal or a cashier can stay blocked by a shift that is not open.
+
+```bash
+./demo shift reconcile
+```
+
+Output:
+```
+▶ Shift Slot Reconciliation
+✓ Corrected 2 slot entries.
+  Open shifts holding slots: 1
+```
+
+It discards in-flight claims, so run it only when no other demo command is
+running.
+
+---
+
 ## Service: `session`
 
 ### Commands
@@ -716,7 +740,9 @@ via `--currency`, and ids default to the `last_*` entries in
 
 Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventStore.php`). Each demo command appends events to the file (merge-on-write under an exclusive lock), enabling stateful multi-command sessions.
 
-Both stores (`FileEventStore` and `StateStore`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets both files as a coordinated all-or-nothing operation.
+Both stores (`FileEventStore` and `StateStore`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets all three files (events, ids, shift slots) as a coordinated all-or-nothing operation.
+
+Shift slots live in a third store, `demo/data/shift-slots.json` (same lock/tmp-rename discipline), because one-shift-per-terminal and one-shift-per-cashier need a claim that survives across processes — see `./demo shift reconcile` above for its recovery step.
 
 Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)
 

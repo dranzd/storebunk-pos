@@ -10,8 +10,6 @@ use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
-use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
-use Dranzd\StorebunkPos\Domain\Model\Shift\Shift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
@@ -19,6 +17,7 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Tests\Stub\Repository\CallbackFailingShiftRepository;
 use PHPUnit\Framework\TestCase;
 
 final class AssignShiftHandlerTest extends TestCase
@@ -132,67 +131,82 @@ final class AssignShiftHandlerTest extends TestCase
         $this->openShift($opener);
     }
 
-    public function test_a_losing_assign_does_not_clobber_the_winning_assign(): void
+    public function test_the_opener_cannot_take_a_second_shift_while_an_assign_is_in_flight(): void
     {
-        // Controlled interleaving of two racing assigns: the loser transfers
-        // the slot first, the winner's full assign commits DURING the loser's
-        // failing store, then the loser compensates. Its compensation must be
-        // a no-op — the winner's committed reservation stays.
-        $opener  = new CashierId();
-        $shiftId = $this->openShift($opener);
-        $loserAssignee  = new CashierId();
-        $winnerAssignee = new CashierId();
+        // The interleaving the prepare/commit protocol exists to close: the
+        // opener tries to open another shift DURING a failing assign, i.e.
+        // while their release is proposed but not committed. They must be
+        // refused — otherwise the failed assign's rollback would leave shift
+        // A naming an opener who now operates shift B.
+        $opener   = new CashierId();
+        $shiftId  = $this->openShift($opener);
+        $assignee = new CashierId();
 
-        $winnerHandler = $this->handler;
-        $interleavingRepository = new class (
+        $openerRefused = null;
+        $repository    = new CallbackFailingShiftRepository(
             $this->shiftRepository,
-            static fn () => $winnerHandler(new AssignShift(
-                $shiftId->toNative(),
-                $winnerAssignee->toNative(),
-                []
-            ))
-        ) implements ShiftRepositoryInterface {
-            public bool $failNextStore = true;
-
-            /**
-             * @param callable(): void $onFailingStore
-             */
-            public function __construct(
-                private readonly InMemoryShiftRepository $inner,
-                private $onFailingStore
-            ) {
-            }
-
-            public function load(ShiftId $shiftId): Shift
-            {
-                return $this->inner->load($shiftId);
-            }
-
-            public function store(Shift $shift, ?int $expectedVersion = null): void
-            {
-                if ($this->failNextStore) {
-                    $this->failNextStore = false;
-                    ($this->onFailingStore)();
-                    throw new \RuntimeException('optimistic lock lost');
+            function () use ($opener, &$openerRefused): void {
+                try {
+                    $this->openShift($opener);
+                } catch (InvariantViolationException $refusal) {
+                    $openerRefused = $refusal;
                 }
-                $this->inner->store($shift, $expectedVersion);
-            }
-        };
-        $loserHandler = new AssignShiftHandler($interleavingRepository, $this->slotReservation);
+            },
+            'optimistic lock lost'
+        );
+        $handler = new AssignShiftHandler($repository, $this->slotReservation);
 
         try {
-            $loserHandler(new AssignShift($shiftId->toNative(), $loserAssignee->toNative(), []));
-            $this->fail('Expected the losing store to throw');
+            $handler(new AssignShift($shiftId->toNative(), $assignee->toNative(), []));
+            $this->fail('Expected the failing store to throw');
+        } catch (\RuntimeException $failure) {
+            $this->assertSame('optimistic lock lost', $failure->getMessage());
+        }
+
+        $this->assertNotNull($openerRefused, 'The opener must stay held while the assign is in flight');
+        $this->assertStringContainsString('already has an open shift', $openerRefused->getMessage());
+
+        // After the rollback the opener still operates the shift the
+        // aggregate says they operate, and the assignee is free.
+        $this->openShift($assignee);
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
+        $this->openShift($opener);
+    }
+
+    public function test_a_second_assign_is_refused_while_one_is_in_flight(): void
+    {
+        // Two racing assigns on the same shift: the second one cannot slip in
+        // between the first one's claim and its commit.
+        $shiftId  = $this->openShift();
+        $assignee = new CashierId();
+        $rival    = new CashierId();
+
+        $rivalRefused = null;
+        $repository   = new CallbackFailingShiftRepository(
+            $this->shiftRepository,
+            function () use ($shiftId, $rival, &$rivalRefused): void {
+                try {
+                    ($this->handler)(new AssignShift($shiftId->toNative(), $rival->toNative(), []));
+                } catch (InvariantViolationException $refusal) {
+                    $rivalRefused = $refusal;
+                }
+            }
+        );
+        $handler = new AssignShiftHandler($repository, $this->slotReservation);
+
+        try {
+            $handler(new AssignShift($shiftId->toNative(), $assignee->toNative(), []));
+            $this->fail('Expected the failing store to throw');
         } catch (\RuntimeException) {
         }
 
-        // The winner's assignee still operates the shift; the loser's
-        // assignee and the opener are both free.
-        $this->openShift($loserAssignee);
-        $this->openShift($opener);
-        $this->expectException(InvariantViolationException::class);
-        $this->expectExceptionMessage('already operates another open shift');
-        ($this->handler)(new AssignShift($this->openShift()->toNative(), $winnerAssignee->toNative(), []));
+        $this->assertNotNull($rivalRefused);
+        $this->assertStringContainsString('transfer in flight', $rivalRefused->getMessage());
+
+        // Once the failed assign rolled back, the rival assign succeeds.
+        ($this->handler)(new AssignShift($shiftId->toNative(), $rival->toNative(), []));
+        $this->assertTrue($this->shiftRepository->load($shiftId)->assignee()->sameValueAs($rival));
     }
 
     private function openShift(?CashierId $cashierId = null): ShiftId

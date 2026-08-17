@@ -19,6 +19,7 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Tests\Stub\Repository\CallbackFailingShiftRepository;
 use PHPUnit\Framework\TestCase;
 
 final class UnassignShiftHandlerTest extends TestCase
@@ -76,6 +77,43 @@ final class UnassignShiftHandlerTest extends TestCase
         $this->expectExceptionMessage('already operates another open shift');
 
         ($this->handler)(new UnassignShift($shiftA->toNative()));
+    }
+
+    public function test_the_assignee_cannot_take_a_second_shift_while_an_unassign_is_in_flight(): void
+    {
+        // Mirror of the assign case: the outgoing assignee must stay held
+        // until the unassign is durable, so a failed unassign can roll back
+        // to a state that still matches the aggregate.
+        $shiftId  = $this->openAssignedShift();
+        $assignee = $this->shiftRepository->load($shiftId)->assignee();
+
+        $assigneeRefused = null;
+        $repository      = new CallbackFailingShiftRepository(
+            $this->shiftRepository,
+            function () use ($assignee, &$assigneeRefused): void {
+                try {
+                    $this->openShift($assignee);
+                } catch (InvariantViolationException $refusal) {
+                    $assigneeRefused = $refusal;
+                }
+            }
+        );
+        $handler = new UnassignShiftHandler($repository, $this->slotReservation);
+
+        try {
+            $handler(new UnassignShift($shiftId->toNative()));
+            $this->fail('Expected the failing store to throw');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertNotNull($assigneeRefused, 'The assignee must stay held while the unassign is in flight');
+        $this->assertStringContainsString('already has an open shift', $assigneeRefused->getMessage());
+
+        // The shift is still assigned, and its assignee still holds the slot.
+        $this->assertTrue($this->shiftRepository->load($shiftId)->isAssigned());
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
+        $this->openShift($assignee);
     }
 
     private function openShift(?CashierId $cashierId = null): ShiftId

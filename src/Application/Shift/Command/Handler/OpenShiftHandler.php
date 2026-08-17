@@ -13,6 +13,7 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
 
 /**
  * OpenShiftHandler
@@ -54,9 +55,15 @@ final class OpenShiftHandler
         } catch (\Throwable $failure) {
             try {
                 $this->slotReservation->releaseShift($command->shiftId);
-            } catch (\Throwable) {
-                // The original persistence failure is the actionable error;
-                // a stale slot is recoverable (it releases on close/reset).
+            } catch (\Throwable $cleanupFailure) {
+                // The original failure is preserved as the cause; a slot left
+                // claimed for a shift that does not exist would otherwise
+                // block the terminal with nothing pointing at the reason.
+                throw SlotCleanupFailedException::afterFailedCommand(
+                    $command->shiftId,
+                    $failure,
+                    $cleanupFailure
+                );
             }
             throw $failure;
         }

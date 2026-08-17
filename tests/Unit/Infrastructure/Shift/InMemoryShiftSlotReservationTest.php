@@ -68,19 +68,37 @@ final class InMemoryShiftSlotReservationTest extends TestCase
         $this->reservation->releaseShift('shift-1');
     }
 
-    public function test_transfer_moves_the_cashier_slot_and_reports_the_previous_holder(): void
+    public function test_a_committed_transfer_moves_the_cashier_slot(): void
     {
         $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
 
-        $previous = $this->reservation->transferCashier('shift-1', 'cash-2');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
+        $this->reservation->commitTransfer('shift-1', 'cash-2');
 
-        $this->assertSame('cash-1', $previous);
-
-        // The previous holder is free again; the new holder is not.
+        // Only once committed is the previous holder free again.
         $this->reservation->reserveForOpen(self::TERM_2, 'cash-1', 'shift-2');
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('already has an open shift');
         $this->reservation->reserveForOpen(self::TERM_3, 'cash-2', 'shift-3');
+    }
+
+    public function test_an_in_flight_transfer_keeps_the_outgoing_cashier_busy(): void
+    {
+        // The heart of the prepare/commit protocol: while the aggregate
+        // change is unpersisted, BOTH cashiers are held, so neither can pick
+        // up another open shift on the strength of a change that may fail.
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
+
+        try {
+            $this->reservation->reserveForOpen(self::TERM_2, 'cash-2', 'shift-2');
+            $this->fail('Expected the incoming cashier to be held');
+        } catch (InvariantViolationException) {
+        }
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
+        $this->reservation->reserveForOpen(self::TERM_2, 'cash-1', 'shift-2');
     }
 
     public function test_transfer_to_a_cashier_holding_another_shift_is_refused(): void
@@ -91,14 +109,29 @@ final class InMemoryShiftSlotReservationTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('already operates another open shift');
 
-        $this->reservation->transferCashier('shift-1', 'cash-2');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
     }
 
     public function test_transfer_to_the_current_holder_is_a_no_op(): void
     {
         $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
 
-        $this->assertNull($this->reservation->transferCashier('shift-1', 'cash-1'));
+        $this->expectNotToPerformAssertions();
+
+        $this->reservation->prepareTransfer('shift-1', 'cash-1');
+        $this->reservation->commitTransfer('shift-1', 'cash-1');
+        $this->reservation->abortTransfer('shift-1', 'cash-1');
+    }
+
+    public function test_a_second_transfer_of_the_same_shift_is_refused_while_one_is_in_flight(): void
+    {
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has a cashier transfer in flight');
+
+        $this->reservation->prepareTransfer('shift-1', 'cash-3');
     }
 
     public function test_reserving_an_already_claimed_shift_id_is_refused(): void
@@ -123,56 +156,101 @@ final class InMemoryShiftSlotReservationTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('holds no cashier slot');
 
-        $this->reservation->transferCashier('shift-1', 'cash-2');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
     }
 
-    public function test_compensation_restores_the_previous_holder_when_nothing_moved_on(): void
+    public function test_aborting_leaves_the_shift_exactly_as_it_was(): void
     {
         $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
-        $this->reservation->transferCashier('shift-1', 'cash-2');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
 
-        $this->reservation->compensateTransfer('shift-1', 'cash-1', 'cash-2');
+        $this->reservation->abortTransfer('shift-1', 'cash-2');
 
-        // cash-1 operates shift-1 again; cash-2 is free.
+        // cash-1 still operates shift-1 (they never gave the slot up) and
+        // cash-2 is free again.
         $this->reservation->reserveForOpen(self::TERM_2, 'cash-2', 'shift-2');
         $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
         $this->reservation->reserveForOpen(self::TERM_3, 'cash-1', 'shift-3');
     }
 
-    public function test_compensation_is_a_no_op_when_a_newer_command_moved_the_slot(): void
+    public function test_an_abort_cannot_be_outrun_by_the_outgoing_cashier(): void
     {
-        // Stale command transferred to cash-2, then a NEWER command moved the
-        // slot to cash-3 and committed. The stale compensation must not
-        // overwrite that committed state.
+        // The failure mode the prepare/commit protocol exists to close: while
+        // the transfer was in flight, the outgoing cashier tried to open
+        // another shift. They are refused, so the abort restores a state that
+        // still matches the (unchanged) aggregate.
         $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
-        $this->reservation->transferCashier('shift-1', 'cash-2');
-        $this->reservation->transferCashier('shift-1', 'cash-3');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
 
-        $this->reservation->compensateTransfer('shift-1', 'cash-1', 'cash-2');
+        try {
+            $this->reservation->reserveForOpen(self::TERM_2, 'cash-1', 'shift-2');
+            $this->fail('Expected the outgoing cashier to still be held');
+        } catch (InvariantViolationException) {
+        }
 
-        // cash-3 still operates shift-1; cash-1 and cash-2 are free.
-        $this->reservation->reserveForOpen(self::TERM_2, 'cash-1', 'shift-2');
-        $this->reservation->reserveForOpen(self::TERM_3, 'cash-2', 'shift-3');
+        $this->reservation->abortTransfer('shift-1', 'cash-2');
+
+        // shift-1 is still operated by cash-1 — no slotless open shift.
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('already operates another open shift');
-        $this->reservation->transferCashier('shift-2', 'cash-3');
+        $this->reservation->reserveForOpen(self::TERM_2, 'cash-3', 'shift-2');
+        $this->reservation->prepareTransfer('shift-2', 'cash-1');
     }
 
-    public function test_compensation_never_steals_a_slot_the_target_since_acquired(): void
+    public function test_commit_and_abort_are_no_ops_without_a_matching_preparation(): void
     {
-        // While the stale command was failing, its previous holder opened a
-        // NEW shift. Compensation must drop the stale claim, not clobber the
-        // previous holder's new slot.
         $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
-        $this->reservation->transferCashier('shift-1', 'cash-2');
-        $this->reservation->reserveForOpen(self::TERM_2, 'cash-1', 'shift-2');
 
-        $this->reservation->compensateTransfer('shift-1', 'cash-1', 'cash-2');
+        $this->reservation->commitTransfer('shift-1', 'cash-2');
+        $this->reservation->abortTransfer('shift-1', 'cash-2');
 
-        // cash-1 still operates shift-2 (not clobbered) and cash-2 is free.
-        $this->reservation->reserveForOpen(self::TERM_3, 'cash-2', 'shift-3');
+        // Nothing moved: cash-1 still holds shift-1, cash-2 is still free.
+        $this->reservation->reserveForOpen(self::TERM_2, 'cash-2', 'shift-2');
         $this->expectException(InvariantViolationException::class);
-        $this->expectExceptionMessage('already operates another open shift');
-        $this->reservation->transferCashier('shift-3', 'cash-1');
+        $this->expectExceptionMessage('already has an open shift');
+        $this->reservation->reserveForOpen(self::TERM_3, 'cash-1', 'shift-3');
+    }
+
+    public function test_reconcile_drops_slots_with_no_open_shift_behind_them(): void
+    {
+        // A shift whose store failed after its slots were claimed, plus a
+        // transfer abandoned mid-flight: both block until reconciliation.
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
+        $this->reservation->reserveForOpen(self::TERM_2, 'cash-2', 'shift-2');
+        $this->reservation->prepareTransfer('shift-2', 'cash-3');
+
+        $corrections = $this->reservation->reconcile([
+            'shift-1' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-1'],
+        ]);
+
+        // shift-2's terminal slot, its cashier slot and the in-flight claim.
+        $this->assertSame(3, $corrections);
+
+        // The freed terminal and cashier can be claimed again.
+        $this->reservation->reserveForOpen(self::TERM_2, 'cash-2', 'shift-3');
+    }
+
+    public function test_reconcile_reports_nothing_when_the_slots_already_match(): void
+    {
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
+
+        $this->assertSame(0, $this->reservation->reconcile([
+            'shift-1' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-1'],
+        ]));
+    }
+
+    public function test_reconcile_restores_slots_a_committed_shift_should_hold(): void
+    {
+        // The mirror case: a shift that IS open but whose slots were lost.
+        $corrections = $this->reservation->reconcile([
+            'shift-1' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-1'],
+        ]);
+
+        $this->assertSame(2, $corrections);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-2', 'shift-2');
     }
 }

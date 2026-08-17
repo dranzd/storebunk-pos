@@ -28,20 +28,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UnassignShift` refuses when the original opener does (unassigning hands
   the shift back to them, via the new `Shift::openedBy()` accessor).
 - Atomic shift-slot reservations (issue 8003): the new
-  `ShiftSlotReservationInterface` (`reserveForOpen` / `transferCashier` /
-  `releaseShift`) is the concurrency authority for those invariants —
-  open/assign/unassign claim or move slots BEFORE storing (compensating on
-  store failure), close/force-close release them, and the five shift
-  handler constructors take the port. Ships with a single-process
+  `ShiftSlotReservationInterface` (`reserveForOpen` / `prepareTransfer` /
+  `commitTransfer` / `abortTransfer` / `releaseShift` / `reconcile`) is the
+  concurrency authority for those invariants — open claims slots BEFORE
+  storing, close/force-close release them after, and the five shift handler
+  constructors take the port. Ships with a single-process
   `InMemoryShiftSlotReservation` and a file-lock-backed demo
   implementation; two concurrent demo `shift open` commands now resolve to
-  exactly one winner. Compensation is compare-and-swap
-  (`compensateTransfer`) so a losing command never overwrites a newer
-  command's committed reservation; the shift id itself is claimed on open
-  and transfers refuse closed shifts. Demo `state clear` resets events,
-  state, and shift slots as one coordinated, recoverable operation.
-  `ShiftReadModelInterface` is query state only (the briefly-added
-  enforcement-map methods are gone again).
+  exactly one winner. Moving a shift's cashier runs as prepare → store →
+  commit: the outgoing cashier keeps their slot for the whole in-flight
+  window, so a failed assign/unassign rolls back to a state that still
+  matches the aggregate instead of freeing someone who may already have
+  taken another shift. The shift id itself is claimed on open, transfers
+  refuse closed shifts and shifts with a transfer already in flight, and a
+  cleanup that fails after a command persisted raises
+  `SlotCleanupFailedException` (original failure preserved as the cause)
+  pointing at `reconcile` — exposed as `./demo shift reconcile`, which
+  rebuilds the slots from the committed shifts. The slot algebra shared by
+  every implementation lives in one place, `ShiftSlotBook`. Demo
+  `state clear` resets events, state, and shift slots as one coordinated,
+  recoverable operation. `ShiftReadModelInterface` is query state only (the
+  briefly-added enforcement-map methods are gone again).
 
 ### Changed
 

@@ -11,6 +11,7 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
 
 /**
  * CloseShiftHandler
@@ -45,6 +46,13 @@ final class CloseShiftHandler
         ]));
         $this->shiftRepository->store($shift);
 
-        $this->slotReservation->releaseShift($command->shiftId);
+        try {
+            $this->slotReservation->releaseShift($command->shiftId);
+        } catch (\Throwable $cleanupFailure) {
+            // The shift IS closed; saying so — rather than surfacing a bare
+            // storage error — is what tells the operator the terminal is
+            // blocked by leftover slots, not by an open shift.
+            throw SlotCleanupFailedException::afterCommittedCommand($command->shiftId, $cleanupFailure);
+        }
     }
 }

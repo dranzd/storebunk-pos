@@ -8,14 +8,17 @@ use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
 
 /**
  * UnassignShiftHandler
  *
  * Handles the UnassignShift command by clearing the shift's membership,
- * returning operation of the shift to its original opener. The cashier slot
- * moves back atomically, so an opener who meanwhile operates another open
- * shift is refused; a failed store moves the slot forward again.
+ * returning operation of the shift to its original opener. The opener's slot
+ * is claimed before the store and only made final after it, while the
+ * outgoing assignee keeps theirs throughout — so an opener who meanwhile
+ * operates another open shift is refused, and a failed store leaves the
+ * assignee exactly where they were.
  */
 final class UnassignShiftHandler
 {
@@ -31,26 +34,29 @@ final class UnassignShiftHandler
         $shift->unassign();
 
         $openerCashierId = $shift->openedBy()->toNative();
-        $previousHolder  = $this->slotReservation->transferCashier(
-            $command->shiftId,
-            $openerCashierId
-        );
+        $this->slotReservation->prepareTransfer($command->shiftId, $openerCashierId);
 
         try {
             $this->shiftRepository->store($shift);
         } catch (\Throwable $failure) {
-            if ($previousHolder !== null) {
-                try {
-                    $this->slotReservation->compensateTransfer(
-                        $command->shiftId,
-                        $previousHolder,
-                        $openerCashierId
-                    );
-                } catch (\Throwable) {
-                    // Never mask the original persistence failure.
-                }
+            try {
+                $this->slotReservation->abortTransfer($command->shiftId, $openerCashierId);
+            } catch (\Throwable $cleanupFailure) {
+                // The original failure is preserved as the cause; the
+                // uncertain slot state must not stay silent.
+                throw SlotCleanupFailedException::afterFailedCommand(
+                    $command->shiftId,
+                    $failure,
+                    $cleanupFailure
+                );
             }
             throw $failure;
+        }
+
+        try {
+            $this->slotReservation->commitTransfer($command->shiftId, $openerCashierId);
+        } catch (\Throwable $cleanupFailure) {
+            throw SlotCleanupFailedException::afterCommittedCommand($command->shiftId, $cleanupFailure);
         }
     }
 }

@@ -4,100 +4,60 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Infrastructure\Shift\Reservation;
 
-use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
+use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
-use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 /**
  * Single-process reference implementation. PHP requests are single-threaded,
  * so plain array operations are atomic here; multi-process hosts need an
  * implementation with real shared-state atomicity (see the interface).
- * The occupancy RULES stay in MultiTerminalEnforcementService — this class
- * only adds slot state and the atomicity boundary.
+ * The bookkeeping — including the prepare/commit/abort protocol — lives in
+ * ShiftSlotBook; this class only holds the state and the atomicity boundary.
+ *
+ * @phpstan-import-type SlotState from ShiftSlotBook
  */
 final class InMemoryShiftSlotReservation implements ShiftSlotReservationInterface
 {
-    /** @var array<string, string> terminalId => shiftId */
-    private array $terminalSlots = [];
-
-    /** @var array<string, string> cashierId => shiftId */
-    private array $cashierSlots = [];
+    /** @var SlotState */
+    private array $slots;
 
     public function __construct(
-        private readonly MultiTerminalEnforcementService $multiTerminalEnforcement = new MultiTerminalEnforcementService()
+        private readonly ShiftSlotBook $slotBook = new ShiftSlotBook()
     ) {
+        $this->slots = $this->slotBook->emptyState();
     }
 
     final public function reserveForOpen(string $terminalId, string $cashierId, string $shiftId): void
     {
-        if (in_array($shiftId, $this->terminalSlots, true) || in_array($shiftId, $this->cashierSlots, true)) {
-            throw InvariantViolationException::withMessage(
-                sprintf('Shift "%s" already holds open-shift slots', $shiftId)
-            );
-        }
-        $this->multiTerminalEnforcement->assertTerminalHasNoOpenShift(
-            TerminalId::fromNative($terminalId),
-            $this->terminalSlots
-        );
-        $this->multiTerminalEnforcement->assertCashierHasNoOpenShift(
-            $cashierId,
-            $this->cashierSlots
-        );
-
-        $this->terminalSlots[$terminalId] = $shiftId;
-        $this->cashierSlots[$cashierId]   = $shiftId;
+        $this->slots = $this->slotBook->reserveForOpen($this->slots, $terminalId, $cashierId, $shiftId);
     }
 
-    final public function transferCashier(string $shiftId, string $newCashierId): ?string
+    final public function prepareTransfer(string $shiftId, string $newCashierId): void
     {
-        if (!in_array($shiftId, $this->cashierSlots, true)) {
-            throw InvariantViolationException::withMessage(
-                sprintf('Shift "%s" holds no cashier slot; it is not open here', $shiftId)
-            );
-        }
-        $this->multiTerminalEnforcement->assertCashierFreeForShift(
-            $newCashierId,
-            $shiftId,
-            $this->cashierSlots
-        );
-
-        $previousHolder = null;
-        foreach ($this->cashierSlots as $cashierId => $heldShiftId) {
-            if ($heldShiftId === $shiftId && $cashierId !== $newCashierId) {
-                $previousHolder = $cashierId;
-                unset($this->cashierSlots[$cashierId]);
-            }
-        }
-
-        $this->cashierSlots[$newCashierId] = $shiftId;
-
-        return $previousHolder;
+        $this->slots = $this->slotBook->prepareTransfer($this->slots, $shiftId, $newCashierId);
     }
 
-    final public function compensateTransfer(string $shiftId, string $backToCashierId, string $ifHeldBy): void
+    final public function commitTransfer(string $shiftId, string $newCashierId): void
     {
-        // Undo only OUR transfer: a newer command's committed state wins.
-        if (($this->cashierSlots[$ifHeldBy] ?? null) !== $shiftId) {
-            return;
-        }
-        unset($this->cashierSlots[$ifHeldBy]);
+        $this->slots = $this->slotBook->commitTransfer($this->slots, $shiftId, $newCashierId);
+    }
 
-        $backToCurrent = $this->cashierSlots[$backToCashierId] ?? null;
-        if ($backToCurrent === null || $backToCurrent === $shiftId) {
-            $this->cashierSlots[$backToCashierId] = $shiftId;
-        }
+    final public function abortTransfer(string $shiftId, string $newCashierId): void
+    {
+        $this->slots = $this->slotBook->abortTransfer($this->slots, $shiftId, $newCashierId);
     }
 
     final public function releaseShift(string $shiftId): void
     {
-        $this->terminalSlots = array_filter(
-            $this->terminalSlots,
-            static fn(string $heldShiftId): bool => $heldShiftId !== $shiftId
-        );
-        $this->cashierSlots = array_filter(
-            $this->cashierSlots,
-            static fn(string $heldShiftId): bool => $heldShiftId !== $shiftId
-        );
+        $this->slots = $this->slotBook->releaseShift($this->slots, $shiftId);
+    }
+
+    final public function reconcile(array $openShiftsById): int
+    {
+        $reconciled  = $this->slotBook->stateFor($openShiftsById);
+        $corrections = $this->slotBook->correctionCount($this->slots, $reconciled);
+        $this->slots = $reconciled;
+
+        return $corrections;
     }
 }

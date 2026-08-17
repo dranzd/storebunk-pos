@@ -4,24 +4,28 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Demo\Cli;
 
-use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
+use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
-use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 /**
  * Cross-process implementation of the shift slot reservation for the demo
  * CLI: every mutation re-reads the CURRENT slot file and writes it back
  * under the sidecar lock, so two concurrent demo processes serialise on the
  * check-and-claim — the atomicity the read model alone cannot give
- * (reported issue 8003). Occupancy RULES stay in
- * MultiTerminalEnforcementService; this class adds state and atomicity.
+ * (reported issue 8003). The bookkeeping itself lives in ShiftSlotBook;
+ * this class adds the persisted state and the atomicity boundary.
+ *
+ * In-flight (prepared) claims are persisted alongside committed slots, so a
+ * demo process killed mid-command leaves a claim behind on purpose: it keeps
+ * blocking until "./demo shift reconcile" rebuilds the file from the events.
+ *
+ * @phpstan-import-type SlotState from ShiftSlotBook
  */
 final class FileShiftSlotReservation implements ShiftSlotReservationInterface
 {
     public function __construct(
         private readonly string $filePath,
-        private readonly MultiTerminalEnforcementService $multiTerminalEnforcement = new MultiTerminalEnforcementService()
+        private readonly ShiftSlotBook $slotBook = new ShiftSlotBook()
     ) {
     }
 
@@ -34,105 +38,86 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
         return $dir . '/shift-slots.json';
     }
 
+    /**
+     * Shape the shift read model's open-shift rows the way the port expects
+     * them — the committed authority both seeding and reconciliation compare
+     * the slot file against.
+     *
+     * @param array<int, array<string, mixed>> $openShiftRows
+     *
+     * @return array<string, array{terminal_id: string, cashier_id: string}>
+     */
+    public static function openShiftsById(array $openShiftRows): array
+    {
+        $byId = [];
+        foreach ($openShiftRows as $shift) {
+            $byId[(string) $shift['shift_id']] = [
+                'terminal_id' => (string) $shift['terminal_id'],
+                'cashier_id'  => (string) $shift['cashier_id'],
+            ];
+        }
+
+        return $byId;
+    }
+
     final public function reserveForOpen(string $terminalId, string $cashierId, string $shiftId): void
     {
-        $this->mutate(function (array $slots) use ($terminalId, $cashierId, $shiftId): array {
-            if (
-                in_array($shiftId, $slots['terminals'], true)
-                || in_array($shiftId, $slots['cashiers'], true)
-            ) {
-                throw InvariantViolationException::withMessage(
-                    sprintf('Shift "%s" already holds open-shift slots', $shiftId)
-                );
-            }
-            $this->multiTerminalEnforcement->assertTerminalHasNoOpenShift(
-                TerminalId::fromNative($terminalId),
-                $slots['terminals']
-            );
-            $this->multiTerminalEnforcement->assertCashierHasNoOpenShift(
-                $cashierId,
-                $slots['cashiers']
-            );
-
-            $slots['terminals'][$terminalId] = $shiftId;
-            $slots['cashiers'][$cashierId]   = $shiftId;
-
-            return $slots;
-        });
+        $this->mutate(
+            fn (array $slots): array => $this->slotBook->reserveForOpen($slots, $terminalId, $cashierId, $shiftId)
+        );
     }
 
-    final public function transferCashier(string $shiftId, string $newCashierId): ?string
+    final public function prepareTransfer(string $shiftId, string $newCashierId): void
     {
-        $previousHolder = null;
-        $this->mutate(function (array $slots) use ($shiftId, $newCashierId, &$previousHolder): array {
-            if (!in_array($shiftId, $slots['cashiers'], true)) {
-                throw InvariantViolationException::withMessage(
-                    sprintf('Shift "%s" holds no cashier slot; it is not open here', $shiftId)
-                );
-            }
-            $this->multiTerminalEnforcement->assertCashierFreeForShift(
-                $newCashierId,
-                $shiftId,
-                $slots['cashiers']
-            );
-
-            foreach ($slots['cashiers'] as $cashierId => $heldShiftId) {
-                if ($heldShiftId === $shiftId && $cashierId !== $newCashierId) {
-                    $previousHolder = $cashierId;
-                    unset($slots['cashiers'][$cashierId]);
-                }
-            }
-            $slots['cashiers'][$newCashierId] = $shiftId;
-
-            return $slots;
-        });
-
-        return $previousHolder;
+        $this->mutate(
+            fn (array $slots): array => $this->slotBook->prepareTransfer($slots, $shiftId, $newCashierId)
+        );
     }
 
-    final public function compensateTransfer(string $shiftId, string $backToCashierId, string $ifHeldBy): void
+    final public function commitTransfer(string $shiftId, string $newCashierId): void
     {
-        $this->mutate(static function (array $slots) use ($shiftId, $backToCashierId, $ifHeldBy): array {
-            // Undo only OUR transfer: a newer command's committed state wins.
-            if (($slots['cashiers'][$ifHeldBy] ?? null) !== $shiftId) {
-                return $slots;
-            }
-            unset($slots['cashiers'][$ifHeldBy]);
+        $this->mutate(
+            fn (array $slots): array => $this->slotBook->commitTransfer($slots, $shiftId, $newCashierId)
+        );
+    }
 
-            $backToCurrent = $slots['cashiers'][$backToCashierId] ?? null;
-            if ($backToCurrent === null || $backToCurrent === $shiftId) {
-                $slots['cashiers'][$backToCashierId] = $shiftId;
-            }
-
-            return $slots;
-        });
+    final public function abortTransfer(string $shiftId, string $newCashierId): void
+    {
+        $this->mutate(
+            fn (array $slots): array => $this->slotBook->abortTransfer($slots, $shiftId, $newCashierId)
+        );
     }
 
     final public function releaseShift(string $shiftId): void
     {
-        $this->mutate(static function (array $slots) use ($shiftId): array {
-            $slots['terminals'] = array_filter(
-                $slots['terminals'],
-                static fn(string $heldShiftId): bool => $heldShiftId !== $shiftId
-            );
-            $slots['cashiers'] = array_filter(
-                $slots['cashiers'],
-                static fn(string $heldShiftId): bool => $heldShiftId !== $shiftId
-            );
+        $this->mutate(
+            fn (array $slots): array => $this->slotBook->releaseShift($slots, $shiftId)
+        );
+    }
 
-            return $slots;
+    final public function reconcile(array $openShiftsById): int
+    {
+        $corrections = 0;
+        $this->mutate(function (array $slots) use ($openShiftsById, &$corrections): array {
+            $reconciled  = $this->slotBook->stateFor($openShiftsById);
+            $corrections = $this->slotBook->correctionCount($slots, $reconciled);
+
+            return $reconciled;
         });
+
+        return $corrections;
     }
 
     /**
      * Rebuild the slot file from the currently open shifts when it does not
      * exist yet (first run after upgrade, or a fresh scratch directory whose
      * event file was copied in). Existing files are left untouched — they
-     * are the live authority.
+     * are the live authority, and reconciling them here would discard the
+     * in-flight claims of a concurrently running demo process.
      *
-     * @param array<int, array<string, mixed>> $openShifts rows from the shift read model
+     * @param array<string, array{terminal_id: string, cashier_id: string}> $openShiftsById
      */
-    final public function seedIfMissing(array $openShifts): void
+    final public function seedIfMissing(array $openShiftsById): void
     {
         $lockHandle = $this->acquireLock();
 
@@ -141,12 +126,7 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
                 return;
             }
 
-            $slots = ['terminals' => [], 'cashiers' => []];
-            foreach ($openShifts as $shift) {
-                $slots['terminals'][(string) $shift['terminal_id']] = (string) $shift['shift_id'];
-                $slots['cashiers'][(string) $shift['cashier_id']]   = (string) $shift['shift_id'];
-            }
-            $this->persist($slots);
+            $this->persist($this->slotBook->stateFor($openShiftsById));
         } finally {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
@@ -154,7 +134,7 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
     }
 
     /**
-     * @param callable(array{terminals: array<string, string>, cashiers: array<string, string>}): array{terminals: array<string, string>, cashiers: array<string, string>} $mutation
+     * @param callable(SlotState): SlotState $mutation
      */
     private function mutate(callable $mutation): void
     {
@@ -169,12 +149,12 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
     }
 
     /**
-     * @return array{terminals: array<string, string>, cashiers: array<string, string>}
+     * @return SlotState
      */
     private function readFromDisk(): array
     {
         if (!is_file($this->filePath)) {
-            return ['terminals' => [], 'cashiers' => []];
+            return $this->slotBook->emptyState();
         }
 
         $raw = @file_get_contents($this->filePath);
@@ -185,7 +165,7 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
             ));
         }
         if (trim($raw) === '') {
-            return ['terminals' => [], 'cashiers' => []];
+            return $this->slotBook->emptyState();
         }
 
         $decoded = json_decode($raw, true);
@@ -197,15 +177,28 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
             ));
         }
 
-        return ['terminals' => $decoded['terminals'], 'cashiers' => $decoded['cashiers']];
+        return [
+            'terminals' => $decoded['terminals'],
+            'cashiers'  => $decoded['cashiers'],
+            // Files written before the prepare/commit protocol have no
+            // in-flight bucket; an absent one simply means "nothing pending".
+            'pending'   => is_array($decoded['pending_cashiers'] ?? null) ? $decoded['pending_cashiers'] : [],
+        ];
     }
 
     /**
-     * @param array{terminals: array<string, string>, cashiers: array<string, string>} $slots
+     * @param SlotState $slots
      */
     private function persist(array $slots): void
     {
-        $encoded = json_encode($slots, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $encoded = json_encode(
+            [
+                'terminals'        => $slots['terminals'],
+                'cashiers'         => $slots['cashiers'],
+                'pending_cashiers' => $slots['pending'],
+            ],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
         if ($encoded === false) {
             throw new \RuntimeException('Demo shift slots could not be JSON-encoded; slots NOT saved.');
         }

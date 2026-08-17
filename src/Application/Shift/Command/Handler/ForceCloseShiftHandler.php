@@ -8,6 +8,7 @@ use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
 
 /**
  * ForceCloseShiftHandler
@@ -29,6 +30,12 @@ final class ForceCloseShiftHandler
         $shift->forceClose($command->supervisorId, $command->reason);
         $this->shiftRepository->store($shift);
 
-        $this->slotReservation->releaseShift($command->shiftId);
+        try {
+            $this->slotReservation->releaseShift($command->shiftId);
+        } catch (\Throwable $cleanupFailure) {
+            // The shift IS force-closed; the leftover slots are the part that
+            // still needs an operator's attention.
+            throw SlotCleanupFailedException::afterCommittedCommand($command->shiftId, $cleanupFailure);
+        }
     }
 }

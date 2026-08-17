@@ -80,7 +80,7 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
+use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
@@ -119,10 +119,10 @@ $paymentService    = new StubPaymentService();
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
-$multiTerminalEnforcement = new MultiTerminalEnforcementService();
+$shiftSlotBook        = new ShiftSlotBook();
 $shiftSlotReservation = new FileShiftSlotReservation(
     FileShiftSlotReservation::defaultPath(),
-    $multiTerminalEnforcement
+    $shiftSlotBook
 );
 
 // ── Rebuild offline-sync state from persisted events ─────────────────────────
@@ -177,7 +177,9 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
 // Seed the shift-slot reservation file from replayed events when it does
 // not exist yet; once present, the FILE is the live cross-process authority
 // (see FileShiftSlotReservation / issue 8003).
-$shiftSlotReservation->seedIfMissing($shiftReadModel->getOpenShifts());
+$shiftSlotReservation->seedIfMissing(
+    FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts())
+);
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -267,4 +269,6 @@ return [
     'pendingSyncQueue'  => $pendingSyncQueue,
     'idempotencyReg'    => $idempotencyRegistry,
     'stateStore'        => $stateStore,
+    'shiftReadModel'    => $shiftReadModel,
+    'shiftSlots'        => $shiftSlotReservation,
 ];

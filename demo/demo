@@ -39,6 +39,8 @@ $terminalReadModel = $container['terminalReadModel'];
 $orderingService   = $container['orderingService'];
 $paymentService    = $container['paymentService'];
 $stateStore        = $container['stateStore'];
+$shiftReadModel    = $container['shiftReadModel'];
+$shiftSlots        = $container['shiftSlots'];
 
 global $eventStore;
 
@@ -51,7 +53,8 @@ if ($argc < 2) {
     Output::info('Available services:');
     Output::blank();
     Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, rename, reassign, decommission, recommission, get, list)');
-    Output::info('  shift      - Manage cashier shifts (open, close, force-close, cash-drop)');
+    Output::info('  shift      - Manage cashier shifts (open, assign, unassign, close, force-close, cash-drop)');
+    Output::info('               Recovery: reconcile (rebuild shift slots from the events)');
     Output::info('  session    - Manage POS sessions (start, new-order, park, resume, checkout, pay, complete, cancel, end)');
     Output::info('               Offline: new-order-offline, sync');
     Output::blank();
@@ -107,7 +110,7 @@ try {
             handleTerminal($commandBus, $terminalReadModel, $stateStore, $subcommand, $args);
             break;
         case 'shift':
-            handleShift($commandBus, $stateStore, $subcommand, $args);
+            handleShift($commandBus, $stateStore, $shiftReadModel, $shiftSlots, $subcommand, $args);
             break;
         case 'session':
             handleSession($commandBus, $stateStore, $orderingService, $paymentService, $subcommand, $args);
