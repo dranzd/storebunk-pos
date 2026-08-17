@@ -183,8 +183,8 @@ $handlers = [
 
     // Shift
     OpenShift::class        => new OpenShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
-    AssignShift::class      => new AssignShiftHandler($shiftRepository),
-    UnassignShift::class    => new UnassignShiftHandler($shiftRepository),
+    AssignShift::class      => new AssignShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
+    UnassignShift::class    => new UnassignShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
     CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
     ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),

@@ -438,8 +438,8 @@ interface PaymentServiceInterface
 
 | # | Invariant | Enforced By |
 |---|-----------|-------------|
-| 1 | One cashier = one terminal per open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model |
-| 2 | One terminal = one open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model |
+| 1 | One cashier = one terminal per open shift | Open/Assign/UnassignShiftHandler via MultiTerminalEnforcementService + shift read model¹ |
+| 2 | One terminal = one open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model¹ |
 | 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftCloseBlockPolicy |
 | 4 | Checkout locks order lines | PosSession + Ordering BC |
 | 5 | Payment cannot apply without Confirmed state | PosSession |
@@ -448,6 +448,8 @@ interface PaymentServiceInterface
 | 8 | Cash drawer only affected by defined cash movements | Shift aggregate |
 | 9 | No expense withdrawal in POS | Shift aggregate |
 | 10 | POS never owns pricing, tax, stock deduction, or ledger logic | Architecture boundary |
+
+¹ Enforced serially via a check against the shift read model; the check and the store are not one atomic operation, so truly concurrent commands can both pass. Hosts needing hard uniqueness under concurrency must back it at their persistence boundary — see reported issue 8003.
 
 ---
 

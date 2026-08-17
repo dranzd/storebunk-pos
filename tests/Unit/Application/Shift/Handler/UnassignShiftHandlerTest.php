@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Tests\Unit\Application\Shift\Handler;
 
+use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
 use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
@@ -11,6 +12,8 @@ use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\UnassignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -26,13 +29,19 @@ final class UnassignShiftHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
+    private InMemoryShiftReadModel $readModel;
     private UnassignShiftHandler $handler;
 
     protected function setUp(): void
     {
         $this->eventStore      = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->handler         = new UnassignShiftHandler($this->shiftRepository);
+        $this->readModel       = new InMemoryShiftReadModel();
+        $this->handler         = new UnassignShiftHandler(
+            $this->shiftRepository,
+            new MultiTerminalEnforcementService(),
+            $this->readModel
+        );
     }
 
     public function test_clears_membership_back_to_open(): void
@@ -63,9 +72,25 @@ final class UnassignShiftHandlerTest extends TestCase
         ($this->handler)(new UnassignShift($shiftId->toNative()));
     }
 
-    private function openShift(): ShiftId
+    public function test_refuses_unassign_when_the_opener_operates_another_open_shift(): void
     {
-        $shiftId = new ShiftId();
+        // Opener opens shift A, hands it to an assignee, then opens shift B.
+        // Unassigning A would give the opener two open shifts — refused.
+        $opener  = new CashierId();
+        $shiftA  = $this->openAssignedShift($opener);
+        $this->openShift($opener);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already operates another open shift');
+
+        ($this->handler)(new UnassignShift($shiftA->toNative()));
+    }
+
+    private function openShift(?CashierId $cashierId = null): ShiftId
+    {
+        $shiftId    = new ShiftId();
+        $cashierId ??= new CashierId();
+        $terminalId = new TerminalId();
         $openHandler = new OpenShiftHandler(
             $this->shiftRepository,
             new MultiTerminalEnforcementService(),
@@ -73,24 +98,45 @@ final class UnassignShiftHandlerTest extends TestCase
         );
         $openHandler(new OpenShift(
             $shiftId->toNative(),
-            (new TerminalId())->toNative(),
+            $terminalId->toNative(),
             (new BranchId())->toNative(),
-            (new CashierId())->toNative(),
+            $cashierId->toNative(),
             50000,
             'PHP'
+        ));
+
+        // Mirror the host's projection step so the unassign guard sees it.
+        $this->readModel->onShiftOpened(ShiftOpened::occur(
+            $shiftId,
+            $terminalId,
+            new BranchId(),
+            $cashierId,
+            Money::fromArray(['amount' => 50000, 'currency' => 'PHP']),
+            new \DateTimeImmutable()
         ));
 
         return $shiftId;
     }
 
-    private function openAssignedShift(): ShiftId
+    private function openAssignedShift(?CashierId $opener = null): ShiftId
     {
-        $shiftId = $this->openShift();
-        $assignHandler = new AssignShiftHandler($this->shiftRepository);
+        $shiftId  = $this->openShift($opener);
+        $assignee = new CashierId();
+        $assignHandler = new AssignShiftHandler(
+            $this->shiftRepository,
+            new MultiTerminalEnforcementService(),
+            $this->readModel
+        );
         $assignHandler(new AssignShift(
             $shiftId->toNative(),
-            (new CashierId())->toNative(),
+            $assignee->toNative(),
             [(new CashierId())->toNative()]
+        ));
+        $this->readModel->onShiftAssigned(ShiftAssigned::occur(
+            $shiftId,
+            $assignee,
+            [],
+            new \DateTimeImmutable()
         ));
 
         return $shiftId;

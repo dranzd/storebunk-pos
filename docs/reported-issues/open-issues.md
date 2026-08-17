@@ -12,7 +12,7 @@ _(none)_
 
 #### 🟠 High
 
-_(none)_
+- [ ] [8003](8000-concurrency/8003-shift-enforcement-not-atomic.md) — Shift enforcement is check-then-store; concurrent opens/assigns can both pass (design decision pending: reservation port vs documented host responsibility)
 
 #### 🟡 Medium
 

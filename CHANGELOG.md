@@ -24,7 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`).
   A second `OpenShift` on an occupied terminal, or by a cashier already
   running a shift, is refused with an `InvariantViolationException`.
-  `OpenShiftHandler`'s constructor now requires the service and read model.
+  `AssignShift` refuses an assignee who operates another open shift, and
+  `UnassignShift` refuses when the original opener does (unassigning hands
+  the shift back to them). The `OpenShiftHandler`, `AssignShiftHandler`
+  and `UnassignShiftHandler` constructors now require the service and read
+  model. Enforcement is serial check-then-store — hard uniqueness under
+  truly concurrent commands is a host responsibility (issue 8003).
 
 ### Changed
 

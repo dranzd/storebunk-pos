@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Tests\Unit\Application\Shift\Handler;
 
+use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
 use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
@@ -24,13 +26,19 @@ final class AssignShiftHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
+    private InMemoryShiftReadModel $readModel;
     private AssignShiftHandler $handler;
 
     protected function setUp(): void
     {
         $this->eventStore      = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->handler         = new AssignShiftHandler($this->shiftRepository);
+        $this->readModel       = new InMemoryShiftReadModel();
+        $this->handler         = new AssignShiftHandler(
+            $this->shiftRepository,
+            new MultiTerminalEnforcementService(),
+            $this->readModel
+        );
     }
 
     public function test_assigns_shift_to_cashier_with_fallbacks(): void
@@ -80,9 +88,43 @@ final class AssignShiftHandlerTest extends TestCase
         ));
     }
 
-    private function openShift(): ShiftId
+    public function test_refuses_assigning_a_cashier_who_operates_another_open_shift(): void
     {
-        $shiftId = new ShiftId();
+        $busyCashier = new CashierId();
+        $this->openShift($busyCashier);
+        $otherShiftId = $this->openShift();
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already operates another open shift');
+
+        ($this->handler)(new AssignShift(
+            $otherShiftId->toNative(),
+            $busyCashier->toNative(),
+            []
+        ));
+    }
+
+    public function test_allows_reassignment_within_the_operated_shift(): void
+    {
+        $cashier = new CashierId();
+        $shiftId = $this->openShift($cashier);
+
+        $this->expectNotToPerformAssertions();
+
+        // Re-issuing membership on the shift the cashier already operates is
+        // the documented "replace membership" path — not a second shift.
+        ($this->handler)(new AssignShift(
+            $shiftId->toNative(),
+            $cashier->toNative(),
+            [(new CashierId())->toNative()]
+        ));
+    }
+
+    private function openShift(?CashierId $cashierId = null): ShiftId
+    {
+        $shiftId   = new ShiftId();
+        $cashierId ??= new CashierId();
+        $terminalId = new TerminalId();
         $openHandler = new OpenShiftHandler(
             $this->shiftRepository,
             new MultiTerminalEnforcementService(),
@@ -90,11 +132,21 @@ final class AssignShiftHandlerTest extends TestCase
         );
         $openHandler(new OpenShift(
             $shiftId->toNative(),
-            (new TerminalId())->toNative(),
+            $terminalId->toNative(),
             (new BranchId())->toNative(),
-            (new CashierId())->toNative(),
+            $cashierId->toNative(),
             50000,
             'PHP'
+        ));
+
+        // Mirror the host's projection step so the assign guard sees it.
+        $this->readModel->onShiftOpened(ShiftOpened::occur(
+            $shiftId,
+            $terminalId,
+            new BranchId(),
+            $cashierId,
+            Money::fromArray(['amount' => 50000, 'currency' => 'PHP']),
+            new \DateTimeImmutable()
         ));
 
         return $shiftId;

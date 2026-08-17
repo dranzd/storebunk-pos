@@ -104,6 +104,16 @@ final class InMemoryShiftReadModel implements ShiftReadModelInterface
         return $byCashier;
     }
 
+    final public function openShiftByCashier(): array
+    {
+        $byCashier = [];
+        foreach ($this->getOpenShifts() as $shift) {
+            $byCashier[$shift['cashier_id']] = $shift['shift_id'];
+        }
+
+        return $byCashier;
+    }
+
     private function markClosed(string $shiftId, \DateTimeImmutable $closedAt): void
     {
         if (isset($this->shifts[$shiftId])) {

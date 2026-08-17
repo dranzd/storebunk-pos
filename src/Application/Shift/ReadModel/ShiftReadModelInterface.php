@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Application\Shift\ReadModel;
 
+/**
+ * Read model backing the multi-terminal enforcement checks. NOTE: the checks
+ * are check-then-store over a projection, not an atomic reservation — two
+ * truly concurrent commands can both pass (see reported issue 8003). Hosts
+ * needing hard uniqueness under concurrency must back this with an
+ * authoritative mechanism at their persistence boundary.
+ */
 interface ShiftReadModelInterface
 {
     /**
@@ -36,4 +43,12 @@ interface ShiftReadModelInterface
      * @return array<string, string> cashierId => terminalId
      */
     public function activeTerminalByCashier(): array;
+
+    /**
+     * The map MultiTerminalEnforcementService::assertCashierFreeForShift()
+     * consumes: the shift each cashier currently operates.
+     *
+     * @return array<string, string> cashierId => shiftId
+     */
+    public function openShiftByCashier(): array;
 }
