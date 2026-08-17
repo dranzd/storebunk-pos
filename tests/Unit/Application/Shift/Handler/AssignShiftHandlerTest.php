@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Tests\Unit\Application\Shift\Handler;
 
-use Dranzd\Common\Domain\ValueObject\Money\Basic as Money;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
 use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
-use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
-use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use PHPUnit\Framework\TestCase;
 
@@ -26,19 +23,15 @@ final class AssignShiftHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
-    private InMemoryShiftReadModel $readModel;
+    private InMemoryShiftSlotReservation $slotReservation;
     private AssignShiftHandler $handler;
 
     protected function setUp(): void
     {
         $this->eventStore      = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->readModel       = new InMemoryShiftReadModel();
-        $this->handler         = new AssignShiftHandler(
-            $this->shiftRepository,
-            new MultiTerminalEnforcementService(),
-            $this->readModel
-        );
+        $this->slotReservation = new InMemoryShiftSlotReservation();
+        $this->handler         = new AssignShiftHandler($this->shiftRepository, $this->slotReservation);
     }
 
     public function test_assigns_shift_to_cashier_with_fallbacks(): void
@@ -120,33 +113,34 @@ final class AssignShiftHandlerTest extends TestCase
         ));
     }
 
-    private function openShift(?CashierId $cashierId = null): ShiftId
+    public function test_assignment_frees_the_previous_operator_to_open_a_shift(): void
     {
-        $shiftId   = new ShiftId();
-        $cashierId ??= new CashierId();
-        $terminalId = new TerminalId();
-        $openHandler = new OpenShiftHandler(
-            $this->shiftRepository,
-            new MultiTerminalEnforcementService(),
-            new InMemoryShiftReadModel()
-        );
-        $openHandler(new OpenShift(
+        // Opener hands their shift to an assignee; the opener's slot moves
+        // with the assignment, so the opener can open a new shift.
+        $opener  = new CashierId();
+        $shiftId = $this->openShift($opener);
+
+        ($this->handler)(new AssignShift(
             $shiftId->toNative(),
-            $terminalId->toNative(),
-            (new BranchId())->toNative(),
-            $cashierId->toNative(),
-            50000,
-            'PHP'
+            (new CashierId())->toNative(),
+            []
         ));
 
-        // Mirror the host's projection step so the assign guard sees it.
-        $this->readModel->onShiftOpened(ShiftOpened::occur(
-            $shiftId,
-            $terminalId,
-            new BranchId(),
-            $cashierId,
-            Money::fromArray(['amount' => 50000, 'currency' => 'PHP']),
-            new \DateTimeImmutable()
+        $this->expectNotToPerformAssertions();
+        $this->openShift($opener);
+    }
+
+    private function openShift(?CashierId $cashierId = null): ShiftId
+    {
+        $shiftId = new ShiftId();
+        $openHandler = new OpenShiftHandler($this->shiftRepository, $this->slotReservation);
+        $openHandler(new OpenShift(
+            $shiftId->toNative(),
+            (new TerminalId())->toNative(),
+            (new BranchId())->toNative(),
+            ($cashierId ?? new CashierId())->toNative(),
+            50000,
+            'PHP'
         ));
 
         return $shiftId;

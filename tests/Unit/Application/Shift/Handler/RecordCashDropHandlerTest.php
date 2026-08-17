@@ -16,9 +16,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
-use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use PHPUnit\Framework\TestCase;
 
@@ -53,7 +52,7 @@ final class RecordCashDropHandlerTest extends TestCase
     public function test_refuses_a_cash_drop_on_a_closed_shift(): void
     {
         $shiftId = $this->openShift();
-        $forceClose = new ForceCloseShiftHandler($this->shiftRepository);
+        $forceClose = new ForceCloseShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
         $forceClose(new ForceCloseShift($shiftId->toNative(), 'supervisor-1', 'end of day'));
 
         $this->expectException(InvariantViolationException::class);
@@ -65,11 +64,7 @@ final class RecordCashDropHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler(
-            $this->shiftRepository,
-            new MultiTerminalEnforcementService(),
-            new InMemoryShiftReadModel()
-        );
+        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

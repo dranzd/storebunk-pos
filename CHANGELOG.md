@@ -26,10 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   running a shift, is refused with an `InvariantViolationException`.
   `AssignShift` refuses an assignee who operates another open shift, and
   `UnassignShift` refuses when the original opener does (unassigning hands
-  the shift back to them). The `OpenShiftHandler`, `AssignShiftHandler`
-  and `UnassignShiftHandler` constructors now require the service and read
-  model. Enforcement is serial check-then-store — hard uniqueness under
-  truly concurrent commands is a host responsibility (issue 8003).
+  the shift back to them, via the new `Shift::openedBy()` accessor).
+- Atomic shift-slot reservations (issue 8003): the new
+  `ShiftSlotReservationInterface` (`reserveForOpen` / `transferCashier` /
+  `releaseShift`) is the concurrency authority for those invariants —
+  open/assign/unassign claim or move slots BEFORE storing (compensating on
+  store failure), close/force-close release them, and the five shift
+  handler constructors take the port. Ships with a single-process
+  `InMemoryShiftSlotReservation` and a file-lock-backed demo
+  implementation; two concurrent demo `shift open` commands now resolve to
+  exactly one winner. `ShiftReadModelInterface` is query state only (the
+  briefly-added enforcement-map methods are gone again).
 
 ### Changed
 

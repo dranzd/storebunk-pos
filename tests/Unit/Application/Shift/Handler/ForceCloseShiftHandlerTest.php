@@ -14,9 +14,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
-use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use PHPUnit\Framework\TestCase;
 
@@ -30,7 +29,7 @@ final class ForceCloseShiftHandlerTest extends TestCase
     {
         $this->eventStore = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->handler = new ForceCloseShiftHandler($this->shiftRepository);
+        $this->handler = new ForceCloseShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
     }
 
     public function test_force_closes_an_open_shift_with_supervisor_and_reason(): void
@@ -63,11 +62,7 @@ final class ForceCloseShiftHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler(
-            $this->shiftRepository,
-            new MultiTerminalEnforcementService(),
-            new InMemoryShiftReadModel()
-        );
+        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

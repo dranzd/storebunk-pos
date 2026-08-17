@@ -186,6 +186,15 @@ final class Shift implements AggregateRoot
     }
 
     /**
+     * The cashier who opened the shift — the operator a later unassign()
+     * hands the shift back to.
+     */
+    final public function openedBy(): CashierId
+    {
+        return $this->cashierId;
+    }
+
+    /**
      * The shift's assignee, or null when the shift is open (no membership set).
      */
     final public function assignee(): ?CashierId

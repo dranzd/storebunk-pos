@@ -20,6 +20,9 @@ if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
     // fallible write is staged before either store commits, so a failure
     // partway through cannot leave one store cleared and the other not.
     DemoReset::clearAll(FileEventStore::defaultPath(), StateStore::defaultPath());
+    \Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation::clearAt(
+        \Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation::defaultPath()
+    );
 
     Output::success('State cleared.');
     Output::info('File: ' . StateStore::defaultPath());

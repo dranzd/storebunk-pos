@@ -1,10 +1,10 @@
 # 8003 — Shift Enforcement Is Check-Then-Store, Not Atomic Under Concurrency
 
 **Type:** Architecture
-**Status:** Open
+**Status:** Resolved
 **Severity:** High
 **Reported:** 2026-08-17
-**Resolved:**
+**Resolved:** 2026-08-17
 **Affects:** src/Application/Shift/Command/Handler/OpenShiftHandler.php, src/Application/Shift/Command/Handler/AssignShiftHandler.php, src/Application/Shift/Command/Handler/UnassignShiftHandler.php, src/Application/Shift/ReadModel/ShiftReadModelInterface.php
 
 ---
@@ -53,18 +53,15 @@ Design decision required — options:
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
-
-**Decision:** Accept | Reject | Defer | Needs Discussion
-**Preferred Option:**
-**Notes:**
+**Decision:** Accept
+**Date answered:** 2026-08-17
+**Preferred Option:** (a) — atomic slot-reservation port.
+**Notes:** Owner forwarded the external review's fix handoff recommending the reservation-port direction ("resolve issue 8003's product decision. The recommended direction is an atomic slot-reservation port…"), matching the issue's own recommendation.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-08-17
+**Commit/PR:** branch `fix/8002-multi-terminal-enforcement-never-wired`
+**Summary:** New `ShiftSlotReservationInterface` (Domain\Service): `reserveForOpen` (all-or-nothing claim of terminal + cashier slots), `transferCashier` (atomic move, returns previous holder for compensation), `releaseShift` (idempotent). The occupancy RULES stay in `MultiTerminalEnforcementService`; implementations add slot state and the atomicity boundary. `OpenShiftHandler` reserves before storing and releases on store failure; `CloseShiftHandler`/`ForceCloseShiftHandler` release after storing; `AssignShiftHandler`/`UnassignShiftHandler` transfer the cashier slot (to the assignee / back to the opener via the new `Shift::openedBy()` accessor) and transfer back on store failure. Implementations: `InMemoryShiftSlotReservation` (single-process reference) and demo `FileShiftSlotReservation` (sidecar-file lock, re-reads current slots under `LOCK_EX` per mutation — real cross-process atomicity; seeded from replayed open shifts on first run, cleared by `state clear`). The shift read model is demoted to pure query state (enforcement-map methods removed). Validated by `DemoCliShiftOpenRaceTest` (two concurrent CLI opens for the same terminal, and for the same cashier — exactly one wins in each), reservation unit tests including refusal-leaves-no-partial-claim and transfer semantics, and a handler test proving a failed store releases the slots. Conflicting assignment and opener-restoration guards are covered at handler level (`AssignShiftHandlerTest`, `UnassignShiftHandlerTest`) — those flows share the same atomic transfer primitive the race test exercises cross-process.

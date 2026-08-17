@@ -438,8 +438,8 @@ interface PaymentServiceInterface
 
 | # | Invariant | Enforced By |
 |---|-----------|-------------|
-| 1 | One cashier = one terminal per open shift | Open/Assign/UnassignShiftHandler via MultiTerminalEnforcementService + shift read model¹ |
-| 2 | One terminal = one open shift | OpenShiftHandler via MultiTerminalEnforcementService + shift read model¹ |
+| 1 | One cashier = one terminal per open shift | Open/Assign/UnassignShiftHandler via ShiftSlotReservationInterface¹ |
+| 2 | One terminal = one open shift | OpenShiftHandler via ShiftSlotReservationInterface¹ |
 | 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftCloseBlockPolicy |
 | 4 | Checkout locks order lines | PosSession + Ordering BC |
 | 5 | Payment cannot apply without Confirmed state | PosSession |
@@ -449,7 +449,7 @@ interface PaymentServiceInterface
 | 9 | No expense withdrawal in POS | Shift aggregate |
 | 10 | POS never owns pricing, tax, stock deduction, or ledger logic | Architecture boundary |
 
-¹ Enforced serially via a check against the shift read model; the check and the store are not one atomic operation, so truly concurrent commands can both pass. Hosts needing hard uniqueness under concurrency must back it at their persistence boundary — see reported issue 8003.
+¹ Slot claims and transfers run through `ShiftSlotReservationInterface` BEFORE the aggregate is stored (with compensation on store failure); the occupancy rules themselves live in `MultiTerminalEnforcementService`. The port's contract requires implementations to be atomic against concurrent callers — the library ships a single-process in-memory implementation, the demo a file-lock one; hosts provide their own (DB uniqueness, SETNX, …). See reported issue 8003.
 
 ---
 

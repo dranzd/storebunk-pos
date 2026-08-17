@@ -13,8 +13,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 
 /**
  * Event-projected shift read model. The host wires the on* projectors to its
- * event flow (replay on bootstrap, then per stored event); the handlers only
- * ever read from it.
+ * event flow (replay on bootstrap, then per stored event). Query state only —
+ * concurrency-authoritative occupancy lives in ShiftSlotReservationInterface.
  */
 final class InMemoryShiftReadModel implements ShiftReadModelInterface
 {
@@ -82,36 +82,6 @@ final class InMemoryShiftReadModel implements ShiftReadModelInterface
         return array_values(
             array_filter($this->shifts, fn(array $shift) => $shift['terminal_id'] === $terminalId)
         );
-    }
-
-    final public function openShiftsByTerminal(): array
-    {
-        $byTerminal = [];
-        foreach ($this->getOpenShifts() as $shift) {
-            $byTerminal[$shift['terminal_id']] = $shift['shift_id'];
-        }
-
-        return $byTerminal;
-    }
-
-    final public function activeTerminalByCashier(): array
-    {
-        $byCashier = [];
-        foreach ($this->getOpenShifts() as $shift) {
-            $byCashier[$shift['cashier_id']] = $shift['terminal_id'];
-        }
-
-        return $byCashier;
-    }
-
-    final public function openShiftByCashier(): array
-    {
-        $byCashier = [];
-        foreach ($this->getOpenShifts() as $shift) {
-            $byCashier[$shift['cashier_id']] = $shift['shift_id'];
-        }
-
-        return $byCashier;
     }
 
     private function markClosed(string $shiftId, \DateTimeImmutable $closedAt): void

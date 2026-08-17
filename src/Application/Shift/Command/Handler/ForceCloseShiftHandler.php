@@ -7,6 +7,7 @@ namespace Dranzd\StorebunkPos\Application\Shift\Command\Handler;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
+use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
 
 /**
  * ForceCloseShiftHandler
@@ -17,7 +18,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 final class ForceCloseShiftHandler
 {
     public function __construct(
-        private readonly ShiftRepositoryInterface $shiftRepository
+        private readonly ShiftRepositoryInterface $shiftRepository,
+        private readonly ShiftSlotReservationInterface $slotReservation
     ) {
     }
 
@@ -26,5 +28,7 @@ final class ForceCloseShiftHandler
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
         $shift->forceClose($command->supervisorId, $command->reason);
         $this->shiftRepository->store($shift);
+
+        $this->slotReservation->releaseShift($command->shiftId);
     }
 }

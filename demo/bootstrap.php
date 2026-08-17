@@ -79,6 +79,7 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\RecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
+use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
 use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
@@ -119,6 +120,10 @@ $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
 $multiTerminalEnforcement = new MultiTerminalEnforcementService();
+$shiftSlotReservation = new FileShiftSlotReservation(
+    FileShiftSlotReservation::defaultPath(),
+    $multiTerminalEnforcement
+);
 
 // ── Rebuild offline-sync state from persisted events ─────────────────────────
 // The queue and registry are plain in-memory objects; replay the persisted
@@ -157,8 +162,8 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
             $event instanceof OrderMarkedPendingSync => $posSessionReadModel->onOrderMarkedPendingSync($event),
             $event instanceof OrderSyncedOnline     => $posSessionReadModel->onOrderSyncedOnline($event),
             $event instanceof SessionEnded          => $posSessionReadModel->onSessionEnded($event),
-            // Shift read model — OpenShiftHandler's one-open-shift-per-
-            // terminal/cashier enforcement reads it (issue 8002).
+            // Shift read model — query state, and the seed source for the
+            // shift-slot reservation file on first run (issues 8002/8003).
             $event instanceof ShiftOpened           => $shiftReadModel->onShiftOpened($event),
             $event instanceof ShiftAssigned         => $shiftReadModel->onShiftAssigned($event),
             $event instanceof ShiftUnassigned       => $shiftReadModel->onShiftUnassigned($event),
@@ -168,6 +173,11 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
         };
     }
 }
+
+// Seed the shift-slot reservation file from replayed events when it does
+// not exist yet; once present, the FILE is the live cross-process authority
+// (see FileShiftSlotReservation / issue 8003).
+$shiftSlotReservation->seedIfMissing($shiftReadModel->getOpenShifts());
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -182,11 +192,11 @@ $handlers = [
     RecommissionTerminal::class  => new RecommissionTerminalHandler($terminalRepository),
 
     // Shift
-    OpenShift::class        => new OpenShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
-    AssignShift::class      => new AssignShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
-    UnassignShift::class    => new UnassignShiftHandler($shiftRepository, $multiTerminalEnforcement, $shiftReadModel),
-    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
-    ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
+    OpenShift::class        => new OpenShiftHandler($shiftRepository, $shiftSlotReservation),
+    AssignShift::class      => new AssignShiftHandler($shiftRepository, $shiftSlotReservation),
+    UnassignShift::class    => new UnassignShiftHandler($shiftRepository, $shiftSlotReservation),
+    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel, $shiftSlotReservation),
+    ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository, $shiftSlotReservation),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),
 
     // PosSession (online)
