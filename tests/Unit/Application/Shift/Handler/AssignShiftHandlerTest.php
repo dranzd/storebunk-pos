@@ -10,6 +10,8 @@ use Dranzd\StorebunkPos\Application\Shift\Command\Handler\AssignShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\Handler\OpenShiftHandler;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Repository\ShiftRepositoryInterface;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Shift;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
@@ -128,6 +130,69 @@ final class AssignShiftHandlerTest extends TestCase
 
         $this->expectNotToPerformAssertions();
         $this->openShift($opener);
+    }
+
+    public function test_a_losing_assign_does_not_clobber_the_winning_assign(): void
+    {
+        // Controlled interleaving of two racing assigns: the loser transfers
+        // the slot first, the winner's full assign commits DURING the loser's
+        // failing store, then the loser compensates. Its compensation must be
+        // a no-op — the winner's committed reservation stays.
+        $opener  = new CashierId();
+        $shiftId = $this->openShift($opener);
+        $loserAssignee  = new CashierId();
+        $winnerAssignee = new CashierId();
+
+        $winnerHandler = $this->handler;
+        $interleavingRepository = new class (
+            $this->shiftRepository,
+            static fn () => $winnerHandler(new AssignShift(
+                $shiftId->toNative(),
+                $winnerAssignee->toNative(),
+                []
+            ))
+        ) implements ShiftRepositoryInterface {
+            public bool $failNextStore = true;
+
+            /**
+             * @param callable(): void $onFailingStore
+             */
+            public function __construct(
+                private readonly InMemoryShiftRepository $inner,
+                private $onFailingStore
+            ) {
+            }
+
+            public function load(ShiftId $shiftId): Shift
+            {
+                return $this->inner->load($shiftId);
+            }
+
+            public function store(Shift $shift, ?int $expectedVersion = null): void
+            {
+                if ($this->failNextStore) {
+                    $this->failNextStore = false;
+                    ($this->onFailingStore)();
+                    throw new \RuntimeException('optimistic lock lost');
+                }
+                $this->inner->store($shift, $expectedVersion);
+            }
+        };
+        $loserHandler = new AssignShiftHandler($interleavingRepository, $this->slotReservation);
+
+        try {
+            $loserHandler(new AssignShift($shiftId->toNative(), $loserAssignee->toNative(), []));
+            $this->fail('Expected the losing store to throw');
+        } catch (\RuntimeException) {
+        }
+
+        // The winner's assignee still operates the shift; the loser's
+        // assignee and the opener are both free.
+        $this->openShift($loserAssignee);
+        $this->openShift($opener);
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already operates another open shift');
+        ($this->handler)(new AssignShift($this->openShift()->toNative(), $winnerAssignee->toNative(), []));
     }
 
     private function openShift(?CashierId $cashierId = null): ShiftId

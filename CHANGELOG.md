@@ -35,8 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handler constructors take the port. Ships with a single-process
   `InMemoryShiftSlotReservation` and a file-lock-backed demo
   implementation; two concurrent demo `shift open` commands now resolve to
-  exactly one winner. `ShiftReadModelInterface` is query state only (the
-  briefly-added enforcement-map methods are gone again).
+  exactly one winner. Compensation is compare-and-swap
+  (`compensateTransfer`) so a losing command never overwrites a newer
+  command's committed reservation; the shift id itself is claimed on open
+  and transfers refuse closed shifts. Demo `state clear` resets events,
+  state, and shift slots as one coordinated, recoverable operation.
+  `ShiftReadModelInterface` is query state only (the briefly-added
+  enforcement-map methods are gone again).
 
 ### Changed
 

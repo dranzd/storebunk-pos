@@ -52,7 +52,12 @@ final class OpenShiftHandler
 
             $this->shiftRepository->store($shift);
         } catch (\Throwable $failure) {
-            $this->slotReservation->releaseShift($command->shiftId);
+            try {
+                $this->slotReservation->releaseShift($command->shiftId);
+            } catch (\Throwable) {
+                // The original persistence failure is the actionable error;
+                // a stale slot is recoverable (it releases on close/reset).
+            }
             throw $failure;
         }
     }

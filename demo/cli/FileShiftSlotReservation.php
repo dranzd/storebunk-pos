@@ -7,6 +7,7 @@ namespace Dranzd\StorebunkPos\Demo\Cli;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 /**
  * Cross-process implementation of the shift slot reservation for the demo
@@ -36,6 +37,14 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
     final public function reserveForOpen(string $terminalId, string $cashierId, string $shiftId): void
     {
         $this->mutate(function (array $slots) use ($terminalId, $cashierId, $shiftId): array {
+            if (
+                in_array($shiftId, $slots['terminals'], true)
+                || in_array($shiftId, $slots['cashiers'], true)
+            ) {
+                throw InvariantViolationException::withMessage(
+                    sprintf('Shift "%s" already holds open-shift slots', $shiftId)
+                );
+            }
             $this->multiTerminalEnforcement->assertTerminalHasNoOpenShift(
                 TerminalId::fromNative($terminalId),
                 $slots['terminals']
@@ -56,6 +65,11 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
     {
         $previousHolder = null;
         $this->mutate(function (array $slots) use ($shiftId, $newCashierId, &$previousHolder): array {
+            if (!in_array($shiftId, $slots['cashiers'], true)) {
+                throw InvariantViolationException::withMessage(
+                    sprintf('Shift "%s" holds no cashier slot; it is not open here', $shiftId)
+                );
+            }
             $this->multiTerminalEnforcement->assertCashierFreeForShift(
                 $newCashierId,
                 $shiftId,
@@ -74,6 +88,24 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
         });
 
         return $previousHolder;
+    }
+
+    final public function compensateTransfer(string $shiftId, string $backToCashierId, string $ifHeldBy): void
+    {
+        $this->mutate(static function (array $slots) use ($shiftId, $backToCashierId, $ifHeldBy): array {
+            // Undo only OUR transfer: a newer command's committed state wins.
+            if (($slots['cashiers'][$ifHeldBy] ?? null) !== $shiftId) {
+                return $slots;
+            }
+            unset($slots['cashiers'][$ifHeldBy]);
+
+            $backToCurrent = $slots['cashiers'][$backToCashierId] ?? null;
+            if ($backToCurrent === null || $backToCurrent === $shiftId) {
+                $slots['cashiers'][$backToCashierId] = $shiftId;
+            }
+
+            return $slots;
+        });
     }
 
     final public function releaseShift(string $shiftId): void
@@ -119,24 +151,6 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
         }
-    }
-
-    /**
-     * Remove the slot file and its sidecars — part of `state clear`, which
-     * must work even when the file is corrupt, so this never reads it.
-     */
-    public static function clearAt(string $filePath): void
-    {
-        foreach ([$filePath, $filePath . '.tmp'] as $path) {
-            if (is_file($path) && !@unlink($path)) {
-                throw new \RuntimeException(sprintf(
-                    'Demo shift-slot file %s could not be deleted.',
-                    $path
-                ));
-            }
-        }
-        // The .lock sidecar is retained: its inode is the serialisation
-        // point every process agrees on.
     }
 
     /**

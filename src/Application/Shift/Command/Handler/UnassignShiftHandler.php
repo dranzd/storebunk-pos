@@ -30,16 +30,25 @@ final class UnassignShiftHandler
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
         $shift->unassign();
 
-        $previousHolder = $this->slotReservation->transferCashier(
+        $openerCashierId = $shift->openedBy()->toNative();
+        $previousHolder  = $this->slotReservation->transferCashier(
             $command->shiftId,
-            $shift->openedBy()->toNative()
+            $openerCashierId
         );
 
         try {
             $this->shiftRepository->store($shift);
         } catch (\Throwable $failure) {
             if ($previousHolder !== null) {
-                $this->slotReservation->transferCashier($command->shiftId, $previousHolder);
+                try {
+                    $this->slotReservation->compensateTransfer(
+                        $command->shiftId,
+                        $previousHolder,
+                        $openerCashierId
+                    );
+                } catch (\Throwable) {
+                    // Never mask the original persistence failure.
+                }
             }
             throw $failure;
         }

@@ -46,7 +46,15 @@ final class AssignShiftHandler
             $this->shiftRepository->store($shift);
         } catch (\Throwable $failure) {
             if ($previousHolder !== null) {
-                $this->slotReservation->transferCashier($command->shiftId, $previousHolder);
+                try {
+                    $this->slotReservation->compensateTransfer(
+                        $command->shiftId,
+                        $previousHolder,
+                        $command->assigneeCashierId
+                    );
+                } catch (\Throwable) {
+                    // Never mask the original persistence failure.
+                }
             }
             throw $failure;
         }

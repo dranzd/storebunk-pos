@@ -7,6 +7,7 @@ namespace Dranzd\StorebunkPos\Infrastructure\Shift\Reservation;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Service\MultiTerminalEnforcementService;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 /**
  * Single-process reference implementation. PHP requests are single-threaded,
@@ -30,6 +31,11 @@ final class InMemoryShiftSlotReservation implements ShiftSlotReservationInterfac
 
     final public function reserveForOpen(string $terminalId, string $cashierId, string $shiftId): void
     {
+        if (in_array($shiftId, $this->terminalSlots, true) || in_array($shiftId, $this->cashierSlots, true)) {
+            throw InvariantViolationException::withMessage(
+                sprintf('Shift "%s" already holds open-shift slots', $shiftId)
+            );
+        }
         $this->multiTerminalEnforcement->assertTerminalHasNoOpenShift(
             TerminalId::fromNative($terminalId),
             $this->terminalSlots
@@ -45,6 +51,11 @@ final class InMemoryShiftSlotReservation implements ShiftSlotReservationInterfac
 
     final public function transferCashier(string $shiftId, string $newCashierId): ?string
     {
+        if (!in_array($shiftId, $this->cashierSlots, true)) {
+            throw InvariantViolationException::withMessage(
+                sprintf('Shift "%s" holds no cashier slot; it is not open here', $shiftId)
+            );
+        }
         $this->multiTerminalEnforcement->assertCashierFreeForShift(
             $newCashierId,
             $shiftId,
@@ -62,6 +73,20 @@ final class InMemoryShiftSlotReservation implements ShiftSlotReservationInterfac
         $this->cashierSlots[$newCashierId] = $shiftId;
 
         return $previousHolder;
+    }
+
+    final public function compensateTransfer(string $shiftId, string $backToCashierId, string $ifHeldBy): void
+    {
+        // Undo only OUR transfer: a newer command's committed state wins.
+        if (($this->cashierSlots[$ifHeldBy] ?? null) !== $shiftId) {
+            return;
+        }
+        unset($this->cashierSlots[$ifHeldBy]);
+
+        $backToCurrent = $this->cashierSlots[$backToCashierId] ?? null;
+        if ($backToCurrent === null || $backToCurrent === $shiftId) {
+            $this->cashierSlots[$backToCashierId] = $shiftId;
+        }
     }
 
     final public function releaseShift(string $shiftId): void
