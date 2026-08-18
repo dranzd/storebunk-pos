@@ -54,6 +54,7 @@ final class InMemoryShiftSlotReservation implements ShiftSlotReservationInterfac
 
     final public function reconcile(array $openShiftsById): int
     {
+        $this->slotBook->assertConsistent($openShiftsById);
         $reconciled  = $this->slotBook->stateFor($openShiftsById);
         $corrections = $this->slotBook->correctionCount($this->slots, $reconciled);
         $this->slots = $reconciled;

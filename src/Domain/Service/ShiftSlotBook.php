@@ -163,20 +163,35 @@ final class ShiftSlotBook
     {
         $slots = $this->emptyState();
         foreach ($openShiftsById as $shiftId => $shift) {
-            // Two open shifts sharing a terminal or a cashier means the
-            // committed history ALREADY violates the invariant. Overwriting
-            // one with the other would hide that and leave the losing shift
-            // with no slot — permanently unassignable, and reproduced by
-            // every later run. Reconciliation exists to surface corruption,
-            // so it refuses instead.
-            $this->assertUnclaimed($slots['terminals'], $shift['terminal_id'], (string) $shiftId, 'terminal');
-            $this->assertUnclaimed($slots['cashiers'], $shift['cashier_id'], (string) $shiftId, 'cashier');
-
             $slots['terminals'][$shift['terminal_id']] = (string) $shiftId;
             $slots['cashiers'][$shift['cashier_id']]   = (string) $shiftId;
         }
 
         return $slots;
+    }
+
+    /**
+     * Refuse a history that already breaks the invariant: two open shifts
+     * holding one terminal or one cashier. Rebuilding slots from it would
+     * silently keep the last shift and leave the other permanently
+     * unassignable, so a deliberate reconciliation reports it instead.
+     *
+     * Kept OUT of stateFor() on purpose: seeding runs automatically on every
+     * bootstrap, and a recovery tool that cannot start is not a recovery
+     * tool. Seeding stays permissive; only reconcile() asserts.
+     *
+     * @param array<string, array{terminal_id: string, cashier_id: string}> $openShiftsById
+     */
+    public function assertConsistent(array $openShiftsById): void
+    {
+        $terminals = [];
+        $cashiers  = [];
+        foreach ($openShiftsById as $shiftId => $shift) {
+            $this->assertUnclaimed($terminals, $shift['terminal_id'], (string) $shiftId, 'terminal');
+            $this->assertUnclaimed($cashiers, $shift['cashier_id'], (string) $shiftId, 'cashier');
+            $terminals[$shift['terminal_id']] = (string) $shiftId;
+            $cashiers[$shift['cashier_id']]   = (string) $shiftId;
+        }
     }
 
     /**

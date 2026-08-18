@@ -21,7 +21,9 @@ use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Tests\Stub\Repository\InterleavingShiftRepository;
 use PHPUnit\Framework\TestCase;
 
 final class OpenShiftHandlerTest extends TestCase
@@ -145,6 +147,32 @@ final class OpenShiftHandlerTest extends TestCase
         $this->expectExceptionMessage('a shift id cannot be reused');
 
         ($this->handler)($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
+    }
+
+    public function test_a_shift_that_appears_after_the_existence_check_still_wins(): void
+    {
+        // The existence check is a check, not a claim: a whole shift life can
+        // happen in the window between it and the append — and a closed shift
+        // has released its slots, so the slot claim cannot catch it either.
+        // Storing against version 0 is what refuses the second ShiftOpened.
+        $shiftId  = new ShiftId();
+        $rivalOpener = new CashierId();
+
+        $handler    = $this->handler;
+        $repository = new InterleavingShiftRepository(
+            $this->shiftRepository,
+            null,
+            function () use ($handler, $shiftId, $rivalOpener): void {
+                $handler($this->openShiftCommand($shiftId, new TerminalId(), $rivalOpener));
+                $forceClose = new ForceCloseShiftHandler($this->shiftRepository, $this->slotReservation);
+                $forceClose(new ForceCloseShift($shiftId->toNative(), 'sup-1', 'end of day'));
+            }
+        );
+        $losingHandler = new OpenShiftHandler($repository, $this->slotReservation);
+
+        $this->expectException(ConcurrencyException::class);
+
+        $losingHandler($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
     }
 
     public function test_a_failed_store_releases_the_reserved_slots(): void

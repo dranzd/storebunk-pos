@@ -31,13 +31,15 @@ final class UnassignShiftHandler
     public function __invoke(UnassignShift $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
+        // Captured BEFORE the domain call — see AssignShiftHandler.
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->unassign();
 
         $openerCashierId = $shift->openedBy()->toNative();
         $this->slotReservation->prepareTransfer($command->shiftId, $openerCashierId);
 
         try {
-            $this->shiftRepository->store($shift);
+            $this->shiftRepository->store($shift, $expectedVersion);
         } catch (\Throwable $failure) {
             try {
                 $this->slotReservation->abortTransfer($command->shiftId, $openerCashierId);

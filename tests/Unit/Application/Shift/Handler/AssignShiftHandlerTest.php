@@ -17,7 +17,9 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 use Dranzd\StorebunkPos\Tests\Stub\Repository\CallbackFailingShiftRepository;
+use Dranzd\StorebunkPos\Tests\Stub\Repository\InterleavingShiftRepository;
 use PHPUnit\Framework\TestCase;
 
 final class AssignShiftHandlerTest extends TestCase
@@ -218,6 +220,42 @@ final class AssignShiftHandlerTest extends TestCase
         // Once the failed assign rolled back, the rival assign succeeds.
         ($this->handler)(new AssignShift($shiftId->toNative(), $rival->toNative(), []));
         $this->assertTrue($this->shiftRepository->load($shiftId)->assignee()->sameValueAs($rival));
+    }
+
+    public function test_an_assign_to_the_current_operator_loses_to_a_rival_that_commits_first(): void
+    {
+        // The MIRRORED ordering of the in-flight race: this command's target
+        // is the shift's current operator, so its slot claim is a no-op and
+        // there is nothing for the in-flight guard to see. What stops it
+        // landing on top of the rival is the version it read.
+        $opener  = new CashierId();
+        $shiftId = $this->openShift($opener);
+        $rivalAssignee = new CashierId();
+
+        $handler    = $this->handler;
+        $repository = new InterleavingShiftRepository(
+            $this->shiftRepository,
+            static function () use ($handler, $shiftId, $rivalAssignee): void {
+                // The rival's whole assign completes in the window.
+                $handler(new AssignShift($shiftId->toNative(), $rivalAssignee->toNative(), []));
+            }
+        );
+        $losingHandler = new AssignShiftHandler($repository, $this->slotReservation);
+
+        try {
+            $losingHandler(new AssignShift($shiftId->toNative(), $opener->toNative(), []));
+            $this->fail('Expected the stale assign to be refused');
+        } catch (ConcurrencyException $conflict) {
+            $this->assertStringContainsString('Concurrency conflict', $conflict->getMessage());
+        }
+
+        // Events and slots agree: the rival operates the shift, and the
+        // opener is NOT free to open a second one on the strength of a
+        // command that lost.
+        $this->assertTrue($this->shiftRepository->load($shiftId)->assignee()->sameValueAs($rivalAssignee));
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already operates another open shift');
+        ($this->handler)(new AssignShift($this->openShift()->toNative(), $rivalAssignee->toNative(), []));
     }
 
     private function openShift(?CashierId $cashierId = null): ShiftId

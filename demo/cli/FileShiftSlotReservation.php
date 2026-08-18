@@ -99,6 +99,7 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
     {
         $corrections = 0;
         $this->mutate(function (array $slots) use ($openShiftsById, &$corrections): array {
+            $this->slotBook->assertConsistent($openShiftsById);
             $reconciled  = $this->slotBook->stateFor($openShiftsById);
             $corrections = $this->slotBook->correctionCount($slots, $reconciled);
 

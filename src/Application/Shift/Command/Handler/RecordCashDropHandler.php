@@ -24,10 +24,13 @@ final class RecordCashDropHandler
     public function __invoke(RecordCashDrop $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
+        // Two drops recorded against the same read of the shift would both
+        // land; the version guard makes the second one lose instead.
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->recordCashDrop(Money::fromArray([
             'amount' => $command->amount,
             'currency' => $command->currency,
         ]));
-        $this->shiftRepository->store($shift);
+        $this->shiftRepository->store($shift, $expectedVersion);
     }
 }

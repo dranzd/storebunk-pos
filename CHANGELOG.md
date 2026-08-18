@@ -84,6 +84,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Every shift command now stores against the aggregate version it read
+  (`ShiftRepositoryInterface::store($shift, $expectedVersion)`, previously
+  never passed by any handler, so the check was dead code). Two commands
+  that read the same shift can no longer both land: the loser gets a
+  `ConcurrencyException`. `OpenShift` stores against version 0, which is
+  what makes "this shift id is unused" hold at the append rather than only
+  at the check — a shift id cannot be reused even if its whole life
+  happened in between.
 - Demo `session sync` removed the synced order from `pending_sync_order_ids`
   via a stale read-modify-write; a concurrent push from another process could
   be clobbered. `StateStore::removeFromList()` now filters the current

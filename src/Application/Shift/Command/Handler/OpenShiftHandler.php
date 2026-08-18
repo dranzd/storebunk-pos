@@ -55,7 +55,11 @@ final class OpenShiftHandler
                 ])
             );
 
-            $this->shiftRepository->store($shift);
+            // expectedVersion 0 = "this stream does not exist yet". The
+            // pre-check above gives the friendly refusal; THIS is what makes
+            // it safe, by refusing at the append if a shift appeared (and
+            // even opened, closed and released its slots) in between.
+            $this->shiftRepository->store($shift, 0);
         } catch (\Throwable $failure) {
             try {
                 $this->slotReservation->releaseShift($command->shiftId);

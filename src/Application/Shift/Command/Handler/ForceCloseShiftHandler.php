@@ -27,8 +27,9 @@ final class ForceCloseShiftHandler
     public function __invoke(ForceCloseShift $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->forceClose($command->supervisorId, $command->reason);
-        $this->shiftRepository->store($shift);
+        $this->shiftRepository->store($shift, $expectedVersion);
 
         try {
             $this->slotReservation->releaseShift($command->shiftId);

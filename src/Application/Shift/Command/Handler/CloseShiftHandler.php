@@ -40,11 +40,12 @@ final class CloseShiftHandler
         $this->shiftClosePolicy->assertCanClose($shiftId, $activeSessions);
 
         $shift = $this->shiftRepository->load($shiftId);
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->close(Money::fromArray([
             'amount' => $command->declaredClosingCashAmount,
             'currency' => $command->currency,
         ]));
-        $this->shiftRepository->store($shift);
+        $this->shiftRepository->store($shift, $expectedVersion);
 
         try {
             $this->slotReservation->releaseShift($command->shiftId);

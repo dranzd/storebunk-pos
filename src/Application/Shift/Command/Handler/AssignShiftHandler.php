@@ -32,6 +32,10 @@ final class AssignShiftHandler
     public function __invoke(AssignShift $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
+        // Captured BEFORE the domain call: storing against the version we
+        // read is what makes a concurrent change to this shift lose, rather
+        // than quietly landing on top of it.
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->assign(
             CashierId::fromNative($command->assigneeCashierId),
             array_map(
@@ -46,7 +50,7 @@ final class AssignShiftHandler
         );
 
         try {
-            $this->shiftRepository->store($shift);
+            $this->shiftRepository->store($shift, $expectedVersion);
         } catch (\Throwable $failure) {
             try {
                 $this->slotReservation->abortTransfer(
