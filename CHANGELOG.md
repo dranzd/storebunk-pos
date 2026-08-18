@@ -19,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One-open-shift-per-terminal and one-open-shift-per-cashier invariants are
   now enforced (issue 8002). The rules live in
   `MultiTerminalEnforcementService` and are applied through
-  `ShiftSlotReservationInterface` → `ShiftSlotBook`, which every shift
-  handler goes through (see the 8003 entry below for that mechanism). A
+  `ShiftSlotReservationInterface` → `ShiftSlotBook`, which the five
+  slot-holding shift handlers go through — open, assign, unassign, close,
+  force-close; a cash drop holds no slot (see the 8003 entry below for that
+  mechanism). A
   second `OpenShift` on an occupied terminal, or by a cashier already
   running a shift, is refused with an `InvariantViolationException`; so is
   reusing the id of a shift that already exists. `AssignShift` refuses an
@@ -105,8 +107,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command gets a `ConcurrencyException` and the stream stays well-formed.
   A history already left in that state by an older build is reported as
   malformed, naming the aggregate and the remedy, instead of as a conflict
-  that no retry could ever clear — and only commands touching THAT aggregate
-  are affected, so the rest of the CLI (including `state clear`) still runs.
+  that no retry could ever clear. Shift and session commands then refuse
+  outright — their guards (is this shift free of active sessions? is this
+  terminal occupied?) are answered from the replayed history, and a guard
+  answered from a history that cannot be ordered is a guard that silently
+  passes. Terminal queries, `state show` and `state clear` keep working, so
+  the documented way out stays reachable.
 - Demo `session sync` removed the synced order from `pending_sync_order_ids`
   via a stale read-modify-write; a concurrent push from another process could
   be clobbered. `StateStore::removeFromList()` now filters the current

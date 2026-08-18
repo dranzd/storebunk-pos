@@ -124,11 +124,17 @@ final class FileEventStore implements EventStore
      */
     public function allEvents(): array
     {
-        // Excluded, not guessed at: replaying a stream whose order is
-        // undefined can resurrect a closed shift into the read model, and
-        // the slot seeding built from that projection would then claim a
-        // terminal for a shift nobody can operate.
-        return array_diff_key($this->events, $this->malformed);
+        // Everything, including streams that cannot be ordered. This feeds
+        // read models that GUARD things — "does this shift still have active
+        // sessions", "is this terminal free" — and hiding rows from a guard
+        // makes the guard permissive. Claiming a terminal for a shift nobody
+        // can operate is the safe failure: it is visible, and `state clear`
+        // is the documented way out. Silently freeing it is not.
+        //
+        // Commands that depend on those guards refuse outright while any
+        // stream is malformed (see demo/demo); this method never decides
+        // that for them by withholding data.
+        return $this->events;
     }
 
     public function clear(): void

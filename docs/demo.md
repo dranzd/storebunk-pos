@@ -74,7 +74,7 @@ demo/
 │   ├── 04-draft-ttl-expiry.sh        # Deactivate order, reactivate with re-reservation
 │   ├── 05-force-close-shift.sh       # Supervisor force-close scenario
 │   ├── 06-offline-sync.sh            # Offline order creation and sync
-│   └── 07-concurrency-conflict.sh    # Optimistic locking conflict demonstration
+│   └── 07-concurrency-conflict.sh    # Terminal lifecycle + how to produce a real conflict
 └── data/
     ├── demo-state.json               # ID state (git-ignored at runtime)
     ├── events.json                   # Persisted events (git-ignored)
@@ -732,15 +732,9 @@ normal online flow resumes afterward.
 
 **Title:** Optimistic Locking Conflict
 
-**Demonstrates:**
-1. Register terminal
-2. Load terminal at version 1 (instance A)
-3. Load terminal at version 1 (instance B)
-4. Instance A activates terminal — stored at version 2
-5. Instance B attempts to disable terminal at expected version 1
-6. `ConcurrencyException` thrown and displayed
+**Demonstrates:** the terminal lifecycle the conflict would occur on (register → activate → disable), run sequentially, plus instructions for producing a real conflict yourself — two commands against one aggregate at the same time, where the event store refuses the second because its version is already taken.
 
-**Expected outcome:** Conflict detected; second write rejected with clear error message.
+**Expected outcome:** the scripted steps all succeed; the concurrency conflict is what you see when you follow the parallel instructions the script prints. `tests/Unit/Demo/FileEventStoreTest.php` pins the refusal automatically.
 
 ---
 

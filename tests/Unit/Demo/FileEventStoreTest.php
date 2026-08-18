@@ -483,19 +483,21 @@ final class FileEventStoreTest extends TestCase
         $store->loadEvents('agg-1');
     }
 
-    public function test_a_malformed_stream_is_excluded_from_the_projection_source(): void
+    public function test_a_malformed_stream_is_still_offered_to_the_projection(): void
     {
-        // allEvents() feeds every read-model projection. Replaying a stream
-        // whose order is undefined can resurrect a closed aggregate, and the
-        // slot seeding built from that projection would claim a terminal for
-        // a shift nobody can operate.
+        // allEvents() feeds read models that GUARD things — active sessions
+        // on a shift, occupancy of a terminal. Hiding rows from a guard makes
+        // the guard permissive, which is how a shift once closed with an
+        // active session and a busy terminal seeded as free. Callers that
+        // depend on those guards refuse while a stream is malformed; this
+        // method never makes that decision for them by withholding data.
         $this->seedMalformedStream();
         $store = new FileEventStore($this->filePath);
         $store->append($this->terminalRegistered('agg-healthy', 1));
 
         $projected = $store->allEvents();
 
-        $this->assertArrayNotHasKey('agg-1', $projected);
+        $this->assertArrayHasKey('agg-1', $projected);
         $this->assertArrayHasKey('agg-healthy', $projected);
     }
 
