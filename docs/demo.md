@@ -783,6 +783,8 @@ Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventSto
 
 All three stores (`FileEventStore`, `StateStore` and `FileShiftSlotReservation`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets all three files (events, ids, shift slots) as a coordinated all-or-nothing operation.
 
+One corruption cannot be repaired in place: a history where two events of the same aggregate claim the same version, which an older build could write when two commands raced. Any command touching that aggregate says so and names `state clear` as the remedy; commands on every other aggregate keep working.
+
 Shift slots live in a third store, `demo/data/shift-slots.json` (same lock/tmp-rename discipline), because one-shift-per-terminal and one-shift-per-cashier need a claim that survives across processes — see `./demo shift reconcile` above for its recovery step.
 
 Data files (fixed): `demo/data/events.json`, `demo-state.json` and `shift-slots.json` — all git-ignored, all cleared together by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)

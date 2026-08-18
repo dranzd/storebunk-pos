@@ -24,13 +24,14 @@ final class RecordCashDropHandler
     public function __invoke(RecordCashDrop $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
+        // The drop refuses a CLOSED shift, so it does depend on the state it
+        // read: without this, a drop that checked "open" could land after a
+        // concurrent close, on a shift whose variance was already computed.
+        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->recordCashDrop(Money::fromArray([
             'amount' => $command->amount,
             'currency' => $command->currency,
         ]));
-        // No expected version: a cash drop is additive — nothing it decides
-        // depends on what it read, so two drops racing should both land if
-        // the store can order them, and be refused by the STORE if it cannot.
-        $this->shiftRepository->store($shift);
+        $this->shiftRepository->store($shift, $expectedVersion);
     }
 }

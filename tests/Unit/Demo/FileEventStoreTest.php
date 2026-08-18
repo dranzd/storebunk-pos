@@ -10,6 +10,7 @@ use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\Event\TerminalRegistered;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 use PHPUnit\Framework\TestCase;
 
 final class FileEventStoreTest extends TestCase
@@ -389,6 +390,91 @@ final class FileEventStoreTest extends TestCase
         if (function_exists('posix_getuid') && posix_getuid() === 0) {
             $this->markTestSkipped('Permission-based failure injection does not work as root.');
         }
+    }
+
+    public function test_an_event_claiming_a_taken_version_is_refused(): void
+    {
+        // The check a handler's expected-version cannot make: each demo
+        // process answers version questions from the history it snapshotted
+        // at startup, so only the store — inside its write lock, against the
+        // current file — can see that another process got there first.
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+        $store->append($this->terminalRegistered('agg-1', 2));
+
+        $rival = new FileEventStore($this->filePath);
+
+        $this->expectException(ConcurrencyException::class);
+        $this->expectExceptionMessage('expected version 1, but found version 2');
+
+        $rival->append($this->terminalRegistered('agg-1', 2));
+    }
+
+    public function test_a_refused_event_leaves_the_history_untouched(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+
+        try {
+            (new FileEventStore($this->filePath))->append($this->terminalRegistered('agg-1', 1));
+        } catch (ConcurrencyException) {
+        }
+
+        $this->assertCount(1, (new FileEventStore($this->filePath))->loadEvents('agg-1'));
+    }
+
+    public function test_a_multi_event_append_is_all_or_nothing(): void
+    {
+        // A command recording two events must not leave the first one behind
+        // when the second collides.
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+
+        $rival = new FileEventStore($this->filePath);
+
+        try {
+            $rival->appendAll([
+                $this->terminalRegistered('agg-1', 2),
+                $this->terminalRegistered('agg-1', 2),
+            ]);
+            $this->fail('Expected the colliding second event to be refused');
+        } catch (ConcurrencyException) {
+        }
+
+        $this->assertCount(1, (new FileEventStore($this->filePath))->loadEvents('agg-1'));
+    }
+
+    public function test_consecutive_events_of_one_command_are_accepted(): void
+    {
+        $store = new FileEventStore($this->filePath);
+
+        $store->appendAll([
+            $this->terminalRegistered('agg-1', 1),
+            $this->terminalRegistered('agg-1', 2),
+        ]);
+
+        $this->assertCount(2, (new FileEventStore($this->filePath))->loadEvents('agg-1'));
+    }
+
+    public function test_a_malformed_history_is_reported_as_such_not_as_a_race(): void
+    {
+        // Data written before this store checked versions can already hold
+        // two events claiming one version. Retrying against it can never
+        // succeed, so it must not read like a transient conflict.
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+        $store->append($this->terminalRegistered('agg-1', 2));
+        $onDisk = json_decode((string) file_get_contents($this->filePath), true);
+        $onDisk['agg-1'][] = $onDisk['agg-1'][1];
+        file_put_contents($this->filePath, json_encode($onDisk));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('is malformed');
+
+        // What a real command produces: it replayed 3 rows, the last claiming
+        // version 2, so it records version 3 — which the row count says is
+        // already taken.
+        (new FileEventStore($this->filePath))->append($this->terminalRegistered('agg-1', 3));
     }
 
     private function terminalRegistered(string $aggregateRootUuid, int $version = 1): AggregateEvent

@@ -90,8 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previously never passed by any handler, so the check was dead code).
   `OpenShift` stores against version 0, which is what makes "this shift id
   is unused" hold at the append rather than only at the check. A cash drop
-  passes no version: it is additive, so nothing it decides depends on what
-  it read. **What this covers:** two commands sharing one event-store
+  passes one too — it refuses a closed shift, so it also depends on the
+  state it read. **What this covers:** two commands sharing one event-store
   instance, and any host whose event store enforces a unique
   (aggregate id, version) — the check is only as strong as the store
   behind it, and `ShiftRepositoryInterface` now says so.
@@ -103,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A handler's version check cannot catch this (each process answers from the
   history it snapshotted at startup), so the store enforces it: the losing
   command gets a `ConcurrencyException` and the stream stays well-formed.
+  A history already left in that state by an older build is reported as
+  malformed, naming the aggregate and the remedy, instead of as a conflict
+  that no retry could ever clear — and only commands touching THAT aggregate
+  are affected, so the rest of the CLI (including `state clear`) still runs.
 - Demo `session sync` removed the synced order from `pending_sync_order_ids`
   via a stale read-modify-write; a concurrent push from another process could
   be clobbered. `StateStore::removeFromList()` now filters the current

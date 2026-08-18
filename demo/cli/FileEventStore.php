@@ -70,7 +70,10 @@ final class FileEventStore implements EventStore
      */
     public function loadEvents(string $aggregateRootUuid): array
     {
-        return $this->events[$aggregateRootUuid] ?? [];
+        $events = $this->events[$aggregateRootUuid] ?? [];
+        $this->assertStreamCanBeOrdered($aggregateRootUuid, $events);
+
+        return $events;
     }
 
     /**
@@ -295,18 +298,88 @@ final class FileEventStore implements EventStore
      */
     private function assertVersionIsFree(array $onDisk, AggregateEvent $event): void
     {
-        $aggregateId  = $event->getAggregateRootUuid();
-        $currentOnDisk = count($onDisk[$aggregateId] ?? []);
+        $aggregateId   = $event->getAggregateRootUuid();
+        $rows          = $onDisk[$aggregateId] ?? [];
+        $currentOnDisk = count($rows);
+
+        if ($event->getAggregateRootVersion() === $currentOnDisk + 1) {
+            return;
+        }
+
+        // A stream whose last event does not carry its row count as its
+        // version cannot be ordered at all — two events claim one version.
+        // Reporting THAT as a concurrency conflict invites an endless retry,
+        // because no retry can ever succeed against it.
+        $lastVersion = $this->versionOf(end($rows));
+        if ($lastVersion !== null && $lastVersion !== $currentOnDisk) {
+            throw new \RuntimeException(sprintf(
+                'Demo event store: the history of "%s" is malformed — %d events but the last claims '
+                . 'version %d, so two of them claim the same version and no replay can order them. '
+                . 'It cannot be appended to or repaired in place. Run ./demo/demo state clear.',
+                $aggregateId,
+                $currentOnDisk,
+                $lastVersion
+            ));
+        }
 
         // Events are appended in order, so a well-formed stream's row count
         // IS its current version; the next event must claim the one after it.
-        if ($event->getAggregateRootVersion() !== $currentOnDisk + 1) {
-            throw ConcurrencyException::forAggregate(
-                $aggregateId,
-                $event->getAggregateRootVersion() - 1,
-                $currentOnDisk
-            );
+        throw ConcurrencyException::forAggregate(
+            $aggregateId,
+            $event->getAggregateRootVersion() - 1,
+            $currentOnDisk
+        );
+    }
+
+    /**
+     * A stream whose last event does not carry its row count as its version
+     * has two events claiming one version: no replay can order them, and no
+     * retry can ever append to it. Data written before this store checked
+     * versions can be in that state, so the error has to say what is wrong
+     * and what fixes it — a bare concurrency conflict reads as transient and
+     * invites an endless retry.
+     *
+     * Checked per aggregate on read, NOT for the whole store at bootstrap:
+     * one corrupt shift must not stop every other command from running.
+     *
+     * @param array<int, AggregateEvent> $events
+     */
+    private function assertStreamCanBeOrdered(string $aggregateRootUuid, array $events): void
+    {
+        if ($events === []) {
+            return;
         }
+
+        $lastVersion = end($events)->getAggregateRootVersion();
+        if ($lastVersion === count($events)) {
+            return;
+        }
+
+        throw new \RuntimeException(sprintf(
+            'Demo event store: the history of "%s" is malformed — %d events but the last claims '
+            . 'version %d, so two of them claim the same version and no replay can order them. '
+            . 'It cannot be repaired in place. Run ./demo/demo state clear.',
+            $aggregateRootUuid,
+            count($events),
+            $lastVersion
+        ));
+    }
+
+    /**
+     * The stored version of a persisted row, or null when the row is not in
+     * the shape this store writes.
+     *
+     * @param mixed $row
+     */
+    private function versionOf($row): ?int
+    {
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $version = $row['data']['metadata'][AggregateEvent::META_AGGREGATE_ROOT_VERSION] ?? null;
+
+        return is_int($version) ? $version : null;
     }
 
     private function save(): void
