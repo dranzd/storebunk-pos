@@ -77,8 +77,9 @@ if ($argc < 2) {
 // — the active-session check on close, the occupancy check on open. Rather
 // than let those run on a history whose order is undefined, the commands
 // that depend on them refuse while any stream is malformed. Terminal
-// queries, `state show` and `state clear` stay available, and `state clear`
-// is the way out.
+// commands stay available unless the malformed stream is a terminal's own
+// (they then fail loudly when the store reads it); `state show` and
+// `state clear` always work, and `state clear` is the way out.
 $malformedStreams = $eventStore->malformedStreams();
 if ($malformedStreams !== [] && in_array($argv[1] ?? '', ['shift', 'session'], true)) {
     Output::error('Refusing to run: some histories cannot be ordered.');

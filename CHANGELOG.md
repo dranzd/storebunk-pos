@@ -111,10 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outright — their guards (is this shift free of active sessions? is this
   terminal occupied?) are answered from the replayed history, and a guard
   answered from a history that cannot be ordered is a guard that silently
-  passes. Terminal queries and `state show` keep working unless the
-  unorderable stream is a terminal's own, in which case they fail loudly with
-  the same remedy; `state clear` always works, since it runs before anything
-  is loaded, so the documented way out is always reachable.
+  passes. Terminal queries keep working unless the unorderable stream is a
+  terminal's own, in which case they fail loudly with the same remedy.
+  `state show` and `state clear` always work — one never replays events, the
+  other runs before anything is loaded — so the way out stays reachable.
 - Demo `session sync` removed the synced order from `pending_sync_order_ids`
   via a stale read-modify-write; a concurrent push from another process could
   be clobbered. `StateStore::removeFromList()` now filters the current
