@@ -461,12 +461,7 @@ final class FileEventStoreTest extends TestCase
         // Data written before this store checked versions can already hold
         // two events claiming one version. Retrying against it can never
         // succeed, so it must not read like a transient conflict.
-        $store = new FileEventStore($this->filePath);
-        $store->append($this->terminalRegistered('agg-1', 1));
-        $store->append($this->terminalRegistered('agg-1', 2));
-        $onDisk = json_decode((string) file_get_contents($this->filePath), true);
-        $onDisk['agg-1'][] = $onDisk['agg-1'][1];
-        file_put_contents($this->filePath, json_encode($onDisk));
+        $this->seedMalformedStream();
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('is malformed');
@@ -475,6 +470,66 @@ final class FileEventStoreTest extends TestCase
         // version 2, so it records version 3 — which the row count says is
         // already taken.
         (new FileEventStore($this->filePath))->append($this->terminalRegistered('agg-1', 3));
+    }
+
+    public function test_reading_a_malformed_stream_reports_it_rather_than_returning_it(): void
+    {
+        $this->seedMalformedStream();
+        $store = new FileEventStore($this->filePath);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('is malformed');
+
+        $store->loadEvents('agg-1');
+    }
+
+    public function test_a_malformed_stream_is_excluded_from_the_projection_source(): void
+    {
+        // allEvents() feeds every read-model projection. Replaying a stream
+        // whose order is undefined can resurrect a closed aggregate, and the
+        // slot seeding built from that projection would claim a terminal for
+        // a shift nobody can operate.
+        $this->seedMalformedStream();
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-healthy', 1));
+
+        $projected = $store->allEvents();
+
+        $this->assertArrayNotHasKey('agg-1', $projected);
+        $this->assertArrayHasKey('agg-healthy', $projected);
+    }
+
+    public function test_malformed_streams_are_reported_for_the_operator(): void
+    {
+        $this->seedMalformedStream();
+
+        $malformed = (new FileEventStore($this->filePath))->malformedStreams();
+
+        $this->assertArrayHasKey('agg-1', $malformed);
+        $this->assertStringContainsString('state clear', $malformed['agg-1']);
+    }
+
+    public function test_a_healthy_store_reports_no_malformed_streams(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+        $store->append($this->terminalRegistered('agg-1', 2));
+
+        $this->assertSame([], (new FileEventStore($this->filePath))->malformedStreams());
+    }
+
+    /**
+     * The artifact an older build could write: two events claiming version 2.
+     */
+    private function seedMalformedStream(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+        $store->append($this->terminalRegistered('agg-1', 2));
+
+        $onDisk = json_decode((string) file_get_contents($this->filePath), true);
+        $onDisk['agg-1'][] = $onDisk['agg-1'][1];
+        file_put_contents($this->filePath, json_encode($onDisk));
     }
 
     private function terminalRegistered(string $aggregateRootUuid, int $version = 1): AggregateEvent

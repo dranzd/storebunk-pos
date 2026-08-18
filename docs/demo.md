@@ -104,7 +104,8 @@ IdempotencyRegistry ─┐ rebuilt from persisted session events
 PendingSyncQueue   ──┘ on every bootstrap
 ShiftClosePolicy
 ShiftSlotBook ──→ FileShiftSlotReservation (demo/data/shift-slots.json)
-                  the concurrency authority every shift handler goes through
+                  the concurrency authority the five slot-holding shift
+                  handlers go through (cash drop does not hold slots)
 
 CommandRegistry (InMemoryHandlerRegistry)
     → RegisterTerminalHandler
@@ -783,7 +784,7 @@ Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventSto
 
 All three stores (`FileEventStore`, `StateStore` and `FileShiftSlotReservation`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets all three files (events, ids, shift slots) as a coordinated all-or-nothing operation.
 
-One corruption cannot be repaired in place: a history where two events of the same aggregate claim the same version, which an older build could write when two commands raced. Any command touching that aggregate says so and names `state clear` as the remedy; commands on every other aggregate keep working.
+One corruption cannot be repaired in place: a history where two events of the same aggregate claim the same version, which an older build could write when two commands raced. Any command touching that aggregate says so and names `state clear` as the remedy, `shift reconcile` refuses rather than rebuilding slots from a history it cannot order, and the stream is kept out of the read-model projection so it cannot claim a terminal for a shift nobody can operate. Commands on every other aggregate keep working.
 
 Shift slots live in a third store, `demo/data/shift-slots.json` (same lock/tmp-rename discipline), because one-shift-per-terminal and one-shift-per-cashier need a claim that survives across processes — see `./demo shift reconcile` above for its recovery step.
 

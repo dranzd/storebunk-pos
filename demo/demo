@@ -114,7 +114,7 @@ try {
             handleTerminal($commandBus, $terminalReadModel, $stateStore, $subcommand, $args);
             break;
         case 'shift':
-            handleShift($commandBus, $stateStore, $shiftReadModel, $shiftSlots, $subcommand, $args);
+            handleShift($commandBus, $stateStore, $shiftReadModel, $shiftSlots, $eventStore, $subcommand, $args);
             break;
         case 'session':
             handleSession($commandBus, $stateStore, $orderingService, $paymentService, $subcommand, $args);

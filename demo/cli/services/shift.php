@@ -11,6 +11,7 @@ use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
 use Dranzd\StorebunkPos\Application\Shift\ReadModel\ShiftReadModelInterface;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
@@ -27,6 +28,7 @@ function handleShift(
     StateStore $stateStore,
     ShiftReadModelInterface $shiftReadModel,
     FileShiftSlotReservation $shiftSlots,
+    FileEventStore $eventStore,
     string $subcommand,
     CliArgs $args
 ): void {
@@ -50,7 +52,7 @@ function handleShift(
             shiftCashDrop($commandBus, $stateStore, $args);
             break;
         case 'reconcile':
-            shiftReconcile($shiftReadModel, $shiftSlots);
+            shiftReconcile($shiftReadModel, $shiftSlots, $eventStore);
             break;
         default:
             Output::error("Unknown shift subcommand: {$subcommand}");
@@ -290,8 +292,23 @@ function shiftCashDrop(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
  * It discards in-flight claims, so it must not run while another demo
  * command is executing.
  */
-function shiftReconcile(ShiftReadModelInterface $shiftReadModel, FileShiftSlotReservation $shiftSlots): void
-{
+function shiftReconcile(
+    ShiftReadModelInterface $shiftReadModel,
+    FileShiftSlotReservation $shiftSlots,
+    FileEventStore $eventStore
+): void {
+    // Rebuilding slots from a history that cannot be ordered would report a
+    // confident "corrected N entries" while claiming — or freeing — a
+    // terminal on the strength of a shift nobody can operate.
+    $malformed = $eventStore->malformedStreams();
+    if ($malformed !== []) {
+        Output::error('Cannot reconcile: some histories cannot be ordered.');
+        foreach ($malformed as $reason) {
+            Output::info($reason);
+        }
+        exit(1);
+    }
+
     $openShifts  = FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts());
     $corrections = $shiftSlots->reconcile($openShifts);
 

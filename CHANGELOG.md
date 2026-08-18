@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open, transfers refuse closed shifts and shifts with a transfer already in
   flight (whoever the target is), and a
   cleanup that fails after a command persisted raises
-  `SlotCleanupFailedException` (original failure preserved as the cause)
+  `SlotCleanupFailedException` (naming the failure and the recovery step; when the command itself also failed, that original failure is preserved as the cause)
   pointing at `reconcile` — exposed as `./demo shift reconcile`, which
   rebuilds the slots from the committed shifts. The slot algebra shared by
   every implementation lives in one place, `ShiftSlotBook`. Demo

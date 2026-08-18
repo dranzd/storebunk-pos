@@ -22,6 +22,16 @@ final class FileEventStore implements EventStore
     private array $events = [];
 
     /**
+     * Streams that cannot be ordered (two events claiming one version),
+     * keyed by aggregate id with the reason. Computed once at load: reading
+     * one throws, and the projection path skips it rather than replaying
+     * events whose order is undefined.
+     *
+     * @var array<string, string>
+     */
+    private array $malformed = [];
+
+    /**
      * Events appended by THIS process and not yet flushed. save() merges these
      * onto the on-disk state under an exclusive lock instead of dumping the
      * whole in-memory snapshot, so two concurrent demo processes cannot erase
@@ -70,10 +80,22 @@ final class FileEventStore implements EventStore
      */
     public function loadEvents(string $aggregateRootUuid): array
     {
-        $events = $this->events[$aggregateRootUuid] ?? [];
-        $this->assertStreamCanBeOrdered($aggregateRootUuid, $events);
+        if (isset($this->malformed[$aggregateRootUuid])) {
+            throw new \RuntimeException($this->malformed[$aggregateRootUuid]);
+        }
 
-        return $events;
+        return $this->events[$aggregateRootUuid] ?? [];
+    }
+
+    /**
+     * Streams that cannot be ordered, keyed by aggregate id, with the reason
+     * to show the operator. Empty for a healthy store.
+     *
+     * @return array<string, string>
+     */
+    public function malformedStreams(): array
+    {
+        return $this->malformed;
     }
 
     /**
@@ -102,7 +124,11 @@ final class FileEventStore implements EventStore
      */
     public function allEvents(): array
     {
-        return $this->events;
+        // Excluded, not guessed at: replaying a stream whose order is
+        // undefined can resurrect a closed shift into the read model, and
+        // the slot seeding built from that projection would then claim a
+        // terminal for a shift nobody can operate.
+        return array_diff_key($this->events, $this->malformed);
     }
 
     public function clear(): void
@@ -112,7 +138,8 @@ final class FileEventStore implements EventStore
         // reload the supposedly cleared history.
         self::clearAt($this->filePath);
 
-        $this->events = [];
+        $this->events    = [];
+        $this->malformed = [];
         // Drop pending events too — a save that failed before clear()
         // must not resurrect cleared history on the next append.
         $this->unpersisted = [];
@@ -224,6 +251,8 @@ final class FileEventStore implements EventStore
                 $this->events[$aggregateRootUuid][] = $class::fromArray($record['data']);
             }
         }
+
+        $this->recordMalformedStreams();
     }
 
     /**
@@ -310,7 +339,7 @@ final class FileEventStore implements EventStore
         // version cannot be ordered at all — two events claim one version.
         // Reporting THAT as a concurrency conflict invites an endless retry,
         // because no retry can ever succeed against it.
-        $lastVersion = $this->versionOf(end($rows));
+        $lastVersion = $this->versionOf($rows === [] ? null : $rows[array_key_last($rows)]);
         if ($lastVersion !== null && $lastVersion !== $currentOnDisk) {
             throw new \RuntimeException(sprintf(
                 'Demo event store: the history of "%s" is malformed — %d events but the last claims '
@@ -339,30 +368,32 @@ final class FileEventStore implements EventStore
      * and what fixes it — a bare concurrency conflict reads as transient and
      * invites an endless retry.
      *
-     * Checked per aggregate on read, NOT for the whole store at bootstrap:
-     * one corrupt shift must not stop every other command from running.
-     *
-     * @param array<int, AggregateEvent> $events
+     * Recorded per aggregate, NOT thrown for the whole store: one corrupt
+     * stream must not stop every other command from running.
      */
-    private function assertStreamCanBeOrdered(string $aggregateRootUuid, array $events): void
+    private function recordMalformedStreams(): void
     {
-        if ($events === []) {
-            return;
-        }
+        $this->malformed = [];
 
-        $lastVersion = end($events)->getAggregateRootVersion();
-        if ($lastVersion === count($events)) {
-            return;
-        }
+        foreach ($this->events as $aggregateRootUuid => $events) {
+            if ($events === []) {
+                continue;
+            }
 
-        throw new \RuntimeException(sprintf(
-            'Demo event store: the history of "%s" is malformed — %d events but the last claims '
-            . 'version %d, so two of them claim the same version and no replay can order them. '
-            . 'It cannot be repaired in place. Run ./demo/demo state clear.',
-            $aggregateRootUuid,
-            count($events),
-            $lastVersion
-        ));
+            $lastVersion = $events[array_key_last($events)]->getAggregateRootVersion();
+            if ($lastVersion === count($events)) {
+                continue;
+            }
+
+            $this->malformed[$aggregateRootUuid] = sprintf(
+                'Demo event store: the history of "%s" is malformed — %d events but the last claims '
+                . 'version %d, so two of them claim the same version and no replay can order them. '
+                . 'It cannot be repaired in place. Run ./demo/demo state clear.',
+                $aggregateRootUuid,
+                count($events),
+                $lastVersion
+            );
+        }
     }
 
     /**
