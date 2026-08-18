@@ -59,7 +59,7 @@ Represents the active UI lifecycle on a terminal during a shift. Manages which o
 | `parkedOrderIds` | `OrderId[]` | Orders parked for later |
 | `inactiveOrderIds` | `OrderId[]` | Orders deactivated due to TTL expiry |
 | `pendingSyncOrderIds` | `OrderId[]` | Offline orders awaiting sync |
-| `state` | `SessionState` (Enum) | Idle, Building, Checkout |
+| `state` | `SessionState` (Enum) | Idle, Building, Checkout, Payment |
 
 #### Invariants
 
