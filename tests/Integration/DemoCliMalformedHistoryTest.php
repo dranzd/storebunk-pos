@@ -73,6 +73,47 @@ final class DemoCliMalformedHistoryTest extends TestCase
         [$exitCode, $output] = $this->runDemoCli('shift open --opening-cash=50000');
 
         $this->assertSame(1, $exitCode, "The occupied terminal must not be reopened:\n" . $output);
+        $this->assertSame(
+            [],
+            glob($this->dataDir . '/shift-slots.json') ?: [],
+            'A history that cannot be ordered must not be re-seeded into slots at all'
+        );
+    }
+
+    public function test_a_close_last_corrupt_history_does_not_release_the_terminal(): void
+    {
+        // The dangerous shape: the duplicated event is a CLOSE, so however
+        // the middle is ordered the shift replays as closed — and a re-seed
+        // built from that projection frees a terminal the events never freed.
+        // An ungated command (terminal list) is enough to trigger the re-seed.
+        $shiftId = $this->openShift();
+        $this->runDemoCliOrFail('shift close --declared-cash=50000');
+        $this->reopenTerminalWithCloseLastCorruption($shiftId);
+        $slotsBefore = (string) file_get_contents($this->dataDir . '/shift-slots.json');
+
+        $this->runDemoCli('terminal list');
+
+        $this->assertSame(
+            $slotsBefore,
+            (string) file_get_contents($this->dataDir . '/shift-slots.json'),
+            'An ungated command must not re-seed slots from an unorderable history'
+        );
+    }
+
+    public function test_a_corrupt_terminal_history_fails_loudly_and_still_clears(): void
+    {
+        $this->runDemoCliOrFail('terminal register --name=Corrupt-Terminal');
+        $state = json_decode((string) file_get_contents($this->dataDir . '/demo-state.json'), true);
+        $this->corruptStream((string) $state['last_terminal_id']);
+
+        // Terminal commands are not gated, so they surface the store's own
+        // refusal — loudly, with the remedy, never a quiet wrong answer.
+        [$getExit, $getOutput] = $this->runDemoCli('terminal get');
+        $this->assertSame(1, $getExit, $getOutput);
+        $this->assertStringContainsString('state clear', $getOutput);
+
+        [$clearExit] = $this->runDemoCli('state clear');
+        $this->assertSame(0, $clearExit);
     }
 
     public function test_a_shift_cannot_be_closed_while_a_session_history_cannot_be_ordered(): void
@@ -118,6 +159,19 @@ final class DemoCliMalformedHistoryTest extends TestCase
         $state = json_decode((string) file_get_contents($this->dataDir . '/demo-state.json'), true);
 
         return (string) $state['last_shift_id'];
+    }
+
+    /**
+     * Reopen a terminal's shift and corrupt the stream so its LAST event is
+     * a duplicated close: the shape that replays as "closed" regardless of
+     * how its middle orders, which is what once let a re-seed free the
+     * terminal the events still held.
+     */
+    private function reopenTerminalWithCloseLastCorruption(string $closedShiftId): void
+    {
+        $this->runDemoCliOrFail('shift open --opening-cash=50000');
+        $state = json_decode((string) file_get_contents($this->dataDir . '/demo-state.json'), true);
+        $this->corruptStream((string) $closedShiftId);
     }
 
     /**

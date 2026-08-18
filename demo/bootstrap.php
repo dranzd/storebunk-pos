@@ -177,9 +177,17 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
 // Seed the shift-slot reservation file from replayed events when it does
 // not exist yet; once present, the FILE is the live cross-process authority
 // (see FileShiftSlotReservation / issue 8003).
-$shiftSlotReservation->seedIfMissing(
-    FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts())
-);
+// Seeding is a guard too: it decides which terminals and cashiers are
+// occupied. Building that from a history whose order is undefined can free
+// an occupied terminal — a stream whose LAST event is a close replays as
+// "closed" however its middle is ordered. The CLI refuses shift and session
+// commands in this state anyway; not seeding keeps that from resting on one
+// layer.
+if ($eventStore->malformedStreams() === []) {
+    $shiftSlotReservation->seedIfMissing(
+        FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts())
+    );
+}
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [

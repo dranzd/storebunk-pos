@@ -299,7 +299,10 @@ function shiftReconcile(
 ): void {
     // Rebuilding slots from a history that cannot be ordered would report a
     // confident "corrected N entries" while claiming — or freeing — a
-    // terminal on the strength of a shift nobody can operate.
+    // terminal on the strength of a shift nobody can operate. The CLI's
+    // service gate already refuses before reaching here; this stays as the
+    // guarantee for any caller that invokes the function directly. Not dead
+    // code — deliberate defence in depth.
     $malformed = $eventStore->malformedStreams();
     if ($malformed !== []) {
         Output::error('Cannot reconcile: some histories cannot be ordered.');

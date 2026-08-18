@@ -24,8 +24,9 @@ final class FileEventStore implements EventStore
     /**
      * Streams that cannot be ordered (two events claiming one version),
      * keyed by aggregate id with the reason. Computed once at load: reading
-     * one throws, and the projection path skips it rather than replaying
-     * events whose order is undefined.
+     * one directly throws, while the projection is still given everything —
+     * see allEvents() for why hiding them from a guard is worse than the
+     * corruption itself. Callers that depend on those guards refuse instead.
      *
      * @var array<string, string>
      */
