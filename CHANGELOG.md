@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-> **Breaking changes pending release.** All command factory methods are gone —
-> commands are constructed with `new` (ADR-003) — and `SyncOrderOnline` now
-> carries an opaque context array (ADR-006).
+_Nothing yet._
+
+## [3.0.0] - 2026-08-18
+
+> **Breaking release.** All command factory methods are gone — commands are
+> constructed with `new` (ADR-003) — and `SyncOrderOnline` now carries an
+> opaque context array (ADR-006). Hosts must also supply an implementation of
+> the new `ShiftSlotReservationInterface`: the five slot-holding shift
+> handlers take it, and it must be atomic against concurrent callers (a
+> database unique constraint, `SETNX`, an advisory lock). The bundled
+> `InMemoryShiftSlotReservation` is a single-process reference only.
 
 ### Added
 
