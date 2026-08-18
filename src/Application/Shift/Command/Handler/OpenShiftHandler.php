@@ -13,6 +13,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface;
+use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
+use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
 
 /**
@@ -33,6 +35,8 @@ final class OpenShiftHandler
 
     public function __invoke(OpenShift $command): void
     {
+        $this->assertShiftDoesNotExist(ShiftId::fromNative($command->shiftId));
+
         $this->slotReservation->reserveForOpen(
             $command->terminalId,
             $command->cashierId,
@@ -67,5 +71,26 @@ final class OpenShiftHandler
             }
             throw $failure;
         }
+    }
+
+    /**
+     * A shift id is used once. Opening onto an existing stream would append a
+     * second ShiftOpened, and replay keeps whatever the first life set that
+     * opening does not overwrite — its assignee, its cash drops — so the
+     * reopened shift would name an operator who is free to run another shift
+     * elsewhere, and close with the old drops in its expected cash. The slot
+     * claim cannot catch this: a closed shift released its slots.
+     */
+    private function assertShiftDoesNotExist(ShiftId $shiftId): void
+    {
+        try {
+            $this->shiftRepository->load($shiftId);
+        } catch (AggregateNotFoundException) {
+            return;
+        }
+
+        throw InvariantViolationException::withMessage(
+            sprintf('Shift "%s" already exists; a shift id cannot be reused', $shiftId->toNative())
+        );
     }
 }

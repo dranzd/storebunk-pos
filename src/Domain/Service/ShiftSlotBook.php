@@ -80,13 +80,18 @@ final class ShiftSlotBook
                 sprintf('Shift "%s" holds no cashier slot; it is not open here', $shiftId)
             );
         }
-        if ($currentHolder === $newCashierId) {
-            return $slots;
-        }
+        // The in-flight guard comes FIRST, before the "already the holder"
+        // no-op: a second command whose target happens to be the committed
+        // holder would otherwise slip through, persist its own change, and
+        // then be silently overwritten when the in-flight transfer commits —
+        // leaving the slots naming one cashier and the events another.
         if (in_array($shiftId, $slots['pending'], true)) {
             throw InvariantViolationException::withMessage(
                 sprintf('Shift "%s" already has a cashier transfer in flight', $shiftId)
             );
+        }
+        if ($currentHolder === $newCashierId) {
+            return $slots;
         }
         $this->multiTerminalEnforcement->assertCashierFreeForShift(
             $newCashierId,
@@ -158,11 +163,38 @@ final class ShiftSlotBook
     {
         $slots = $this->emptyState();
         foreach ($openShiftsById as $shiftId => $shift) {
+            // Two open shifts sharing a terminal or a cashier means the
+            // committed history ALREADY violates the invariant. Overwriting
+            // one with the other would hide that and leave the losing shift
+            // with no slot — permanently unassignable, and reproduced by
+            // every later run. Reconciliation exists to surface corruption,
+            // so it refuses instead.
+            $this->assertUnclaimed($slots['terminals'], $shift['terminal_id'], (string) $shiftId, 'terminal');
+            $this->assertUnclaimed($slots['cashiers'], $shift['cashier_id'], (string) $shiftId, 'cashier');
+
             $slots['terminals'][$shift['terminal_id']] = (string) $shiftId;
             $slots['cashiers'][$shift['cashier_id']]   = (string) $shiftId;
         }
 
         return $slots;
+    }
+
+    /**
+     * @param array<string, string> $bucket
+     */
+    private function assertUnclaimed(array $bucket, string $key, string $shiftId, string $what): void
+    {
+        $claimedBy = $bucket[$key] ?? null;
+        if ($claimedBy !== null && $claimedBy !== $shiftId) {
+            throw InvariantViolationException::withMessage(sprintf(
+                'Cannot reconcile: %s "%s" is held by two open shifts, "%s" and "%s". '
+                . 'Close one of them before reconciling.',
+                $what,
+                $key,
+                $claimedBy,
+                $shiftId
+            ));
+        }
     }
 
     /**

@@ -33,10 +33,12 @@ final class CloseShiftHandlerTest extends TestCase
     private InMemoryShiftRepository $shiftRepository;
     private InMemoryPosSessionRepository $sessionRepository;
     private InMemoryPosSessionReadModel $readModel;
+    private InMemoryShiftSlotReservation $slotReservation;
     private CloseShiftHandler $handler;
 
     protected function setUp(): void
     {
+        $this->slotReservation = new InMemoryShiftSlotReservation();
         $this->eventStore = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
         $this->sessionRepository = new InMemoryPosSessionRepository($this->eventStore);
@@ -45,7 +47,7 @@ final class CloseShiftHandlerTest extends TestCase
             $this->shiftRepository,
             new ShiftClosePolicy(),
             $this->readModel,
-            new InMemoryShiftSlotReservation()
+            $this->slotReservation
         );
     }
 
@@ -149,7 +151,7 @@ final class CloseShiftHandlerTest extends TestCase
             $this->shiftRepository,
             new ShiftClosePolicy(),
             $this->readModel,
-            new ReleaseFailingSlotReservation(new InMemoryShiftSlotReservation())
+            new ReleaseFailingSlotReservation($this->slotReservation)
         );
 
         try {
@@ -170,7 +172,7 @@ final class CloseShiftHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
+        $openHandler = new OpenShiftHandler($this->shiftRepository, $this->slotReservation);
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

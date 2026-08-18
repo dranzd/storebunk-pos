@@ -28,6 +28,7 @@ if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
     Output::success('State cleared.');
     Output::info('File: ' . StateStore::defaultPath());
     Output::info('Events: ' . FileEventStore::defaultPath());
+    Output::info('Slots: ' . \Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation::defaultPath());
     exit(0);
 }
 
@@ -84,8 +85,11 @@ if ($service === 'state') {
     $subcommand = $args->positional(0);
     // 'clear' is handled before bootstrap (top of this script).
     if ($subcommand === 'show') {
+        // A fresh data directory has no state file yet; reading it blind
+        // fataled with a raw PHP stack trace outside the friendly handler.
+        $raw  = is_file($stateStore->filePath()) ? file_get_contents($stateStore->filePath()) : '[]';
         $data = json_encode(
-            json_decode(file_get_contents($stateStore->filePath()), true),
+            json_decode($raw === false ? '[]' : $raw, true),
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
         );
         Output::section('Current State');

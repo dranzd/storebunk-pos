@@ -25,10 +25,12 @@ final class RecordCashDropHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
+    private InMemoryShiftSlotReservation $slotReservation;
     private RecordCashDropHandler $handler;
 
     protected function setUp(): void
     {
+        $this->slotReservation = new InMemoryShiftSlotReservation();
         $this->eventStore = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
         $this->handler = new RecordCashDropHandler($this->shiftRepository);
@@ -52,7 +54,7 @@ final class RecordCashDropHandlerTest extends TestCase
     public function test_refuses_a_cash_drop_on_a_closed_shift(): void
     {
         $shiftId = $this->openShift();
-        $forceClose = new ForceCloseShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
+        $forceClose = new ForceCloseShiftHandler($this->shiftRepository, $this->slotReservation);
         $forceClose(new ForceCloseShift($shiftId->toNative(), 'supervisor-1', 'end of day'));
 
         $this->expectException(InvariantViolationException::class);
@@ -64,7 +66,7 @@ final class RecordCashDropHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
+        $openHandler = new OpenShiftHandler($this->shiftRepository, $this->slotReservation);
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

@@ -103,15 +103,26 @@ final class AssignShiftHandlerTest extends TestCase
         $cashier = new CashierId();
         $shiftId = $this->openShift($cashier);
 
-        $this->expectNotToPerformAssertions();
-
         // Re-issuing membership on the shift the cashier already operates is
         // the documented "replace membership" path — not a second shift.
+        $firstFallback = new CashierId();
         ($this->handler)(new AssignShift(
             $shiftId->toNative(),
             $cashier->toNative(),
-            [(new CashierId())->toNative()]
+            [$firstFallback->toNative()]
         ));
+        $replacementFallback = new CashierId();
+        ($this->handler)(new AssignShift(
+            $shiftId->toNative(),
+            $cashier->toNative(),
+            [$replacementFallback->toNative()]
+        ));
+
+        // Membership was REPLACED, not appended or dropped.
+        $shift = $this->shiftRepository->load($shiftId);
+        $this->assertTrue($shift->assignee()->sameValueAs($cashier));
+        $this->assertCount(1, $shift->fallbackCashiers());
+        $this->assertTrue($shift->fallbackCashiers()[0]->sameValueAs($replacementFallback));
     }
 
     public function test_assignment_frees_the_previous_operator_to_open_a_shift(): void

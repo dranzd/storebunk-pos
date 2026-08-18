@@ -105,11 +105,46 @@ final class OpenShiftHandlerTest extends TestCase
 
     public function test_different_terminals_and_cashiers_open_concurrently(): void
     {
-        ($this->handler)($this->openShiftCommand(new ShiftId(), new TerminalId(), new CashierId()));
+        $firstShift  = new ShiftId();
+        $secondShift = new ShiftId();
+        ($this->handler)($this->openShiftCommand($firstShift, new TerminalId(), new CashierId()));
+        ($this->handler)($this->openShiftCommand($secondShift, new TerminalId(), new CashierId()));
 
-        $this->expectNotToPerformAssertions();
+        // Both shifts really are open and holding their own slots — the
+        // refusals above must not come from a blanket "one shift at a time".
+        $this->assertTrue($this->shiftRepository->load($firstShift)->isAssigned() === false);
+        $this->assertTrue($this->shiftRepository->load($secondShift)->isAssigned() === false);
+        $this->assertNotSame(
+            $this->shiftRepository->load($firstShift)->openedBy()->toNative(),
+            $this->shiftRepository->load($secondShift)->openedBy()->toNative()
+        );
+    }
 
-        ($this->handler)($this->openShiftCommand(new ShiftId(), new TerminalId(), new CashierId()));
+    public function test_a_closed_shift_id_cannot_be_reopened(): void
+    {
+        // Replay keeps whatever the first life set that a second ShiftOpened
+        // does not overwrite — assignee, cash drops — so the reopened shift
+        // would name an operator who is free to run another shift elsewhere.
+        $shiftId = new ShiftId();
+        ($this->handler)($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
+        $forceCloseHandler = new ForceCloseShiftHandler($this->shiftRepository, $this->slotReservation);
+        $forceCloseHandler(new ForceCloseShift($shiftId->toNative(), 'sup-1', 'end of day'));
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('a shift id cannot be reused');
+
+        ($this->handler)($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
+    }
+
+    public function test_an_open_shift_id_cannot_be_reopened(): void
+    {
+        $shiftId = new ShiftId();
+        ($this->handler)($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('a shift id cannot be reused');
+
+        ($this->handler)($this->openShiftCommand($shiftId, new TerminalId(), new CashierId()));
     }
 
     public function test_a_failed_store_releases_the_reserved_slots(): void

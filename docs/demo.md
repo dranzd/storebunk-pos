@@ -60,6 +60,8 @@ demo/
 │   ├── CliArgs.php                   # Argument/option parser
 │   ├── StateStore.php                # JSON state file (last_* ids, id lists)
 │   ├── FileEventStore.php            # JSON-backed event store for demo persistence
+│   ├── FileShiftSlotReservation.php  # Cross-process shift-slot claims (lock + atomic rename)
+│   ├── DemoReset.php                 # Coordinated all-or-nothing reset of the three stores
 │   ├── Utils.php                     # Formatting helpers
 │   └── services/
 │       ├── terminal.php              # Terminal service CLI handler
@@ -75,7 +77,8 @@ demo/
 │   └── 07-concurrency-conflict.sh    # Optimistic locking conflict demonstration
 └── data/
     ├── demo-state.json               # ID state (git-ignored at runtime)
-    └── events.json                   # Persisted events (git-ignored)
+    ├── events.json                   # Persisted events (git-ignored)
+    └── shift-slots.json              # Shift-slot claims (git-ignored)
 ```
 
 ---
@@ -90,6 +93,8 @@ FileEventStore (demo/data/events.json)
     → InMemoryShiftRepository
     → InMemoryPosSessionRepository
     → InMemoryTerminalReadModel (projected per invocation)
+    → InMemoryPosSessionReadModel (projected during replay)
+    → InMemoryShiftReadModel (projected during replay; seeds/reconciles slots)
 
 StubOrderingService
 StubInventoryService
@@ -98,6 +103,8 @@ StubPaymentService
 IdempotencyRegistry ─┐ rebuilt from persisted session events
 PendingSyncQueue   ──┘ on every bootstrap
 ShiftClosePolicy
+ShiftSlotBook ──→ FileShiftSlotReservation (demo/data/shift-slots.json)
+                  the concurrency authority every shift handler goes through
 
 CommandRegistry (InMemoryHandlerRegistry)
     → RegisterTerminalHandler
@@ -291,6 +298,40 @@ Shift opened successfully.
 
 ---
 
+#### `assign`
+
+Hand the shift to an operating cashier, optionally naming fallback cashiers
+(at most 3). The shift's cashier slot moves to the assignee only once the
+change is saved, so a cashier who already operates another open shift is
+refused.
+
+```bash
+./demo shift assign --assignee-id=<uuid> [--shift-id=<uuid>] [--fallback-ids=<uuid>,<uuid>]
+```
+
+Options:
+- `--assignee-id=<uuid>` — Cashier who will operate the shift (defaults to the last opened shift's cashier)
+- `--shift-id=<uuid>` — Shift UUID (defaults to the last opened shift)
+- `--fallback-ids=<uuid>,<uuid>` — Comma-separated fallback cashiers, max 3
+
+Re-issuing an assignment REPLACES the membership — it does not add to it.
+
+---
+
+#### `unassign`
+
+Clear the membership, handing operation back to the cashier who opened the
+shift. Refused when that opener meanwhile operates another open shift.
+
+```bash
+./demo shift unassign [--shift-id=<uuid>]
+```
+
+Options:
+- `--shift-id=<uuid>` — Shift UUID (defaults to the last opened shift)
+
+---
+
 #### `close`
 
 Close a shift with declared cash amount.
@@ -302,7 +343,7 @@ Close a shift with declared cash amount.
 Options:
 - `--shift-id=<uuid>` — Shift UUID (required)
 - `--declared-cash=<int>` — Declared closing cash in minor units (required)
-- `--currency=<string>` — Currency code (default: from config)
+- `--currency=<string>` — Currency code (default `PHP`)
 
 Output:
 ```
@@ -740,11 +781,11 @@ via `--currency`, and ids default to the `last_*` entries in
 
 Events are persisted to a JSON file via `FileEventStore` (`demo/cli/FileEventStore.php`). Each demo command appends events to the file (merge-on-write under an exclusive lock), enabling stateful multi-command sessions.
 
-Both stores (`FileEventStore` and `StateStore`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets all three files (events, ids, shift slots) as a coordinated all-or-nothing operation.
+All three stores (`FileEventStore`, `StateStore` and `FileShiftSlotReservation`) write defensively: mutations re-read the current file under a sidecar `.lock` (so concurrent commands never lose each other's writes), the new content goes to a `.tmp` file that is atomically renamed over the store, and every persistence failure throws instead of reporting success. A corrupt or unreadable file also fails loudly rather than silently loading as empty. The recovery for a corrupt store is `./demo/demo state clear`, which is handled before bootstrap (so it works even when the stores can't be loaded) and resets all three files (events, ids, shift slots) as a coordinated all-or-nothing operation.
 
 Shift slots live in a third store, `demo/data/shift-slots.json` (same lock/tmp-rename discipline), because one-shift-per-terminal and one-shift-per-cashier need a claim that survives across processes — see `./demo shift reconcile` above for its recovery step.
 
-Data file (fixed): `demo/data/events.json` — git-ignored, cleared together with the ID state file by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)
+Data files (fixed): `demo/data/events.json`, `demo-state.json` and `shift-slots.json` — all git-ignored, all cleared together by `./demo/demo state clear`. (Tests point the CLI at a scratch directory via the `POS_DEMO_DATA_DIR` environment variable; normal demo usage never sets it.)
 
 Scenario scripts start with `state clear` instead of using per-run data files.
 

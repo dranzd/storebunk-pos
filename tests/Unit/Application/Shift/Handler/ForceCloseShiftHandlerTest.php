@@ -23,13 +23,15 @@ final class ForceCloseShiftHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
+    private InMemoryShiftSlotReservation $slotReservation;
     private ForceCloseShiftHandler $handler;
 
     protected function setUp(): void
     {
+        $this->slotReservation = new InMemoryShiftSlotReservation();
         $this->eventStore = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->handler = new ForceCloseShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
+        $this->handler = new ForceCloseShiftHandler($this->shiftRepository, $this->slotReservation);
     }
 
     public function test_force_closes_an_open_shift_with_supervisor_and_reason(): void
@@ -62,7 +64,7 @@ final class ForceCloseShiftHandlerTest extends TestCase
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
+        $openHandler = new OpenShiftHandler($this->shiftRepository, $this->slotReservation);
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

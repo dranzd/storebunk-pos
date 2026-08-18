@@ -134,6 +134,46 @@ final class InMemoryShiftSlotReservationTest extends TestCase
         $this->reservation->prepareTransfer('shift-1', 'cash-3');
     }
 
+    public function test_a_transfer_back_to_the_current_holder_is_refused_while_one_is_in_flight(): void
+    {
+        // The composition the earlier rounds missed: the second command's
+        // target IS the committed holder, so the "already the holder" no-op
+        // would let it through, persist its own change, and then be silently
+        // overwritten when the in-flight transfer commits — slots naming one
+        // cashier while the events name another.
+        $this->reservation->reserveForOpen(self::TERM_1, 'cash-1', 'shift-1');
+        $this->reservation->prepareTransfer('shift-1', 'cash-2');
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has a cashier transfer in flight');
+
+        $this->reservation->prepareTransfer('shift-1', 'cash-1');
+    }
+
+    public function test_reconcile_refuses_a_history_where_two_open_shifts_share_a_cashier(): void
+    {
+        // Reconciliation is the corruption-surfacing tool: silently keeping
+        // the last shift would leave the other one slotless forever.
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('held by two open shifts');
+
+        $this->reservation->reconcile([
+            'shift-1' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-1'],
+            'shift-2' => ['terminal_id' => self::TERM_2, 'cashier_id' => 'cash-1'],
+        ]);
+    }
+
+    public function test_reconcile_refuses_a_history_where_two_open_shifts_share_a_terminal(): void
+    {
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('held by two open shifts');
+
+        $this->reservation->reconcile([
+            'shift-1' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-1'],
+            'shift-2' => ['terminal_id' => self::TERM_1, 'cashier_id' => 'cash-2'],
+        ]);
+    }
+
     public function test_reserving_an_already_claimed_shift_id_is_refused(): void
     {
         // Two racing opens sharing a shift id must not both claim — the

@@ -116,6 +116,31 @@ final class UnassignShiftHandlerTest extends TestCase
         $this->openShift($assignee);
     }
 
+    public function test_unassign_is_refused_while_another_command_holds_an_in_flight_transfer(): void
+    {
+        // A concurrent assign has claimed its target but not yet committed.
+        // Unassigning now would hand the shift back to the opener — who is
+        // still its committed holder — persist that, and then be silently
+        // overwritten when the assign commits, leaving the slots and the
+        // events naming different operators.
+        $opener  = new CashierId();
+        $shiftId = $this->openShift($opener);
+
+        // Exactly the state a racing assign leaves behind between its store
+        // and its commit: the aggregate already names the assignee, while the
+        // slots still name the opener and carry the in-flight claim.
+        $assignee = new CashierId();
+        $this->slotReservation->prepareTransfer($shiftId->toNative(), $assignee->toNative());
+        $shift = $this->shiftRepository->load($shiftId);
+        $shift->assign($assignee, []);
+        $this->shiftRepository->store($shift);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has a cashier transfer in flight');
+
+        ($this->handler)(new UnassignShift($shiftId->toNative()));
+    }
+
     private function openShift(?CashierId $cashierId = null): ShiftId
     {
         $shiftId = new ShiftId();

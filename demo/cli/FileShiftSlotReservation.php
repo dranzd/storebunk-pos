@@ -177,12 +177,23 @@ final class FileShiftSlotReservation implements ShiftSlotReservationInterface
             ));
         }
 
+        // Files written before the prepare/commit protocol have no in-flight
+        // bucket; an ABSENT one means "nothing pending". A present-but-corrupt
+        // one is a different thing entirely — silently dropping it would
+        // release live claims, so it fails as loudly as the other two buckets.
+        $pending = $decoded['pending_cashiers'] ?? [];
+        if (!is_array($pending)) {
+            throw new \RuntimeException(sprintf(
+                'Demo shift-slot file %s has a corrupt in-flight claim list. ' .
+                'Run ./demo/demo state clear and retry.',
+                $this->filePath
+            ));
+        }
+
         return [
             'terminals' => $decoded['terminals'],
             'cashiers'  => $decoded['cashiers'],
-            // Files written before the prepare/commit protocol have no
-            // in-flight bucket; an absent one simply means "nothing pending".
-            'pending'   => is_array($decoded['pending_cashiers'] ?? null) ? $decoded['pending_cashiers'] : [],
+            'pending'   => $pending,
         ];
     }
 

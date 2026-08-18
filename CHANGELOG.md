@@ -17,16 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — the four Terminal handlers that existed but were never registered in the
   demo are now wired and documented (issue 1001).
 - One-open-shift-per-terminal and one-open-shift-per-cashier invariants are
-  now enforced (issue 8002): `OpenShiftHandler` consults
-  `MultiTerminalEnforcementService` against a `ShiftReadModelInterface`,
-  which gains `openShiftsByTerminal()` / `activeTerminalByCashier()` and a
-  first implementation, `InMemoryShiftReadModel` (projected from
-  `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`).
-  A second `OpenShift` on an occupied terminal, or by a cashier already
-  running a shift, is refused with an `InvariantViolationException`.
-  `AssignShift` refuses an assignee who operates another open shift, and
-  `UnassignShift` refuses when the original opener does (unassigning hands
-  the shift back to them, via the new `Shift::openedBy()` accessor).
+  now enforced (issue 8002). The rules live in
+  `MultiTerminalEnforcementService` and are applied through
+  `ShiftSlotReservationInterface` → `ShiftSlotBook`, which every shift
+  handler goes through (see the 8003 entry below for that mechanism). A
+  second `OpenShift` on an occupied terminal, or by a cashier already
+  running a shift, is refused with an `InvariantViolationException`; so is
+  reusing the id of a shift that already exists. `AssignShift` refuses an
+  assignee who operates another open shift, and `UnassignShift` refuses when
+  the original opener does (unassigning hands the shift back to them, via
+  the new `Shift::openedBy()` accessor). `InMemoryShiftReadModel` (new,
+  projected from
+  `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`)
+  is query state — and the committed authority that seeding and
+  reconciliation of the slots compare against.
 - Atomic shift-slot reservations (issue 8003): the new
   `ShiftSlotReservationInterface` (`reserveForOpen` / `prepareTransfer` /
   `commitTransfer` / `abortTransfer` / `releaseShift` / `reconcile`) is the
@@ -39,16 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commit: the outgoing cashier keeps their slot for the whole in-flight
   window, so a failed assign/unassign rolls back to a state that still
   matches the aggregate instead of freeing someone who may already have
-  taken another shift. The shift id itself is claimed on open, transfers
-  refuse closed shifts and shifts with a transfer already in flight, and a
+  taken another shift. A shift id that already holds slots is refused on
+  open, transfers refuse closed shifts and shifts with a transfer already in
+  flight (whoever the target is), and a
   cleanup that fails after a command persisted raises
   `SlotCleanupFailedException` (original failure preserved as the cause)
   pointing at `reconcile` — exposed as `./demo shift reconcile`, which
   rebuilds the slots from the committed shifts. The slot algebra shared by
   every implementation lives in one place, `ShiftSlotBook`. Demo
   `state clear` resets events, state, and shift slots as one coordinated,
-  recoverable operation. `ShiftReadModelInterface` is query state only (the
-  briefly-added enforcement-map methods are gone again).
+  recoverable operation. `ShiftReadModelInterface` stays query-only — a
+  projection is never a concurrency authority.
 
 ### Changed
 
@@ -121,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rename, fail loudly on unreadable/corrupt/unwritable files instead of
   silently losing or resurrecting data, and `./demo/demo state clear` works
   even when a store is corrupt (handled before bootstrap) as a coordinated
-  all-or-nothing reset of both files.
+  all-or-nothing reset of all three files (events, ids, shift slots).
 
 ## [2.0.0] - 2026-06-01
 
