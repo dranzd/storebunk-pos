@@ -6,6 +6,7 @@ namespace Dranzd\StorebunkPos\Demo\Cli;
 
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateEvent;
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\EventStore;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 
 /**
  * FileEventStore
@@ -276,6 +277,38 @@ final class FileEventStore implements EventStore
         return $lockHandle;
     }
 
+    /**
+     * Optimistic concurrency, enforced where it can actually be enforced.
+     *
+     * A handler's expected-version check runs against this process's
+     * construction-time snapshot, so it cannot see what another demo process
+     * appended in the meantime. This can: it runs inside the write lock,
+     * against the CURRENT file. A real event store gets the same guarantee
+     * from a unique (aggregate id, version) index.
+     *
+     * Without it, two processes that both read version N each append their
+     * own version N+1 and the stream ends up with two events claiming one
+     * version — which no replay can order, and which wedges every later
+     * command on that aggregate.
+     *
+     * @param array<string, array<int, mixed>> $onDisk
+     */
+    private function assertVersionIsFree(array $onDisk, AggregateEvent $event): void
+    {
+        $aggregateId  = $event->getAggregateRootUuid();
+        $currentOnDisk = count($onDisk[$aggregateId] ?? []);
+
+        // Events are appended in order, so a well-formed stream's row count
+        // IS its current version; the next event must claim the one after it.
+        if ($event->getAggregateRootVersion() !== $currentOnDisk + 1) {
+            throw ConcurrencyException::forAggregate(
+                $aggregateId,
+                $event->getAggregateRootVersion() - 1,
+                $currentOnDisk
+            );
+        }
+    }
+
     private function save(): void
     {
         $lockHandle = $this->acquireLock();
@@ -314,6 +347,8 @@ final class FileEventStore implements EventStore
             }
 
             foreach ($this->unpersisted as $event) {
+                $this->assertVersionIsFree($onDisk, $event);
+
                 $onDisk[$event->getAggregateRootUuid()][] = [
                     'class' => get_class($event),
                     'data'  => $event->toArray(),

@@ -24,13 +24,13 @@ final class RecordCashDropHandler
     public function __invoke(RecordCashDrop $command): void
     {
         $shift = $this->shiftRepository->load(ShiftId::fromNative($command->shiftId));
-        // Two drops recorded against the same read of the shift would both
-        // land; the version guard makes the second one lose instead.
-        $expectedVersion = $shift->getAggregateRootVersion();
         $shift->recordCashDrop(Money::fromArray([
             'amount' => $command->amount,
             'currency' => $command->currency,
         ]));
-        $this->shiftRepository->store($shift, $expectedVersion);
+        // No expected version: a cash drop is additive — nothing it decides
+        // depends on what it read, so two drops racing should both land if
+        // the store can order them, and be refused by the STORE if it cannot.
+        $this->shiftRepository->store($shift);
     }
 }

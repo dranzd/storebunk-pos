@@ -84,14 +84,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Every shift command now stores against the aggregate version it read
-  (`ShiftRepositoryInterface::store($shift, $expectedVersion)`, previously
-  never passed by any handler, so the check was dead code). Two commands
-  that read the same shift can no longer both land: the loser gets a
-  `ConcurrencyException`. `OpenShift` stores against version 0, which is
-  what makes "this shift id is unused" hold at the append rather than only
-  at the check — a shift id cannot be reused even if its whole life
-  happened in between.
+- Shift commands whose decision depends on what they read (open, assign,
+  unassign, close, force-close) now store against the aggregate version they
+  read (`ShiftRepositoryInterface::store($shift, $expectedVersion)` —
+  previously never passed by any handler, so the check was dead code).
+  `OpenShift` stores against version 0, which is what makes "this shift id
+  is unused" hold at the append rather than only at the check. A cash drop
+  passes no version: it is additive, so nothing it decides depends on what
+  it read. **What this covers:** two commands sharing one event-store
+  instance, and any host whose event store enforces a unique
+  (aggregate id, version) — the check is only as strong as the store
+  behind it, and `ShiftRepositoryInterface` now says so.
+- Demo `FileEventStore` refuses, inside its write lock and against the
+  CURRENT file, an event whose version is already taken (issue 8003). Two
+  demo processes that both read version N used to each append their own
+  N+1, leaving two events claiming one version — a stream no replay can
+  order, and which wedged every later command on that shift permanently.
+  A handler's version check cannot catch this (each process answers from the
+  history it snapshotted at startup), so the store enforces it: the losing
+  command gets a `ConcurrencyException` and the stream stays well-formed.
 - Demo `session sync` removed the synced order from `pending_sync_order_ids`
   via a stale read-modify-write; a concurrent push from another process could
   be clobbered. `StateStore::removeFromList()` now filters the current
