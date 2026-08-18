@@ -23,7 +23,7 @@ It is **not** a production UI. It is a developer tool for:
 ## Design Principles
 
 1. **No framework** — pure PHP CLI, bootstrapped manually
-2. **Uses CQRS buses** — all operations go through `SimpleCommandBus` / `SimpleQueryBus`
+2. **Uses the CQRS command bus** — every operation goes through `SimpleCommandBus`; the demo has no query bus, and reads go straight to the read models
 3. **File-backed event store, in-memory repositories** — `FileEventStore` (demo-only, JSON write-through) feeds `InMemoryTerminalRepository`, `InMemoryShiftRepository`, `InMemoryPosSessionRepository`, `InMemoryTerminalReadModel`
 4. **Stub BC services** — `StubOrderingService`, `StubInventoryService`, `StubPaymentService` from `tests/Stub/`
 5. **JSON event store persistence** — events persisted to a JSON file (like inventory demo), enabling stateful multi-command sessions

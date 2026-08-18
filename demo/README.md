@@ -1,6 +1,6 @@
 # StoreBunk POS Demo CLI
 
-Interactive command-line demonstration of the StoreBunk POS library v1.0.0.
+Interactive command-line demonstration of the StoreBunk POS library.
 
 ## Requirements
 
@@ -33,13 +33,14 @@ The demo uses:
 - **JSON state file** - Persists IDs between invocations (`demo/data/demo-state.json`)
 - **Stub services** - Mock implementations of BC ports (Ordering, Inventory, Payment)
 - **Command bus** - Routes commands to handlers
-- **Read models** - Projections rebuilt from persisted events per invocation (Terminal only)
+- **Read models** - The session and shift projections are rebuilt at bootstrap by replaying the persisted events; the terminal projection is built per command from that terminal's own stream
 
 Each CLI invocation is its own PHP process. Events are reloaded from
 `demo/data/events.json` at bootstrap, and the offline-sync state
 (pending-sync queue, idempotency registry) is rebuilt by replaying the
-persisted session events. `./demo/demo state clear` resets both the state
-file and the events file.
+persisted session events. `./demo/demo state clear` resets all three stores
+— the events file, the id state file and the shift-slot file — as one
+all-or-nothing operation.
 
 One accepted limitation: sync-command ids are not part of any event, so
 replaying a *sync* command in a fresh process re-executes it (the stub
@@ -63,6 +64,18 @@ Manages POS terminal lifecycle.
 
 # Set maintenance mode
 ./demo/demo terminal maintenance [--terminal-id=<uuid>]
+
+# Rename a terminal
+./demo/demo terminal rename --name="POS-02" [--terminal-id=<uuid>]
+
+# Reassign a terminal to another branch (terminal must not be active)
+./demo/demo terminal reassign --branch-id=<uuid> [--terminal-id=<uuid>]
+
+# Decommission a terminal (terminal must not be active — disable it first)
+./demo/demo terminal decommission [--terminal-id=<uuid>] [--reason=<text>]
+
+# Recommission a decommissioned terminal (comes back disabled, needs activate)
+./demo/demo terminal recommission --reason="back in service" [--terminal-id=<uuid>]
 
 # Get terminal details
 ./demo/demo terminal get [--terminal-id=<uuid>]
@@ -94,6 +107,11 @@ Manages cashier shifts and cash handling.
 
 # Record cash drop
 ./demo/demo shift cash-drop --amount=<amount> [--shift-id=<uuid>] [--currency=PHP]
+
+# Recovery: rebuild the shift-slot file from the shifts the events say are
+# open. Needed when a command persisted a shift but could not update its
+# slots. Run it only when no other demo command is running.
+./demo/demo shift reconcile
 ```
 
 ### Session Service
@@ -195,7 +213,12 @@ The demo uses a JSON file at `demo/data/demo-state.json` to persist:
 
 This allows multiple CLI invocations to work with the same entities.
 
-**Note:** The event store is in-memory only. State is lost when the process exits.
+**Note:** Events are persisted too, by `FileEventStore`, at
+`demo/data/events.json` — state survives between invocations, which is what
+makes the multi-command scenarios work. A third file,
+`demo/data/shift-slots.json`, holds the shift-slot claims that keep
+one-open-shift-per-terminal true across processes. All three are git-ignored
+and cleared together by `./demo/demo state clear`.
 
 ## Example Workflow
 
