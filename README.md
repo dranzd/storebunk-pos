@@ -85,7 +85,7 @@ cd storebunk-pos
 
 - **Terminal** — Registered POS device with lifecycle (Active, Disabled, Maintenance)
 - **Shift** — Cashier working session with cash handling and close policies
-- **PosSession** — Active UI lifecycle managing order flow (Idle, Building, Checkout)
+- **PosSession** — Active UI lifecycle managing order flow (Idle, Building, Checkout, Payment)
 
 ### Key Invariants
 
@@ -95,6 +95,22 @@ cd storebunk-pos
 4. Checkout locks order lines
 5. Confirmed orders never auto-expire
 6. Cash variance is recorded, never silently corrected
+7. Payment received = the order can only be completed, never cancelled by the POS
+
+**Invariants 1 and 2 need something from you.** They span aggregates, so
+per-aggregate locking cannot enforce them. The five slot-holding shift
+handlers take a `ShiftSlotReservationInterface`, and your implementation of
+it MUST be atomic against concurrent callers — a database unique constraint,
+`SETNX`, an advisory lock. A read model or a process-local lock is not a
+valid backing. The bundled `InMemoryShiftSlotReservation` is a single-process
+reference; the demo ships a file-locked one you can read as a worked example.
+
+Because the reservation and the event store are two stores, a host that wants
+them to commit or fail as one implements the port inside its own unit of
+work. Without that, what the protocol guarantees is that every reachable
+intermediate state over-blocks rather than over-permits, and is recoverable
+via the port's `reconcile()`. See
+[issue 8003](docs/reported-issues/8000-concurrency/8003-shift-enforcement-not-atomic.md).
 
 ## Domain Events
 

@@ -48,7 +48,7 @@ storebunk-pos/
 │   │   │       ├── ValueObject/
 │   │   │       │   ├── SessionId.php
 │   │   │       │   ├── OrderId.php
-│   │   │       │   ├── SessionState.php     # Enum: Idle, Building, Checkout
+│   │   │       │   ├── SessionState.php     # Enum: Idle, Building, Checkout, Payment
 │   │   │       │   └── OfflineMode.php
 │   │   │       ├── Event/
 │   │   │       │   ├── SessionStarted.php
