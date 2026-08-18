@@ -11,6 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > commands are constructed with `new` (ADR-003) — and `SyncOrderOnline` now
 > carries an opaque context array (ADR-006).
 
+### Added
+
+- Demo CLI: `terminal rename|reassign|decommission|recommission` subcommands
+  — the four Terminal handlers that existed but were never registered in the
+  demo are now wired and documented (issue 1001).
+- One-open-shift-per-terminal and one-open-shift-per-cashier invariants are
+  now enforced (issue 8002): `OpenShiftHandler` consults
+  `MultiTerminalEnforcementService` against a `ShiftReadModelInterface`,
+  which gains `openShiftsByTerminal()` / `activeTerminalByCashier()` and a
+  first implementation, `InMemoryShiftReadModel` (projected from
+  `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`).
+  A second `OpenShift` on an occupied terminal, or by a cashier already
+  running a shift, is refused with an `InvariantViolationException`.
+  `AssignShift` refuses an assignee who operates another open shift, and
+  `UnassignShift` refuses when the original opener does (unassigning hands
+  the shift back to them, via the new `Shift::openedBy()` accessor).
+- Atomic shift-slot reservations (issue 8003): the new
+  `ShiftSlotReservationInterface` (`reserveForOpen` / `prepareTransfer` /
+  `commitTransfer` / `abortTransfer` / `releaseShift` / `reconcile`) is the
+  concurrency authority for those invariants — open claims slots BEFORE
+  storing, close/force-close release them after, and the five shift handler
+  constructors take the port. Ships with a single-process
+  `InMemoryShiftSlotReservation` and a file-lock-backed demo
+  implementation; two concurrent demo `shift open` commands now resolve to
+  exactly one winner. Moving a shift's cashier runs as prepare → store →
+  commit: the outgoing cashier keeps their slot for the whole in-flight
+  window, so a failed assign/unassign rolls back to a state that still
+  matches the aggregate instead of freeing someone who may already have
+  taken another shift. The shift id itself is claimed on open, transfers
+  refuse closed shifts and shifts with a transfer already in flight, and a
+  cleanup that fails after a command persisted raises
+  `SlotCleanupFailedException` (original failure preserved as the cause)
+  pointing at `reconcile` — exposed as `./demo shift reconcile`, which
+  rebuilds the slots from the committed shifts. The slot algebra shared by
+  every implementation lives in one place, `ShiftSlotBook`. Demo
+  `state clear` resets events, state, and shift slots as one coordinated,
+  recoverable operation. `ShiftReadModelInterface` is query state only (the
+  briefly-added enforcement-map methods are gone again).
+
 ### Changed
 
 - **BREAKING** — All 27 application commands follow the storebunk-inventory
@@ -40,6 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Demo `session sync` removed the synced order from `pending_sync_order_ids`
+  via a stale read-modify-write; a concurrent push from another process could
+  be clobbered. `StateStore::removeFromList()` now filters the current
+  on-disk list under the sidecar lock (issue 9003).
+- Demo CLI arg parsing: the space-separated option form (`--name SpacedName`)
+  silently misparsed (the flag stringified to "1"); it is now rejected loudly
+  with the correct `--name=value` spelling, and scenario scripts honor
+  `POS_DEMO_DATA_DIR` instead of a hardcoded state-file path (issue 1001).
 - Repositories now depend on the `EventStore` interface instead of the
   concrete `InMemoryEventStore`.
 - Redelivering a `SyncOrderOnline` with the same deterministic message uuid

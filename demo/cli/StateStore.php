@@ -205,6 +205,27 @@ final class StateStore
         });
     }
 
+    /**
+     * Remove every occurrence of $value from the list under $key, applied to
+     * the CURRENT on-disk list under the lock — a getList()/filter/set()
+     * sequence at a call site would rewrite the list from this instance's
+     * stale snapshot and clobber entries pushed by a concurrent process.
+     */
+    public function removeFromList(string $key, mixed $value): void
+    {
+        $this->mutate(static function (array $data) use ($key, $value): array {
+            if (!isset($data[$key]) || !is_array($data[$key])) {
+                return $data;
+            }
+            $data[$key] = array_values(array_filter(
+                $data[$key],
+                static fn(mixed $item): bool => $item !== $value
+            ));
+
+            return $data;
+        });
+    }
+
     /** @return list<mixed> */
     public function getList(string $key): array
     {

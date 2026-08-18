@@ -21,7 +21,10 @@ use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Shared\Exception\SlotCleanupFailedException;
+use Dranzd\StorebunkPos\Tests\Stub\Reservation\ReleaseFailingSlotReservation;
 use PHPUnit\Framework\TestCase;
 
 final class CloseShiftHandlerTest extends TestCase
@@ -41,7 +44,8 @@ final class CloseShiftHandlerTest extends TestCase
         $this->handler = new CloseShiftHandler(
             $this->shiftRepository,
             new ShiftClosePolicy(),
-            $this->readModel
+            $this->readModel,
+            new InMemoryShiftSlotReservation()
         );
     }
 
@@ -135,10 +139,38 @@ final class CloseShiftHandlerTest extends TestCase
         ));
     }
 
+    public function test_a_failed_slot_release_is_surfaced_as_an_uncertain_slot_state(): void
+    {
+        // The shift IS closed; what the operator needs to hear is that the
+        // slots did not follow, not a bare storage error that reads like the
+        // close itself failed.
+        $shiftId = $this->openShift();
+        $handler = new CloseShiftHandler(
+            $this->shiftRepository,
+            new ShiftClosePolicy(),
+            $this->readModel,
+            new ReleaseFailingSlotReservation(new InMemoryShiftSlotReservation())
+        );
+
+        try {
+            $handler(new CloseShift($shiftId->toNative(), 50000, 'PHP'));
+            $this->fail('Expected the failed slot release to surface');
+        } catch (SlotCleanupFailedException $exception) {
+            $this->assertStringContainsString('Slot state is uncertain', $exception->getMessage());
+            $this->assertStringContainsString('slot store unavailable', $exception->getMessage());
+        }
+
+        // The close itself stands — it was persisted before the slot step, so
+        // the shift no longer accepts open-shift operations.
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('not open');
+        $this->shiftRepository->load($shiftId)->assign(new CashierId(), []);
+    }
+
     private function openShift(): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository);
+        $openHandler = new OpenShiftHandler($this->shiftRepository, new InMemoryShiftSlotReservation());
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),

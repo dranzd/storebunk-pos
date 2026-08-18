@@ -19,6 +19,11 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderResumed;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionEnded;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftAssigned;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftForceClosed;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftOpened;
+use Dranzd\StorebunkPos\Domain\Model\Shift\Event\ShiftUnassigned;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CancelOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\DeactivateOrder;
@@ -59,17 +64,28 @@ use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
 use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Terminal\Command\ActivateTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\DecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\DisableTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ActivateTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\DecommissionTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\DisableTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\ReassignTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RecommissionTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RegisterTerminalHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\RenameTerminalHandler;
 use Dranzd\StorebunkPos\Application\Terminal\Command\Handler\SetTerminalMaintenanceHandler;
+use Dranzd\StorebunkPos\Application\Terminal\Command\ReassignTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
+use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
+use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\ReadModel\InMemoryPosSessionReadModel;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\ReadModel\InMemoryShiftReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\ReadModel\InMemoryTerminalReadModel;
 use Dranzd\StorebunkPos\Infrastructure\Terminal\Repository\InMemoryTerminalRepository;
@@ -92,6 +108,7 @@ $sessionRepository    = new InMemoryPosSessionRepository($eventStore);
 // ── Read Models ───────────────────────────────────────────────────────────────
 $terminalReadModel    = new InMemoryTerminalReadModel();
 $posSessionReadModel  = new InMemoryPosSessionReadModel();
+$shiftReadModel       = new InMemoryShiftReadModel();
 
 // ── BC Service Stubs ──────────────────────────────────────────────────────────
 $orderingService   = new StubOrderingService();
@@ -102,6 +119,11 @@ $paymentService    = new StubPaymentService();
 $pendingSyncQueue    = new PendingSyncQueue();
 $idempotencyRegistry = new IdempotencyRegistry();
 $shiftClosePolicy    = new ShiftClosePolicy();
+$shiftSlotBook        = new ShiftSlotBook();
+$shiftSlotReservation = new FileShiftSlotReservation(
+    FileShiftSlotReservation::defaultPath(),
+    $shiftSlotBook
+);
 
 // ── Rebuild offline-sync state from persisted events ─────────────────────────
 // The queue and registry are plain in-memory objects; replay the persisted
@@ -140,10 +162,24 @@ foreach ($eventStore->allEvents() as $aggregateEvents) {
             $event instanceof OrderMarkedPendingSync => $posSessionReadModel->onOrderMarkedPendingSync($event),
             $event instanceof OrderSyncedOnline     => $posSessionReadModel->onOrderSyncedOnline($event),
             $event instanceof SessionEnded          => $posSessionReadModel->onSessionEnded($event),
+            // Shift read model — query state, and the seed source for the
+            // shift-slot reservation file on first run (issues 8002/8003).
+            $event instanceof ShiftOpened           => $shiftReadModel->onShiftOpened($event),
+            $event instanceof ShiftAssigned         => $shiftReadModel->onShiftAssigned($event),
+            $event instanceof ShiftUnassigned       => $shiftReadModel->onShiftUnassigned($event),
+            $event instanceof ShiftClosed           => $shiftReadModel->onShiftClosed($event),
+            $event instanceof ShiftForceClosed      => $shiftReadModel->onShiftForceClosed($event),
             default                                 => null,
         };
     }
 }
+
+// Seed the shift-slot reservation file from replayed events when it does
+// not exist yet; once present, the FILE is the live cross-process authority
+// (see FileShiftSlotReservation / issue 8003).
+$shiftSlotReservation->seedIfMissing(
+    FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts())
+);
 
 // ── Command Handlers ──────────────────────────────────────────────────────────
 $handlers = [
@@ -152,13 +188,17 @@ $handlers = [
     ActivateTerminal::class      => new ActivateTerminalHandler($terminalRepository),
     DisableTerminal::class       => new DisableTerminalHandler($terminalRepository),
     SetTerminalMaintenance::class => new SetTerminalMaintenanceHandler($terminalRepository),
+    RenameTerminal::class        => new RenameTerminalHandler($terminalRepository),
+    ReassignTerminal::class      => new ReassignTerminalHandler($terminalRepository),
+    DecommissionTerminal::class  => new DecommissionTerminalHandler($terminalRepository),
+    RecommissionTerminal::class  => new RecommissionTerminalHandler($terminalRepository),
 
     // Shift
-    OpenShift::class        => new OpenShiftHandler($shiftRepository),
-    AssignShift::class      => new AssignShiftHandler($shiftRepository),
-    UnassignShift::class    => new UnassignShiftHandler($shiftRepository),
-    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel),
-    ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository),
+    OpenShift::class        => new OpenShiftHandler($shiftRepository, $shiftSlotReservation),
+    AssignShift::class      => new AssignShiftHandler($shiftRepository, $shiftSlotReservation),
+    UnassignShift::class    => new UnassignShiftHandler($shiftRepository, $shiftSlotReservation),
+    CloseShift::class       => new CloseShiftHandler($shiftRepository, $shiftClosePolicy, $posSessionReadModel, $shiftSlotReservation),
+    ForceCloseShift::class  => new ForceCloseShiftHandler($shiftRepository, $shiftSlotReservation),
     RecordCashDrop::class   => new RecordCashDropHandler($shiftRepository),
 
     // PosSession (online)
@@ -229,4 +269,6 @@ return [
     'pendingSyncQueue'  => $pendingSyncQueue,
     'idempotencyReg'    => $idempotencyRegistry,
     'stateStore'        => $stateStore,
+    'shiftReadModel'    => $shiftReadModel,
+    'shiftSlots'        => $shiftSlotReservation,
 ];

@@ -9,7 +9,9 @@ use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\UnassignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\OpenShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\RecordCashDrop;
+use Dranzd\StorebunkPos\Application\Shift\ReadModel\ShiftReadModelInterface;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
+use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 use Dranzd\StorebunkPos\Demo\Cli\Utils;
@@ -23,6 +25,8 @@ use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 function handleShift(
     SimpleCommandBus $commandBus,
     StateStore $stateStore,
+    ShiftReadModelInterface $shiftReadModel,
+    FileShiftSlotReservation $shiftSlots,
     string $subcommand,
     CliArgs $args
 ): void {
@@ -45,10 +49,13 @@ function handleShift(
         case 'cash-drop':
             shiftCashDrop($commandBus, $stateStore, $args);
             break;
+        case 'reconcile':
+            shiftReconcile($shiftReadModel, $shiftSlots);
+            break;
         default:
             Output::error("Unknown shift subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo shift <open|assign|unassign|close|force-close|cash-drop> [options]');
+            Output::usage('./demo shift <open|assign|unassign|close|force-close|cash-drop|reconcile> [options]');
             exit(1);
     }
 }
@@ -271,4 +278,28 @@ function shiftCashDrop(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
         Output::domainError($e->getMessage());
         exit(1);
     }
+}
+
+/**
+ * Recovery command for uncertain slot state: rebuild the shift-slot file from
+ * the shifts the event store says are open. Needed when a command died
+ * between persisting a shift and updating its slots (the CLI reports that as
+ * a "slot state is uncertain" error), which would otherwise leave a terminal
+ * or a cashier blocked by a shift that is not open.
+ *
+ * It discards in-flight claims, so it must not run while another demo
+ * command is executing.
+ */
+function shiftReconcile(ShiftReadModelInterface $shiftReadModel, FileShiftSlotReservation $shiftSlots): void
+{
+    $openShifts  = FileShiftSlotReservation::openShiftsById($shiftReadModel->getOpenShifts());
+    $corrections = $shiftSlots->reconcile($openShifts);
+
+    Output::section('Shift Slot Reconciliation');
+    if ($corrections === 0) {
+        Output::success('Slots already matched the open shifts; nothing to correct.');
+    } else {
+        Output::success(sprintf('Corrected %d slot entr%s.', $corrections, $corrections === 1 ? 'y' : 'ies'));
+    }
+    Output::info(sprintf('Open shifts holding slots: %d', count($openShifts)));
 }

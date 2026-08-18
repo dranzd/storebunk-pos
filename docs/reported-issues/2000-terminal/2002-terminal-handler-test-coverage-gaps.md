@@ -1,10 +1,10 @@
 # 2002 — Application-Layer Handlers Have No Direct Test Coverage
 
 **Type:** Improvement
-**Status:** Open
+**Status:** Resolved
 **Severity:** Medium
 **Reported:** 2026-08-17
-**Resolved:**
+**Resolved:** 2026-08-17
 **Affects:** src/Application/Terminal/Command/Handler/*, src/Application/Shift/Command/Handler/ForceCloseShiftHandler.php, src/Application/Shift/Command/Handler/RecordCashDropHandler.php, src/Application/PosSession/Command/Handler/{ParkOrderHandler,ResumeOrderHandler,EndSessionHandler}.php, tests/Unit/Demo/FileEventStoreTest.php
 
 ---
@@ -41,18 +41,14 @@ Files: new tests under `tests/Unit/Application/Terminal/`, additions to existing
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
-
-**Decision:** Accept | Reject | Defer | Needs Discussion
-**Preferred Option:**
-**Notes:**
+**Decision:** Accept
+**Date answered:** 2026-08-17
+**Notes:** Owner batch-approved implementation of all open triaged issues ("do all so we can be done with this"). Test-only change, as recommended.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-08-17
+**Commit/PR:** branch `fix/8002-multi-terminal-enforcement-never-wired`
+**Summary:** 33 new tests (suite 257 → 290, assertions 653 → 718). Direct handler tests added for all 13 listed handlers: 8 Terminal handler classes under `tests/Unit/Application/Terminal/Handler/` (happy path asserting the persisted event plus the aggregate's real guards — decommissioned blocks activate/disable/maintenance/rename/reassign, active blocks reassign/decommission, same-name/same-branch refusals, recommission-only-from-decommissioned), `ForceCloseShiftHandlerTest`, `RecordCashDropHandlerTest`, `ParkOrderHandlerTest`, `ResumeOrderHandlerTest`, `EndSessionHandlerTest`. `FileEventStoreTest` gained `test_version_numbering_survives_a_reload_round_trip` asserting `getAggregateRootVersion()` and `loadEventsFromVersion()` slicing/ordering after reload.

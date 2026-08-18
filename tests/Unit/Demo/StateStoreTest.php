@@ -59,6 +59,25 @@ final class StateStoreTest extends TestCase
         $this->assertSame('order-uuid-1', $reloaded->get('order_id'));
     }
 
+    public function test_a_concurrent_push_survives_a_list_removal(): void
+    {
+        // Process A loads while the list holds only o1; process B then pushes
+        // o2. A's removal of o1 must operate on the CURRENT list, not A's
+        // stale snapshot — o2 survives.
+        $seed = new StateStore($this->filePath);
+        $seed->push('pending_sync_order_ids', 'order-1');
+
+        $storeA = new StateStore($this->filePath);
+        $storeB = new StateStore($this->filePath);
+        $storeB->push('pending_sync_order_ids', 'order-2');
+
+        $storeA->removeFromList('pending_sync_order_ids', 'order-1');
+
+        $reloaded = new StateStore($this->filePath);
+
+        $this->assertSame(['order-2'], $reloaded->getList('pending_sync_order_ids'));
+    }
+
     public function test_loading_a_corrupt_state_file_fails_loudly(): void
     {
         file_put_contents($this->filePath, '{"torn write');

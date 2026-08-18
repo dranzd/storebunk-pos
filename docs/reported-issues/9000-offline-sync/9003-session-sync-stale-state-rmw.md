@@ -1,10 +1,10 @@
 # 9003 — Demo sessionSync Rebuilds pending_sync_order_ids From a Stale Snapshot
 
 **Type:** Bug
-**Status:** Open
+**Status:** Resolved
 **Severity:** Medium
 **Reported:** 2026-08-17
-**Resolved:**
+**Resolved:** 2026-08-17
 **Affects:** demo/cli/services/session.php
 
 ---
@@ -42,18 +42,14 @@ Files: `demo/cli/StateStore.php`, `demo/cli/services/session.php`, `tests/Unit/D
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
-
-**Decision:** Accept | Reject | Defer | Needs Discussion
-**Preferred Option:**
-**Notes:**
+**Decision:** Accept
+**Date answered:** 2026-08-17
+**Notes:** Owner batch-approved implementation of all open triaged issues ("do all so we can be done with this").
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-08-17
+**Commit/PR:** branch `fix/8002-multi-terminal-enforcement-never-wired`
+**Summary:** Added `StateStore::removeFromList()` — a locked list-removal primitive that filters the CURRENT on-disk list via `mutate()` — and switched `sessionSync()` to it, replacing the stale getList/filter/set sequence. Regression test `test_a_concurrent_push_survives_a_list_removal` proves an interleaved push from a second instance survives the removal.

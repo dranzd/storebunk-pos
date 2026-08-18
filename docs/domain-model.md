@@ -438,8 +438,8 @@ interface PaymentServiceInterface
 
 | # | Invariant | Enforced By |
 |---|-----------|-------------|
-| 1 | One cashier = one terminal per open shift | Shift aggregate |
-| 2 | One terminal = one open shift | Shift aggregate |
+| 1 | One cashier = one terminal per open shift | Open/Assign/UnassignShiftHandler via ShiftSlotReservationInterface¹ |
+| 2 | One terminal = one open shift | OpenShiftHandler via ShiftSlotReservationInterface¹ |
 | 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftCloseBlockPolicy |
 | 4 | Checkout locks order lines | PosSession + Ordering BC |
 | 5 | Payment cannot apply without Confirmed state | PosSession |
@@ -448,6 +448,8 @@ interface PaymentServiceInterface
 | 8 | Cash drawer only affected by defined cash movements | Shift aggregate |
 | 9 | No expense withdrawal in POS | Shift aggregate |
 | 10 | POS never owns pricing, tax, stock deduction, or ledger logic | Architecture boundary |
+
+¹ Slot claims run through `ShiftSlotReservationInterface` BEFORE the aggregate is stored; a cashier transfer runs as prepare → store → commit (abort on failure), so the outgoing cashier keeps their slot until the change is durable and no rollback can strand an open shift without an operator. The occupancy rules themselves live in `MultiTerminalEnforcementService`, the shared slot bookkeeping in `ShiftSlotBook`. The port's contract requires implementations to be atomic against concurrent callers — the library ships a single-process in-memory implementation, the demo a file-lock one; hosts provide their own (DB uniqueness, SETNX, …). Slots left uncertain by a failure between persistence and slot bookkeeping are recovered with `reconcile()` (demo: `./demo shift reconcile`). See reported issue 8003.
 
 ---
 

@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Dranzd\StorebunkPos\Application\Shift\ReadModel;
 
+/**
+ * Query-side view of shifts. Presentation/query state only — the concurrency
+ * authority for the multi-terminal invariants is
+ * {@see \Dranzd\StorebunkPos\Domain\Service\ShiftSlotReservationInterface}.
+ */
 interface ShiftReadModelInterface
 {
     /**

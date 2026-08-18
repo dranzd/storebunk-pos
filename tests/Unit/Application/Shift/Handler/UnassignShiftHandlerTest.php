@@ -17,20 +17,24 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\Shift\Repository\InMemoryShiftRepository;
+use Dranzd\StorebunkPos\Infrastructure\Shift\Reservation\InMemoryShiftSlotReservation;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
+use Dranzd\StorebunkPos\Tests\Stub\Repository\CallbackFailingShiftRepository;
 use PHPUnit\Framework\TestCase;
 
 final class UnassignShiftHandlerTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryShiftRepository $shiftRepository;
+    private InMemoryShiftSlotReservation $slotReservation;
     private UnassignShiftHandler $handler;
 
     protected function setUp(): void
     {
         $this->eventStore      = new InMemoryEventStore();
         $this->shiftRepository = new InMemoryShiftRepository($this->eventStore);
-        $this->handler         = new UnassignShiftHandler($this->shiftRepository);
+        $this->slotReservation = new InMemoryShiftSlotReservation();
+        $this->handler         = new UnassignShiftHandler($this->shiftRepository, $this->slotReservation);
     }
 
     public function test_clears_membership_back_to_open(): void
@@ -61,15 +65,66 @@ final class UnassignShiftHandlerTest extends TestCase
         ($this->handler)(new UnassignShift($shiftId->toNative()));
     }
 
-    private function openShift(): ShiftId
+    public function test_refuses_unassign_when_the_opener_operates_another_open_shift(): void
+    {
+        // Opener opens shift A, hands it to an assignee, then opens shift B.
+        // Unassigning A would give the opener two open shifts — refused.
+        $opener = new CashierId();
+        $shiftA = $this->openAssignedShift($opener);
+        $this->openShift($opener);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already operates another open shift');
+
+        ($this->handler)(new UnassignShift($shiftA->toNative()));
+    }
+
+    public function test_the_assignee_cannot_take_a_second_shift_while_an_unassign_is_in_flight(): void
+    {
+        // Mirror of the assign case: the outgoing assignee must stay held
+        // until the unassign is durable, so a failed unassign can roll back
+        // to a state that still matches the aggregate.
+        $shiftId  = $this->openAssignedShift();
+        $assignee = $this->shiftRepository->load($shiftId)->assignee();
+
+        $assigneeRefused = null;
+        $repository      = new CallbackFailingShiftRepository(
+            $this->shiftRepository,
+            function () use ($assignee, &$assigneeRefused): void {
+                try {
+                    $this->openShift($assignee);
+                } catch (InvariantViolationException $refusal) {
+                    $assigneeRefused = $refusal;
+                }
+            }
+        );
+        $handler = new UnassignShiftHandler($repository, $this->slotReservation);
+
+        try {
+            $handler(new UnassignShift($shiftId->toNative()));
+            $this->fail('Expected the failing store to throw');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertNotNull($assigneeRefused, 'The assignee must stay held while the unassign is in flight');
+        $this->assertStringContainsString('already has an open shift', $assigneeRefused->getMessage());
+
+        // The shift is still assigned, and its assignee still holds the slot.
+        $this->assertTrue($this->shiftRepository->load($shiftId)->isAssigned());
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('already has an open shift');
+        $this->openShift($assignee);
+    }
+
+    private function openShift(?CashierId $cashierId = null): ShiftId
     {
         $shiftId = new ShiftId();
-        $openHandler = new OpenShiftHandler($this->shiftRepository);
+        $openHandler = new OpenShiftHandler($this->shiftRepository, $this->slotReservation);
         $openHandler(new OpenShift(
             $shiftId->toNative(),
             (new TerminalId())->toNative(),
             (new BranchId())->toNative(),
-            (new CashierId())->toNative(),
+            ($cashierId ?? new CashierId())->toNative(),
             50000,
             'PHP'
         ));
@@ -77,10 +132,10 @@ final class UnassignShiftHandlerTest extends TestCase
         return $shiftId;
     }
 
-    private function openAssignedShift(): ShiftId
+    private function openAssignedShift(?CashierId $opener = null): ShiftId
     {
-        $shiftId = $this->openShift();
-        $assignHandler = new AssignShiftHandler($this->shiftRepository);
+        $shiftId = $this->openShift($opener);
+        $assignHandler = new AssignShiftHandler($this->shiftRepository, $this->slotReservation);
         $assignHandler(new AssignShift(
             $shiftId->toNative(),
             (new CashierId())->toNative(),

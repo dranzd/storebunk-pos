@@ -45,6 +45,27 @@ final class MultiTerminalEnforcementService
     }
 
     /**
+     * Assert that the given cashier is free to operate the given shift: they
+     * must not currently operate a DIFFERENT open shift. Re-assigning a
+     * cashier within the shift they already operate is allowed.
+     *
+     * @param array<string, string> $openShiftByCashier cashierId => shiftId, sourced from the read model
+     */
+    public function assertCashierFreeForShift(string $cashierId, string $shiftId, array $openShiftByCashier): void
+    {
+        $currentShift = $openShiftByCashier[$cashierId] ?? null;
+
+        if ($currentShift !== null && $currentShift !== $shiftId) {
+            throw InvariantViolationException::withMessage(
+                sprintf(
+                    'Cashier "%s" already operates another open shift',
+                    $cashierId
+                )
+            );
+        }
+    }
+
+    /**
      * Assert that the given order belongs to the given terminal.
      *
      * @param array<string, string> $orderTerminalBinding orderId => terminalId, sourced from the read model

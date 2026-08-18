@@ -10,5 +10,8 @@
 /demo/data/events.json.bak
 /demo/data/events.json.lock
 /demo/data/events.json.tmp
+/demo/data/shift-slots.json
+/demo/data/shift-slots.json.tmp
+/demo/data/shift-slots.json.lock
 /coverage
 /docs/reported-issues/incoming-report.md

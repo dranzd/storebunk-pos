@@ -1,10 +1,10 @@
 # 8002 — MultiTerminalEnforcementService Is Never Wired Into Any Handler
 
 **Type:** Missing Feature
-**Status:** Open
+**Status:** Resolved
 **Severity:** High
 **Reported:** 2026-08-17
-**Resolved:**
+**Resolved:** 2026-08-17
 **Affects:** src/Domain/Service/MultiTerminalEnforcementService.php, src/Application/Shift/ReadModel/ShiftReadModelInterface.php, src/Application/Shift/Command/Handler/OpenShiftHandler.php, src/Application/PosSession/Command/Handler/StartSessionHandler.php
 
 ---
@@ -60,18 +60,19 @@ Files to change (Option A): the two handlers, a new `InMemoryShiftReadModel`, `d
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
+**Decision:** Accept
+**Date answered:** 2026-08-17
+**Preferred Option / Question Answers:**
 
-**Decision:** Accept | Reject | Defer | Needs Discussion
-**Preferred Option:**
-**Notes:**
+- **Q1 — (a) Option A.** Owner said "do that" after the plain-language walkthrough of the issue: complete the wiring so the library enforces its documented invariants.
+- **Q2 — (a) Keep High.** No override given.
+
+**Notes:** Owner's standing note from triage: no code modification unless the issue affects the core or the design itself — this one does (an unenforced documented invariant), so implementation proceeded.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-08-17
+**Commit/PR:** branch `fix/8002-multi-terminal-enforcement-never-wired`
+**Summary:** `InMemoryShiftReadModel` (new, `src/Infrastructure/Shift/ReadModel/`) projects `ShiftOpened`/`ShiftAssigned`/`ShiftUnassigned`/`ShiftClosed`/`ShiftForceClosed`; `ShiftReadModelInterface` gained the two enforcement maps (`openShiftsByTerminal()`, `activeTerminalByCashier()` — no prior implementors existed, so no consumer breakage); `OpenShiftHandler` now asserts both invariants via `MultiTerminalEnforcementService` before opening. Demo bootstrap projects the shift read model in its replay loop and wires the handler. Covered by `OpenShiftHandlerTest` (refusal on occupied terminal, refusal for busy cashier, reopening after close/force-close, independent terminals unaffected) and verified end-to-end in the demo CLI (second `shift open` on the same terminal exits 1 with "already has an open shift"). `assertOrderBelongsToTerminal` remains intentionally unwired — it needs an order→terminal binding read model that does not exist yet, and no current command carries the cross-terminal order-access scenario; wire it when park/resume-across-terminals becomes a real flow.

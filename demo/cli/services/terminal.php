@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 use Dranzd\Common\Cqrs\Infrastructure\Bus\SimpleCommandBus;
 use Dranzd\StorebunkPos\Application\Terminal\Command\ActivateTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\DecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\DisableTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\ReassignTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RecommissionTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
+use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Application\Terminal\ReadModel\TerminalReadModelInterface;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
@@ -44,6 +48,18 @@ function handleTerminal(
         case 'maintenance':
             terminalMaintenance($commandBus, $terminalReadModel, $stateStore, $args);
             break;
+        case 'rename':
+            terminalRename($commandBus, $terminalReadModel, $stateStore, $args);
+            break;
+        case 'reassign':
+            terminalReassign($commandBus, $terminalReadModel, $stateStore, $args);
+            break;
+        case 'decommission':
+            terminalDecommission($commandBus, $terminalReadModel, $stateStore, $args);
+            break;
+        case 'recommission':
+            terminalRecommission($commandBus, $terminalReadModel, $stateStore, $args);
+            break;
         case 'get':
             terminalGet($terminalReadModel, $stateStore, $args);
             break;
@@ -53,7 +69,7 @@ function handleTerminal(
         default:
             Output::error("Unknown terminal subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo terminal <register|activate|disable|maintenance|get|list> [options]');
+            Output::usage('./demo terminal <register|activate|disable|maintenance|rename|reassign|decommission|recommission|get|list> [options]');
             exit(1);
     }
 }
@@ -174,6 +190,132 @@ function terminalMaintenance(
         Output::success('Terminal set to maintenance.');
         Output::field('Terminal ID', $terminalId->toNative());
         Output::field('Status', 'maintenance');
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function terminalRename(
+    SimpleCommandBus $commandBus,
+    InMemoryTerminalReadModel $terminalReadModel,
+    StateStore $stateStore,
+    CliArgs $args
+): void {
+    $terminalIdRaw = $args->get('terminal-id', $stateStore->get('last_terminal_id', ''));
+    if ($terminalIdRaw === '') {
+        Output::error('--terminal-id is required');
+        exit(1);
+    }
+    $terminalId = new TerminalId($terminalIdRaw);
+    $newName    = $args->require('name');
+
+    try {
+        $commandBus->dispatch(new RenameTerminal($terminalId->toNative(), $newName));
+        global $eventStore;
+        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+
+        Output::success('Terminal renamed.');
+        Output::field('Terminal ID', $terminalId->toNative());
+        Output::field('Name', $newName);
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function terminalReassign(
+    SimpleCommandBus $commandBus,
+    InMemoryTerminalReadModel $terminalReadModel,
+    StateStore $stateStore,
+    CliArgs $args
+): void {
+    $terminalIdRaw = $args->get('terminal-id', $stateStore->get('last_terminal_id', ''));
+    if ($terminalIdRaw === '') {
+        Output::error('--terminal-id is required');
+        exit(1);
+    }
+    $terminalId  = new TerminalId($terminalIdRaw);
+    $newBranchId = new BranchId($args->require('branch-id'));
+
+    try {
+        $commandBus->dispatch(new ReassignTerminal($terminalId->toNative(), $newBranchId->toNative()));
+        global $eventStore;
+        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+
+        Output::success('Terminal reassigned.');
+        Output::field('Terminal ID', $terminalId->toNative());
+        Output::field('Branch ID', $newBranchId->toNative());
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function terminalDecommission(
+    SimpleCommandBus $commandBus,
+    InMemoryTerminalReadModel $terminalReadModel,
+    StateStore $stateStore,
+    CliArgs $args
+): void {
+    $terminalIdRaw = $args->get('terminal-id', $stateStore->get('last_terminal_id', ''));
+    if ($terminalIdRaw === '') {
+        Output::error('--terminal-id is required');
+        exit(1);
+    }
+    $terminalId = new TerminalId($terminalIdRaw);
+    $reason     = $args->require('reason');
+
+    try {
+        $commandBus->dispatch(new DecommissionTerminal($terminalId->toNative(), $reason));
+        global $eventStore;
+        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+
+        Output::success('Terminal decommissioned.');
+        Output::field('Terminal ID', $terminalId->toNative());
+        Output::field('Status', 'decommissioned');
+        Output::field('Reason', $reason);
+    } catch (AggregateNotFoundException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    } catch (InvariantViolationException $e) {
+        Output::domainError($e->getMessage());
+        exit(1);
+    }
+}
+
+function terminalRecommission(
+    SimpleCommandBus $commandBus,
+    InMemoryTerminalReadModel $terminalReadModel,
+    StateStore $stateStore,
+    CliArgs $args
+): void {
+    $terminalIdRaw = $args->get('terminal-id', $stateStore->get('last_terminal_id', ''));
+    if ($terminalIdRaw === '') {
+        Output::error('--terminal-id is required');
+        exit(1);
+    }
+    $terminalId = new TerminalId($terminalIdRaw);
+    $reason     = $args->require('reason');
+
+    try {
+        $commandBus->dispatch(new RecommissionTerminal($terminalId->toNative(), $reason));
+        global $eventStore;
+        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+
+        Output::success('Terminal recommissioned.');
+        Output::field('Terminal ID', $terminalId->toNative());
+        Output::field('Status', 'disabled');
+        Output::field('Reason', $reason);
     } catch (AggregateNotFoundException $e) {
         Output::domainError($e->getMessage());
         exit(1);

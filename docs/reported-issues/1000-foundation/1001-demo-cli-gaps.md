@@ -1,10 +1,10 @@
 # 1001 — Demo CLI Gaps: Unregistered Commands, Silent Arg Misparse, Hardcoded Data Path
 
 **Type:** Improvement
-**Status:** Open
+**Status:** Resolved
 **Severity:** Medium
 **Reported:** 2026-08-17
-**Resolved:**
+**Resolved:** 2026-08-17
 **Affects:** demo/bootstrap.php, demo/demo, demo/cli/CliArgs.php, demo/scenarios/03-park-and-resume.sh, demo/scenarios/04-draft-ttl-expiry.sh, demo/scenarios/06-offline-sync.sh
 
 ---
@@ -47,18 +47,14 @@ Demo-only change; no `src/` modification involved.
 
 ## Owner Response
 
-> _(Owner fills in this section before implementation begins)_
-
-**Decision:** Accept | Reject | Defer | Needs Discussion
-**Preferred Option:**
-**Notes:**
+**Decision:** Accept
+**Date answered:** 2026-08-17
+**Notes:** Owner batch-approved implementation of all open triaged issues ("do all so we can be done with this"). Loud rejection chosen for the arg-parse fix (one canonical `--key=value` form), per the issue's recommendation.
 
 ---
 
 ## Resolution
 
-_(Filled in when resolved)_
-
-**Resolved:**
-**Commit/PR:**
-**Summary:**
+**Resolved:** 2026-08-17
+**Commit/PR:** branch `fix/8002-multi-terminal-enforcement-never-wired`
+**Summary:** (1) `RenameTerminal`, `ReassignTerminal`, `DecommissionTerminal`, `RecommissionTerminal` registered in `demo/bootstrap.php` and exposed as `terminal rename|reassign|recommission|decommission` subcommands; exercised end-to-end (rename applied, reassign correctly refused on an active terminal, decommission → recommission lands in `disabled`). (2) `CliArgs` now throws `InvalidArgumentException` on the space-separated form (`--name SpacedName`) with a message showing the correct `--name=SpacedName` spelling, and `require()` rejects a valueless bare `--flag` instead of stringifying `true` to "1"; `demo/demo` catches the parse error and prints it as a CLI error. (3) Scenarios 03/04/06 resolve the state file from `POS_DEMO_DATA_DIR` (falling back to `demo/data`), matching the stores' override. Demo docs updated with the four new subcommands.

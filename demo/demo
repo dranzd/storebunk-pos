@@ -19,7 +19,11 @@ if (($argv[1] ?? null) === 'state' && ($argv[2] ?? null) === 'clear') {
     // Coordinated reset: both sidecar locks are taken up front and every
     // fallible write is staged before either store commits, so a failure
     // partway through cannot leave one store cleared and the other not.
-    DemoReset::clearAll(FileEventStore::defaultPath(), StateStore::defaultPath());
+    DemoReset::clearAll(
+        FileEventStore::defaultPath(),
+        StateStore::defaultPath(),
+        \Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation::defaultPath()
+    );
 
     Output::success('State cleared.');
     Output::info('File: ' . StateStore::defaultPath());
@@ -35,6 +39,8 @@ $terminalReadModel = $container['terminalReadModel'];
 $orderingService   = $container['orderingService'];
 $paymentService    = $container['paymentService'];
 $stateStore        = $container['stateStore'];
+$shiftReadModel    = $container['shiftReadModel'];
+$shiftSlots        = $container['shiftSlots'];
 
 global $eventStore;
 
@@ -46,8 +52,9 @@ if ($argc < 2) {
     Output::banner('StoreBunk POS Demo CLI');
     Output::info('Available services:');
     Output::blank();
-    Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, get, list)');
-    Output::info('  shift      - Manage cashier shifts (open, close, force-close, cash-drop)');
+    Output::info('  terminal   - Manage POS terminals (register, activate, disable, maintenance, rename, reassign, decommission, recommission, get, list)');
+    Output::info('  shift      - Manage cashier shifts (open, assign, unassign, close, force-close, cash-drop)');
+    Output::info('               Recovery: reconcile (rebuild shift slots from the events)');
     Output::info('  session    - Manage POS sessions (start, new-order, park, resume, checkout, pay, complete, cancel, end)');
     Output::info('               Offline: new-order-offline, sync');
     Output::blank();
@@ -66,7 +73,12 @@ if ($argc < 2) {
 }
 
 $service = $argv[1];
-$args    = new CliArgs(array_slice($argv, 2));
+try {
+    $args = new CliArgs(array_slice($argv, 2));
+} catch (InvalidArgumentException $e) {
+    Output::error($e->getMessage());
+    exit(1);
+}
 
 if ($service === 'state') {
     $subcommand = $args->positional(0);
@@ -98,7 +110,7 @@ try {
             handleTerminal($commandBus, $terminalReadModel, $stateStore, $subcommand, $args);
             break;
         case 'shift':
-            handleShift($commandBus, $stateStore, $subcommand, $args);
+            handleShift($commandBus, $stateStore, $shiftReadModel, $shiftSlots, $subcommand, $args);
             break;
         case 'session':
             handleSession($commandBus, $stateStore, $orderingService, $paymentService, $subcommand, $args);

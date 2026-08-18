@@ -531,9 +531,7 @@ function sessionSync(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
             ['branch_id' => $branchId->toNative()]
         ));
 
-        $pending = $stateStore->getList('pending_sync_order_ids');
-        $pending = array_filter($pending, static fn (string $id): bool => $id !== $orderId->toNative());
-        $stateStore->set('pending_sync_order_ids', array_values($pending));
+        $stateStore->removeFromList('pending_sync_order_ids', $orderId->toNative());
 
         Output::success('Order synced online (draft created in ordering BC).');
         Output::field('Session ID', $sessionId->toNative());

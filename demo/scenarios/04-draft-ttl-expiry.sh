@@ -26,7 +26,7 @@ echo ""
 echo "Step 3: Simulate TTL expiry - order gets deactivated"
 echo "(In production, DraftLifecycleService detects the inactivity and"
 echo " dispatches DeactivateOrder; for the demo we trigger it directly)"
-ORDER_ID=$(php -r 'echo json_decode(file_get_contents("demo/data/demo-state.json"), true)["last_order_id"] ?? "";')
+ORDER_ID=$(php -r 'echo json_decode(file_get_contents((getenv("POS_DEMO_DATA_DIR") ?: "demo/data") . "/demo-state.json"), true)["last_order_id"] ?? "";')
 $DEMO session deactivate --reason="TTL expired (demo)"
 
 echo ""
