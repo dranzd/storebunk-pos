@@ -12,6 +12,9 @@ final class CliArgs
     /** @var list<string> */
     private array $positional = [];
 
+    /**
+     * @param list<string> $argv arguments after the service name
+     */
     public function __construct(array $argv)
     {
         // Only --key=value carries a value; a bare --key is a boolean flag.

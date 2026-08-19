@@ -51,6 +51,7 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
+use Dranzd\StorebunkPos\Application\Shared\OfflineStateReplay;
 use Dranzd\StorebunkPos\Application\Shift\Command\AssignShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\CloseShift;
 use Dranzd\StorebunkPos\Application\Shift\Command\ForceCloseShift;
@@ -80,7 +81,6 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
-use Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
@@ -132,11 +132,12 @@ $shiftSlotReservation = new FileShiftSlotReservation(
 // pending here. The rules live in OfflineStateReplay, where they can be
 // tested — getting a registry purpose wrong here is invisible until a
 // redelivery is either swallowed or wrongly refused.
-foreach ($eventStore->allEvents() as $aggregateEvents) {
+$persistedEvents = $eventStore->allEvents();
+foreach ($persistedEvents as $aggregateEvents) {
     OfflineStateReplay::rebuild($aggregateEvents, $pendingSyncQueue, $idempotencyRegistry);
 }
 
-foreach ($eventStore->allEvents() as $aggregateEvents) {
+foreach ($persistedEvents as $aggregateEvents) {
     foreach ($aggregateEvents as $event) {
         // Project the session read model too — CloseShiftHandler's
         // active-session guard reads it, and an unprojected (empty) model

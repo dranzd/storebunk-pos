@@ -386,7 +386,7 @@ function shiftReconcile(
  */
 function dispatchRetryingOnConflict(FileEventStore $eventStore, callable $dispatch, int $attempts = 3): void
 {
-    for ($attempt = 1; ; $attempt++) {
+    for ($attempt = 1;; $attempt++) {
         try {
             $dispatch();
 

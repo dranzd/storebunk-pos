@@ -82,7 +82,10 @@ function handleSession(
         default:
             Output::error("Unknown session subcommand: {$subcommand}");
             Output::blank();
-            Output::usage('./demo session <start|new-order|park|resume|deactivate|reactivate|checkout|pay|complete|cancel|end|new-order-offline|sync> [options]');
+            Output::usage(
+                './demo session <start|new-order|park|resume|deactivate|reactivate|checkout|pay|'
+                . 'complete|cancel|end|new-order-offline|sync> [options]'
+            );
             exit(1);
     }
 }

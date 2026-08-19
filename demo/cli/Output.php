@@ -19,7 +19,7 @@ final class Output
     {
         $line = str_repeat('─', 60);
         echo self::CYAN . self::BOLD . "\n" . $line . "\n";
-        echo "  " . strtoupper($title) . "\n";
+        echo '  ' . strtoupper($title) . "\n";
         echo $line . self::RESET . "\n\n";
     }
 
@@ -31,42 +31,42 @@ final class Output
     public static function field(string $label, string $value): void
     {
         $pad = str_pad($label, 18);
-        echo "  " . self::GRAY . $pad . self::RESET . self::WHITE . $value . self::RESET . "\n";
+        echo '  ' . self::GRAY . $pad . self::RESET . self::WHITE . $value . self::RESET . "\n";
     }
 
     public static function success(string $message): void
     {
-        echo self::GREEN . self::BOLD . "✓ " . $message . self::RESET . "\n";
+        echo self::GREEN . self::BOLD . '✓ ' . $message . self::RESET . "\n";
     }
 
     public static function info(string $message): void
     {
-        echo self::CYAN . "  " . $message . self::RESET . "\n";
+        echo self::CYAN . '  ' . $message . self::RESET . "\n";
     }
 
     public static function warning(string $message): void
     {
-        echo self::YELLOW . "⚠ " . $message . self::RESET . "\n";
+        echo self::YELLOW . '⚠ ' . $message . self::RESET . "\n";
     }
 
     public static function error(string $message): void
     {
-        echo self::RED . self::BOLD . "ERROR: " . $message . self::RESET . "\n";
+        echo self::RED . self::BOLD . 'ERROR: ' . $message . self::RESET . "\n";
     }
 
     public static function domainError(string $message): void
     {
-        echo self::RED . "Domain error: " . $message . self::RESET . "\n";
+        echo self::RED . 'Domain error: ' . $message . self::RESET . "\n";
     }
 
     public static function concurrencyError(string $message): void
     {
-        echo self::RED . "Concurrency conflict: " . $message . self::RESET . "\n";
+        echo self::RED . 'Concurrency conflict: ' . $message . self::RESET . "\n";
     }
 
     public static function step(int $n, string $description): void
     {
-        echo self::BOLD . self::CYAN . "\n[Step " . $n . "] " . self::RESET . $description . "\n";
+        echo self::BOLD . self::CYAN . "\n[Step " . $n . '] ' . self::RESET . $description . "\n";
     }
 
     public static function blank(): void
@@ -76,12 +76,12 @@ final class Output
 
     public static function separator(): void
     {
-        echo self::GRAY . "  " . str_repeat('·', 50) . self::RESET . "\n";
+        echo self::GRAY . '  ' . str_repeat('·', 50) . self::RESET . "\n";
     }
 
     public static function usage(string $usage): void
     {
-        echo self::YELLOW . "Usage: " . self::RESET . $usage . "\n";
+        echo self::YELLOW . 'Usage: ' . self::RESET . $usage . "\n";
     }
 
     public static function money(int $amountMinorUnits, string $currency = 'PHP'): string
@@ -89,6 +89,9 @@ final class Output
         return $currency . ' ' . number_format($amountMinorUnits / 100, 2);
     }
 
+    /**
+     * @param array{amount?: int|string, currency?: string} $moneyArray
+     */
     public static function formatMoney(array $moneyArray): string
     {
         $amount   = $moneyArray['amount'] ?? 0;

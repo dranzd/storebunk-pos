@@ -109,10 +109,12 @@ reference; the demo ships a file-locked one you can read as a worked example.
 `PendingSyncQueue` are plain in-memory objects; a host that runs more than one
 process must persist them or rebuild them from events on start. When
 rebuilding the registry, pass the same purpose the handler would — it is a
-required argument, and `IdempotencyRegistry::purposeFor()` builds it. Getting
-it wrong is silent: either a reused command id is absorbed (reporting success
-for work never done) or a legitimate retry is refused.
-`Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay` is a worked example.
+required argument, and `IdempotencyRegistry::purposeFor()` builds it.
+Describing a command differently on replay is loud: legitimate retries start
+throwing "command id … cannot be reused". The one quiet way to get it wrong
+is a purpose that omits the target, which makes two different orders' commands
+look like one. `Dranzd\StorebunkPos\Application\Shared\OfflineStateReplay`
+rebuilds both, and is what the demo uses.
 
 Because the reservation and the event store are two stores, a host that wants
 them to commit or fail as one implements the port inside its own unit of

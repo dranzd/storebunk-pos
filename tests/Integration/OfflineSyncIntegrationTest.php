@@ -17,7 +17,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
-use Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay;
+use Dranzd\StorebunkPos\Application\Shared\OfflineStateReplay;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Tests\Stub\Service\StubOrderingService;
@@ -610,6 +610,10 @@ final class OfflineSyncIntegrationTest extends TestCase
             $rebuiltRegistry
         );
 
+        // Asserted BEFORE the handler runs: the handler dequeues too, so
+        // checking afterwards would pass even if the rebuild never did.
+        $this->assertTrue($rebuiltQueue->isEmpty(), 'The rebuild itself must not leave a synced order queued');
+
         (new SyncOrderOnlineHandler(
             $this->sessionRepository,
             $this->orderingService,
@@ -618,7 +622,6 @@ final class OfflineSyncIntegrationTest extends TestCase
         ))($sync);
 
         $this->assertSame($callsBefore + 1, $this->orderingService->draftOrderCreationCount($orderId));
-        $this->assertTrue($rebuiltQueue->isEmpty(), 'A synced order is not re-queued by the rebuild');
     }
 
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void

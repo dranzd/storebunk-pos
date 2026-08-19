@@ -11,6 +11,7 @@
     <!-- Paths to check -->
     <file>src</file>
     <file>tests</file>
+    <file>demo</file>
 
     <!-- PSR-12 Coding Standard -->
     <rule ref="PSR12"/>

@@ -4,7 +4,8 @@
       "Bash(docker-compose exec -T php php -r \"require ''vendor/autoload.php''; $m = \\\\Dranzd\\\\Common\\\\Domain\\\\ValueObject\\\\Money\\\\Basic::fromArray\\([''amount'' => 5000, ''currency'' => ''USD'']\\); var_dump\\(get_class_methods\\($m\\)\\);\")",
       "Bash(docker-compose exec -T php composer test)",
       "Bash(docker-compose exec -T php composer cs-check)",
-      "Bash(docker-compose exec -T php composer cs-fix)"
+      "Bash(docker-compose exec -T php composer cs-fix)",
+      "Skill(triage)"
     ]
   }
 }

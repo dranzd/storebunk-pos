@@ -307,7 +307,15 @@ final class FileEventStore implements EventStore
                         sprintf('class "%s" is not an aggregate event', $class)
                     );
                 }
-                $this->events[$aggregateRootUuid][] = $class::fromArray($record['data']);
+                $reconstituted = $class::fromArray($record['data']);
+                if (!$reconstituted instanceof AggregateEvent) {
+                    throw $this->unreconstitutableRecord(
+                        (string) $aggregateRootUuid,
+                        $index,
+                        sprintf('class "%s" did not reconstitute into an aggregate event', $class)
+                    );
+                }
+                $this->events[$aggregateRootUuid][] = $reconstituted;
             }
         }
 

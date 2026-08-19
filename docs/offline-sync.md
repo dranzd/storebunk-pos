@@ -161,7 +161,7 @@ The command ID (`messageUuid`) must be **unique per command instance**. It must 
    **A host rebuilding the registry from events must pass the same purpose
    the handler would** — it is required, precisely so it cannot be omitted.
    Describe a command differently on replay and every replayed id looks like
-   a collision, refusing legitimate redeliveries. `Demo\Cli\OfflineStateReplay`
+   a collision, refusing legitimate redeliveries. `Application\Shared\OfflineStateReplay`
    is the worked example, including why sync ids are deliberately left out.
 2. **`PosSession::wasStartedByCommand()`** — did this exact command already
    create this order? This separates a REDELIVERY (absorbed, and re-queued if
@@ -222,11 +222,13 @@ id, which is why offline creation asks the aggregate
 ## 6. Consumer Integration Guide
 
 **Both pieces of state below are in-memory.** A host running more than one
-process must persist them or rebuild them from events at start — and when
-rebuilding the registry, pass the same purpose the handler would (see
-`Demo\Cli\OfflineStateReplay`). Getting that wrong fails silently in one of
-two directions: a reused command id absorbed as success, or a legitimate
-retry refused.
+process must persist them or rebuild them from events at start —
+`Application\Shared\OfflineStateReplay` does exactly that and is what the demo
+uses. When rebuilding the registry, pass the same purpose the handler would.
+Describing a command differently is LOUD: legitimate retries start throwing
+"command id … cannot be reused", which is the diagnostic. The one quiet
+mistake left is a purpose that omits the target — then two different orders'
+commands look like the same work, and the second is absorbed as a redelivery.
 
 ### Wiring Dependencies
 

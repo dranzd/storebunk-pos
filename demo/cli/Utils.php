@@ -35,10 +35,13 @@ final class Utils
     /**
      * Format money array for display.
      */
+    /**
+     * @param array{amount?: int|float|string, currency?: string} $moneyArray
+     */
     public static function formatMoneyArray(array $moneyArray): string
     {
-        $amount = $moneyArray['amount'] ?? 0;
-        $currency = $moneyArray['currency'] ?? 'PHP';
+        $amount = (float) ($moneyArray['amount'] ?? 0);
+        $currency = (string) ($moneyArray['currency'] ?? 'PHP');
         return $currency . ' ' . number_format($amount / 100, 2);
     }
 }

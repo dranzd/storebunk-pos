@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** — `IdempotencyRegistry::hasBeenProcessed()` and
+  `markAsProcessed()` now require a second argument saying what the command
+  does (`IdempotencyRegistry::purposeFor($messageName, $targetId)`). There is
+  deliberately no "unspecified": such a record could only match everything,
+  disarming the collision check, or nothing, refusing legitimate
+  redeliveries — both have been shipped here by accident.
+- **BREAKING** — `PosSession::syncOrderOnline()` and
+  `OrderSyncedOnline::occur()` require the command id, so an event without
+  one can only come from history stored before it was recorded.
+- `Application\Shared\OfflineStateReplay` rebuilds the pending-sync queue and
+  the idempotency registry from events. A host running more than one process
+  has to do this, and doing it by hand is easy to get wrong; the demo now
+  uses it too. PHPStan and phpcs now cover `demo/`, which is how a helper
+  shipped in the production autoload came to be unanalysed.
+
 ### Fixed
 
 - `IdempotencyRegistry` records what each command id did (message name plus
@@ -15,16 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   create and a sync share a key — was silently absorbed: the sync returned
   early, no draft order ever reached the Ordering context, and the order sat
   in the pending queue forever while the caller was told it succeeded. It is
-  now refused. **Breaking for hosts:** both `hasBeenProcessed()` and
-  `markAsProcessed()` now REQUIRE the purpose — there is no "unspecified",
-  because such a record could only match everything (disarming the check) or
-  nothing (refusing legitimate redeliveries). A host rebuilding the registry
-  from events must pass the same purpose the handler would;
-  `IdempotencyRegistry::purposeFor()` builds it and
-  `Demo\Cli\OfflineStateReplay` shows the whole rebuild.
-- **Breaking for hosts:** `PosSession::syncOrderOnline()` and
-  `OrderSyncedOnline::occur()` now require the command id, so an event
-  without one can only come from history stored before it was recorded.
+  now refused. A host rebuilding the registry from events must pass the same
+  purpose the handler would — see the breaking notes above.
 - `OrderSyncedOnline` records the command that synced the order, so
   `SyncOrderOnlineHandler` can tell a redelivery of THAT command from an
   unrelated command naming an already-synced order. The second used to be

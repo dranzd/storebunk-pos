@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Dranzd\StorebunkPos\Demo\Cli;
+namespace Dranzd\StorebunkPos\Application\Shared;
 
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\AggregateEvent;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
-use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
@@ -16,11 +15,15 @@ use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
  * Rebuilds the offline-sync state a host keeps outside the event store — the
  * pending-sync queue and the idempotency registry — by replaying events.
  *
- * A class rather than inline bootstrap code because the rules here are easy
- * to get subtly wrong and impossible to test in a script: a registry entry
- * must carry the same purpose the handler would give it, or every replayed
- * id looks like a collision; and the sync side must NOT be replayed, for the
- * reason given below.
+ * Shipped here rather than left as demo code because a host running more
+ * than one process HAS to do this, and the rules are easy to get subtly
+ * wrong: a registry entry must carry the same purpose the handler would give
+ * it, or every replayed id looks like a collision; and the sync side must NOT
+ * be replayed, for the reason given below.
+ *
+ * Note that rebuilding restamps each queue entry's queued-at time, so a host
+ * draining the queue by age sees every pending order as fresh after a
+ * restart.
  */
 final class OfflineStateReplay
 {
@@ -51,11 +54,22 @@ final class OfflineStateReplay
                     )
                 );
             } elseif ($event instanceof OrderMarkedPendingSync) {
-                $pendingSyncQueue->enqueue(
-                    $event->getSessionId(),
-                    $event->getOrderId(),
-                    $commandIdsByOrder[$event->getOrderId()->toNative()] ?? ''
-                );
+                $commandId = $commandIdsByOrder[$event->getOrderId()->toNative()] ?? null;
+                if ($commandId === null) {
+                    // Every OrderMarkedPendingSync trails its own
+                    // OrderCreatedOffline in the same stream, so this cannot
+                    // happen for a whole stream. Queueing with an empty
+                    // command id would record an entry standing for nothing
+                    // in particular — the shape this whole guard exists to
+                    // remove — so say so instead.
+                    throw new \RuntimeException(sprintf(
+                        'Cannot rebuild offline state: order "%s" is marked pending sync with no '
+                        . 'offline creation before it. The replayed history is incomplete.',
+                        $event->getOrderId()->toNative()
+                    ));
+                }
+
+                $pendingSyncQueue->enqueue($event->getSessionId(), $event->getOrderId(), $commandId);
             } elseif ($event instanceof OrderSyncedOnline) {
                 $pendingSyncQueue->dequeueByOrderId($event->getOrderId());
 
