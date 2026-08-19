@@ -7,6 +7,7 @@ storebunk-pos/
 ├── src/
 │   ├── Domain/                              # Core business logic
 │   │   ├── Event/
+│   │   │   ├── BaseAggregateEvent.php       # Envelope every POS event extends
 │   │   │   └── DomainEventInterface.php     # POS marker interface for domain events
 │   │   │
 │   │   ├── Model/                           # Domain models (per-context)
@@ -37,6 +38,8 @@ storebunk-pos/
 │   │   │   │   │   └── ShiftStatus.php      # Enum: Open, Closed, ForceClosed
 │   │   │   │   ├── Event/
 │   │   │   │   │   ├── ShiftOpened.php
+│   │   │   │   │   ├── ShiftAssigned.php
+│   │   │   │   │   ├── ShiftUnassigned.php
 │   │   │   │   │   ├── ShiftClosed.php
 │   │   │   │   │   ├── ShiftForceClosed.php
 │   │   │   │   │   └── CashDropRecorded.php
@@ -73,13 +76,16 @@ storebunk-pos/
 │   │       ├── InventoryServiceInterface.php
 │   │       ├── PaymentServiceInterface.php
 │   │       ├── DraftLifecycleService.php
-│   │       ├── MultiTerminalEnforcementService.php
+│   │       ├── MultiTerminalEnforcementService.php  # The occupancy RULES
+│   │       ├── ShiftSlotReservationInterface.php    # Atomic uniqueness authority (port)
+│   │       ├── ShiftSlotBook.php                    # Slot bookkeeping shared by impls
 │   │       ├── ShiftClosePolicy.php
 │   │       └── PendingSyncQueue.php
 │   │
 │   ├── Application/                         # Use cases and orchestration
 │   │   ├── Shared/
-│   │   │   └── IdempotencyRegistry.php      # Command idempotency tracking
+│   │   │   ├── IdempotencyRegistry.php      # Command idempotency tracking
+│   │   │   └── OfflineStateReplay.php       # Rebuilds queue + registry from events
 │   │   │
 │   │   ├── Terminal/
 │   │   │   ├── Command/
@@ -106,11 +112,15 @@ storebunk-pos/
 │   │   ├── Shift/
 │   │   │   ├── Command/
 │   │   │   │   ├── OpenShift.php
+│   │   │   │   ├── AssignShift.php
+│   │   │   │   ├── UnassignShift.php
 │   │   │   │   ├── CloseShift.php
 │   │   │   │   ├── ForceCloseShift.php
 │   │   │   │   ├── RecordCashDrop.php
 │   │   │   │   └── Handler/
 │   │   │   │       ├── OpenShiftHandler.php
+│   │   │   │       ├── AssignShiftHandler.php
+│   │   │   │       ├── UnassignShiftHandler.php
 │   │   │   │       ├── CloseShiftHandler.php
 │   │   │   │       ├── ForceCloseShiftHandler.php
 │   │   │   │       └── RecordCashDropHandler.php
@@ -158,7 +168,10 @@ storebunk-pos/
 │   │   ├── Shift/
 │   │   │   ├── Repository/
 │   │   │   │   └── InMemoryShiftRepository.php
-│   │   │   └── ReadModel/                   # (reserved for shift read model impl)
+│   │   │   ├── Reservation/
+│   │   │   │   └── InMemoryShiftSlotReservation.php  # Single-process reference impl
+│   │   │   └── ReadModel/
+│   │   │       └── InMemoryShiftReadModel.php
 │   │   └── PosSession/
 │   │       ├── Repository/
 │   │       │   └── InMemoryPosSessionRepository.php
@@ -170,10 +183,32 @@ storebunk-pos/
 │           ├── DomainException.php
 │           ├── AggregateNotFoundException.php
 │           ├── ConcurrencyException.php
+│           ├── SlotCleanupFailedException.php
 │           └── InvariantViolationException.php
+│
+├── demo/                                    # Runnable CLI demo (see docs/demo.md)
+│   ├── demo                                 # Entry point
+│   ├── bootstrap.php                        # Wires repositories, buses, stubs, stores
+│   ├── README.md
+│   ├── cli/
+│   │   ├── Output.php
+│   │   ├── CliArgs.php
+│   │   ├── StateStore.php                   # JSON id state, lock + atomic rename
+│   │   ├── FileEventStore.php               # JSON event store, refuses a taken version
+│   │   ├── FileShiftSlotReservation.php     # Cross-process shift-slot claims
+│   │   ├── DemoReset.php                    # All-or-nothing reset of the three stores
+│   │   ├── TerminalProjection.php
+│   │   └── services/                        # terminal.php, shift.php, session.php
+│   ├── scenarios/                           # 01–07 end-to-end shell walkthroughs
+│   └── data/                                # Runtime state (git-ignored)
 │
 ├── tests/
 │   ├── Stub/
+│   │   ├── Repository/                      # Deterministic interleavings/failures
+│   │   │   ├── CallbackFailingShiftRepository.php
+│   │   │   └── InterleavingShiftRepository.php
+│   │   ├── Reservation/
+│   │   │   └── ReleaseFailingSlotReservation.php
 │   │   └── Service/
 │   │       ├── StubOrderingService.php
 │   │       ├── StubInventoryService.php

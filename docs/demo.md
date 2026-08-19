@@ -53,6 +53,7 @@ Services: `terminal`, `shift`, `session`
 ```
 demo/
 ├── demo                              # Main entry point (PHP CLI script)
+├── README.md                         # Command reference for the CLI
 ├── bootstrap.php                     # Wires repos, buses, stubs, event store,
 │                                     #   and rebuilds offline-sync state from events
 ├── cli/
