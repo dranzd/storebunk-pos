@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Tests\Unit\Domain\Model\PosSession;
 
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderSyncedOnline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\PosSession;
@@ -98,7 +99,7 @@ final class PosSessionOfflineTest extends TestCase
         $this->session->markOrderPendingSync($orderId);
         $this->session->popRecordedEvents();
 
-        $this->session->syncOrderOnline($orderId);
+        $this->session->syncOrderOnline($orderId, 'sync-command');
 
         $events = $this->session->popRecordedEvents();
         $this->assertCount(1, $events);
@@ -110,7 +111,7 @@ final class PosSessionOfflineTest extends TestCase
         $this->expectException(InvariantViolationException::class);
         $this->expectExceptionMessage('Order is not in pending sync list');
 
-        $this->session->syncOrderOnline(new OrderId());
+        $this->session->syncOrderOnline(new OrderId(), 'sync-command');
     }
 
     public function test_full_offline_to_online_sync_flow(): void
@@ -120,7 +121,7 @@ final class PosSessionOfflineTest extends TestCase
 
         $this->session->startNewOrderOffline($orderId, $commandId);
         $this->session->markOrderPendingSync($orderId);
-        $this->session->syncOrderOnline($orderId);
+        $this->session->syncOrderOnline($orderId, 'sync-command');
 
         $events = $this->session->popRecordedEvents();
         $this->assertCount(3, $events);
@@ -154,10 +155,38 @@ final class PosSessionOfflineTest extends TestCase
         $this->session->startNewOrderOffline($orderId2, 'cmd-2');
         $this->session->markOrderPendingSync($orderId2);
 
-        $this->session->syncOrderOnline($orderId1);
-        $this->session->syncOrderOnline($orderId2);
+        $this->session->syncOrderOnline($orderId1, 'sync-command-1');
+        $this->session->syncOrderOnline($orderId2, 'sync-command-2');
 
         $events = $this->session->popRecordedEvents();
         $this->assertCount(6, $events);
+    }
+
+    public function test_a_sync_event_stored_without_a_command_id_still_heals(): void
+    {
+        // History written before the command id was recorded cannot say which
+        // command synced the order. Refusing those would break sessions that
+        // synced perfectly well, so they answer "yes" to any command — the one
+        // place the distinction is knowingly given up, and only for events
+        // this build can no longer produce.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+
+        $legacy = OrderSyncedOnline::occur($sessionId, $orderId, 'sync-command');
+        $stored = $legacy->toArray();
+        unset($stored['payload']['command_id']);
+        $reconstituted = OrderSyncedOnline::fromArray($stored);
+
+        $this->assertNull($reconstituted->getCommandId());
+
+        $session = (new PosSession())->reconstituteFromHistory([
+            SessionStarted::occur($sessionId, new ShiftId(), new TerminalId(), new CashierId(), new \DateTimeImmutable()),
+            OrderCreatedOffline::occur($sessionId, $orderId, 'create-command'),
+            OrderMarkedPendingSync::occur($sessionId, $orderId),
+            $reconstituted,
+        ]);
+
+        $this->assertTrue($session->isOrderSynced($orderId));
+        $this->assertTrue($session->wasSyncedByCommand($orderId, 'any-command-at-all'));
     }
 }

@@ -502,6 +502,50 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->assertSame($creationsAfterSync, $this->orderingService->draftOrderCreationCount($orderId));
     }
 
+    public function test_a_rebuilt_registry_still_refuses_a_reused_command_id(): void
+    {
+        // A restart rebuilds the registry from events. Marking those ids
+        // without saying what they did made every one of them match any later
+        // work — so across a restart, the collision check above was gone and
+        // the sync was swallowed by the create that shared its key. The
+        // rebuild must describe a command exactly as the handler does.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('one-key-per-order'));
+
+        // The rebuild a host performs on restart, as demo/bootstrap.php does.
+        $rebuilt = new IdempotencyRegistry();
+        foreach ($this->eventStore->loadEvents($sessionId->toNative()) as $event) {
+            if ($event instanceof OrderCreatedOffline) {
+                $rebuilt->markAsProcessed(
+                    $event->getCommandId(),
+                    IdempotencyRegistry::purposeFor(
+                        StartNewOrderOffline::expectedMessageName(),
+                        $event->getOrderId()->toNative()
+                    )
+                );
+            }
+        }
+
+        $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
+        $this->expectExceptionMessage('cannot be reused');
+
+        (new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $rebuilt
+        ))((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('one-key-per-order'));
+    }
+
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
     {
         $sessionId  = new SessionId();

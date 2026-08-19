@@ -34,7 +34,7 @@ final class StartNewOrderOfflineHandler
 
         // What this command does, so the registry can tell a redelivery from
         // a different command that happens to carry the same id.
-        $purpose = StartNewOrderOffline::expectedMessageName() . ':' . $orderId->toNative();
+        $purpose = IdempotencyRegistry::purposeFor(StartNewOrderOffline::expectedMessageName(), $orderId->toNative());
 
         if ($this->idempotencyRegistry->hasBeenProcessed($commandId, $purpose)) {
             return;

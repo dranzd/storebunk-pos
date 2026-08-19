@@ -343,7 +343,7 @@ final class PosSession implements AggregateRoot
         return false;
     }
 
-    final public function syncOrderOnline(OrderId $orderId, ?string $commandId = null): void
+    final public function syncOrderOnline(OrderId $orderId, string $commandId): void
     {
         $isPending = false;
         foreach ($this->pendingSyncOrderIds as $pendingId) {

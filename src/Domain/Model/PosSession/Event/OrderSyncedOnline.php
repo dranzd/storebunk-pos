@@ -17,17 +17,18 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
     private OrderId $orderId;
 
     /**
-     * The command that synced the order. Null on events written before this
-     * was recorded — see setPayload(). It is what lets a handler tell a
-     * REDELIVERY of the syncing command apart from an unrelated command
-     * naming an order that happens to be synced already.
+     * The command that synced the order. Required when recording; null only
+     * when reconstituting an event stored before it was recorded (see
+     * setPayload()), so "unknown" cannot be produced by this build. It is
+     * what lets a handler tell a REDELIVERY of the syncing command apart
+     * from an unrelated command naming an already-synced order.
      */
     private ?string $commandId = null;
 
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,
-        ?string $commandId = null,
+        string $commandId,
     ): self {
         $instance = new self();
         $instance->sessionId = $sessionId;

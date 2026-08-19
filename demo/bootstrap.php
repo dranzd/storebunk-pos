@@ -134,7 +134,18 @@ $offlineCommandIdsByOrder = [];
 foreach ($eventStore->allEvents() as $aggregateEvents) {
     foreach ($aggregateEvents as $event) {
         if ($event instanceof OrderCreatedOffline) {
-            $idempotencyRegistry->markAsProcessed($event->getCommandId());
+            // WITH the purpose: a bare mark would record the id as matching
+            // any future work, which is how a restart disarmed the collision
+            // check and let a sync be swallowed by the create that shared its
+            // key — the order stranded in the queue, the caller told it
+            // succeeded.
+            $idempotencyRegistry->markAsProcessed(
+                $event->getCommandId(),
+                IdempotencyRegistry::purposeFor(
+                    StartNewOrderOffline::expectedMessageName(),
+                    $event->getOrderId()->toNative()
+                )
+            );
             $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] = $event->getCommandId();
         } elseif ($event instanceof OrderMarkedPendingSync) {
             $pendingSyncQueue->enqueue(

@@ -36,7 +36,7 @@ final class SyncOrderOnlineHandler
         // What this command does — a sync of THIS order. An id already spent
         // on a different command (a create of the same order, say) is a
         // collision the registry refuses rather than swallows.
-        $purpose = SyncOrderOnline::expectedMessageName() . ':' . $orderId->toNative();
+        $purpose = IdempotencyRegistry::purposeFor(SyncOrderOnline::expectedMessageName(), $orderId->toNative());
 
         if ($this->idempotencyRegistry->hasBeenProcessed($commandId, $purpose)) {
             return;

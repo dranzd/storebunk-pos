@@ -28,6 +28,18 @@ final class IdempotencyRegistry
     private array $processedCommandIds = [];
 
     /**
+     * The purpose string for a command: what it does, and to what. Built in
+     * one place so that a replay rebuilding the registry describes a command
+     * exactly as the handler did — describing it differently would make every
+     * replayed id look like a collision, and describing it not at all would
+     * make it match anything.
+     */
+    public static function purposeFor(string $messageName, string $targetId): string
+    {
+        return $messageName . ':' . $targetId;
+    }
+
+    /**
      * @param string $purpose what this command does, and to what — typically
      *                        the message name plus its target id. Omit it to
      *                        ask the plain "is this id known?" question; the
@@ -42,9 +54,11 @@ final class IdempotencyRegistry
             return false;
         }
 
-        // No purpose stated: the caller is only asking whether the id is
-        // known — a plain lookup, not a claim about what it did.
-        if ($purpose === '' || $recorded === '' || $recorded === $purpose) {
+        // No purpose stated by the ASKER: a plain "is this id known?" lookup,
+        // not a claim about what it did. A record written without one is a
+        // different matter — it would match anything, disarming the check —
+        // so writers must state a purpose.
+        if ($purpose === '' || $recorded === $purpose) {
             return true;
         }
 
@@ -60,6 +74,12 @@ final class IdempotencyRegistry
         ));
     }
 
+    /**
+     * @param string $purpose what this command did — see hasBeenProcessed().
+     *                        An empty one records the id as matching any
+     *                        later work, so pass it wherever the answer
+     *                        matters, replay included.
+     */
     public function markAsProcessed(string $commandId, string $purpose = ''): void
     {
         $this->processedCommandIds[$commandId] = $purpose;
