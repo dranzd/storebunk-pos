@@ -27,7 +27,7 @@ feat(foundation): project setup with common library integration, exceptions, and
 
 - [x] Terminal aggregate root with TerminalId, TerminalStatus
 - [x] Register, Activate, Disable commands and handlers
-- [x] Terminal events (Registered, Activated, Disabled, MaintenanceSet)
+- [x] Terminal events (`TerminalRegistered`, `TerminalActivated`, `TerminalDisabled`, `TerminalMaintenanceSet`)
 - [x] Repository interface + in-memory implementation
 - [x] Terminal read model projection
 - [x] Unit tests
@@ -66,7 +66,7 @@ feat(shift): implement Shift aggregate with cash handling and close policies
 - [x] PosSession aggregate root with Idle/Building/Checkout states
 - [x] SessionId, OrderId, SessionState value objects
 - [x] StartSession, StartNewOrder, ParkOrder, ResumeOrder commands and handlers
-- [x] Session events (Started, OrderStarted, Parked, Resumed, Ended)
+- [x] Session events (`SessionStarted`, `NewOrderStarted`, `OrderParked`, `OrderResumed`, `SessionEnded`)
 - [x] Repository interface + in-memory implementation + read model
 - [x] Unit tests
 
@@ -85,7 +85,9 @@ feat(session): implement PosSession aggregate with state machine
 - [x] RequestPayment: delegate to Payment BC, act on OK/NOT OK
 - [x] CompleteOrder: mark fully paid orders as completed
 - [x] CancelOrder: cancel with reservation release
-- [x] Event handlers (OnCheckoutInitiated, OnOrderCompleted, OnOrderCancelled)
+- [ ] Event handlers for checkout/complete/cancel — NOT built. The library
+      records events; reacting to them is the host's job, so this was dropped
+      rather than delivered (corrected 2026-08-19, it was ticked in error).
 - [x] OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - [x] Stub service adapters for testing
 - [x] Integration tests for full checkout flow

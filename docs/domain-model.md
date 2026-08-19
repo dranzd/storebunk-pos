@@ -82,7 +82,7 @@ Represents a cashier working session on a terminal. This is the **primary aggreg
 | `terminalId` | `TerminalId` (VO) | Terminal this shift is on |
 | `branchId` | `BranchId` (VO) | Branch context |
 | `cashierId` | `CashierId` (VO) | Cashier operating this shift |
-| `status` | `ShiftStatus` (Enum) | Open, Closed, ForcedClosed |
+| `status` | `ShiftStatus` (Enum) | Open, Closed, ForceClosed |
 | `openedAt` | `DateTimeImmutable` | When shift was opened |
 | `closedAt` | `?DateTimeImmutable` | When shift was closed (nullable) |
 | `openingCashAmount` | `Money` (VO) | Cash in drawer at shift open |

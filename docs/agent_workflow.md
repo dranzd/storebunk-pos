@@ -106,14 +106,16 @@ final class Shift implements AggregateRoot
     // ... business logic, NO public getters
 }
 
-// Event: extends AbstractAggregateEvent from common-event-sourcing
-final class ShiftOpened extends AbstractAggregateEvent { }
+// Event: extends this project's BaseAggregateEvent (itself an
+// AbstractAggregateEvent from common-event-sourcing)
+final class ShiftOpened extends BaseAggregateEvent { }
 
 // Value Object: extends Uuid from common-valueobject
 final class ShiftId extends Uuid { }
 
-// Command: extends AbstractCommand from common-cqrs
-final class OpenShiftCommand extends AbstractCommand { }
+// Command: extends AbstractCommand from common-cqrs. No "Command" suffix —
+// see docs/standards/architecture/command-naming-convention.md
+final class OpenShift extends AbstractCommand { }
 ```
 
 ### Aggregate Roots: NO Public Getters
@@ -145,8 +147,8 @@ $this->assertEquals('open', $shift->getStatus()->toString()); // BAD!
 // CORRECT: Testing via events (using popRecordedEvents from AggregateRootTrait)
 $shift = Shift::open(...);
 $events = $shift->popRecordedEvents();
-$event = $this->findEvent(ShiftOpened::class, $events);
-$this->assertEquals($cashierId, $event->cashierId); // GOOD!
+$opened = array_values(array_filter($events, fn ($e) => $e instanceof ShiftOpened));
+$this->assertTrue($opened[0]->getCashierId()->sameValueAs($cashierId)); // GOOD!
 
 // CORRECT: Testing via projection
 $projection = new InMemoryShiftReadModel();

@@ -10,7 +10,7 @@ Source: storebunk-pos
 Event Store is the single source of truth. Read models are built by listening to domain events, enabling CQRS. Aggregates must NOT have public getters - all reads go through projections.
 
 - **Source of Truth**: The Event Store is the single source of truth.
-- **Projections**: Read models (e.g., `ShiftCashSummary`, `ActiveOrders`) are built by listening to domain events. This enables CQRS (Command Query Responsibility Segregation).
+- **Projections**: Read models (e.g., `InMemoryShiftReadModel`, `InMemoryPosSessionReadModel`) are built by listening to domain events. This enables CQRS (Command Query Responsibility Segregation).
 - **No Public Getters on Aggregates**: Aggregate roots must NOT have public getters for querying state. All reads go through projections.
 
 ---

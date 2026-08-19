@@ -29,7 +29,7 @@ The core business logic layer, independent of infrastructure concerns.
 - **Aggregates**: `Terminal`, `Shift`, `PosSession` (aggregate roots with lifecycle management)
 - **Value Objects**: Immutable objects like `TerminalId`, `ShiftId`, `SessionId`, `CashierId`, `BranchId`, `Money`, `CashDrop`
 - **Events**: Domain events like `ShiftOpened`, `ShiftClosed`, `CheckoutInitiated`, `CashDropRecorded`
-- **Enums/Status**: `TerminalStatus`, `ShiftStatus`, `SessionState`, `OrderPhase`
+- **Enums/Status**: `TerminalStatus`, `ShiftStatus`, `SessionState`, `OfflineMode`
 
 #### **Repository Interfaces** (`src/Domain/Model/{Context}/Repository/`)
 Interfaces that define contracts for external dependencies:

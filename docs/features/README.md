@@ -118,7 +118,7 @@ Features: 1001, 1002, 1003, 1004, 1005
 feat(foundation): implement shared kernel with base classes, event store, and CQRS bus
 
 - AggregateRoot, DomainEvent, ValueObject base classes
-- EventStoreInterface + InMemoryEventStore
+- `EventStore` (vendor contract) + `InMemoryEventStore`
 - CQRS bus integration (common-cqrs)
 - Shared value objects (Money, BranchId, CashierId)
 - Exception hierarchy
@@ -189,7 +189,7 @@ feat(session): implement PosSession aggregate with state machine
 - PosSession aggregate root with Idle/Building/Checkout states
 - SessionId, OrderId, SessionState value objects
 - StartSession, StartNewOrder, ParkOrder, ResumeOrder commands
-- Session events (Started, OrderStarted, Parked, Resumed)
+- Session events (`SessionStarted`, `NewOrderStarted`, `OrderParked`, `OrderResumed`)
 - Repository interface + in-memory implementation
 - Session read model projection
 - Unit tests
@@ -213,7 +213,8 @@ feat(checkout): implement checkout flow, payment orchestration, and BC integrati
 - RequestPayment: delegate to Payment BC, act on OK/NOT OK
 - CompleteOrder: mark fully paid orders as completed
 - CancelOrder: cancel with reservation release
-- Event handlers (OnCheckoutInitiated, OnOrderCompleted, OnOrderCancelled)
+- Event handlers for checkout/complete/cancel — NOT built; the library records
+  events and leaves reacting to them to the host
 - OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - Stub service adapters for testing
 - Integration tests for full checkout flow
