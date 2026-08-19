@@ -42,7 +42,8 @@ persisted session events. `./demo/demo state clear` resets all three stores
 — the events file, the id state file and the shift-slot file — as one
 all-or-nothing operation.
 
-One deliberate choice: the rebuild (`Application\Shared\OfflineStateReplay`) does not mark *sync* command ids as
+One deliberate choice: the rebuild
+(`Application\Shared\OfflineStateReplay`) does not mark *sync* command ids as
 processed, even though `OrderSyncedOnline` records them. Marking them would
 make a redelivered sync return at the registry — and that redelivery is what
 re-issues a draft-order call lost between storing the event and reaching the

@@ -88,14 +88,4 @@ final class Output
     {
         return $currency . ' ' . number_format($amountMinorUnits / 100, 2);
     }
-
-    /**
-     * @param array{amount?: int|string, currency?: string} $moneyArray
-     */
-    public static function formatMoney(array $moneyArray): string
-    {
-        $amount   = $moneyArray['amount'] ?? 0;
-        $currency = $moneyArray['currency'] ?? 'PHP';
-        return self::money((int) $amount, (string) $currency);
-    }
 }

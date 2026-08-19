@@ -14,6 +14,7 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Application\Terminal\ReadModel\TerminalReadModelInterface;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
+use Dranzd\StorebunkPos\Demo\Cli\TerminalProjection;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
@@ -91,7 +92,7 @@ function terminalRegister(
 
         // Project into read model
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         // Persist to state store
         $stateStore->set('last_terminal_id', $terminalId->toNative());
@@ -125,7 +126,7 @@ function terminalActivate(
     try {
         $commandBus->dispatch(new ActivateTerminal($terminalId->toNative()));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal activated.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -155,7 +156,7 @@ function terminalDisable(
     try {
         $commandBus->dispatch(new DisableTerminal($terminalId->toNative()));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal disabled.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -185,7 +186,7 @@ function terminalMaintenance(
     try {
         $commandBus->dispatch(new SetTerminalMaintenance($terminalId->toNative()));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal set to maintenance.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -216,7 +217,7 @@ function terminalRename(
     try {
         $commandBus->dispatch(new RenameTerminal($terminalId->toNative(), $newName));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal renamed.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -247,7 +248,7 @@ function terminalReassign(
     try {
         $commandBus->dispatch(new ReassignTerminal($terminalId->toNative(), $newBranchId->toNative()));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal reassigned.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -278,7 +279,7 @@ function terminalDecommission(
     try {
         $commandBus->dispatch(new DecommissionTerminal($terminalId->toNative(), $reason));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal decommissioned.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -310,7 +311,7 @@ function terminalRecommission(
     try {
         $commandBus->dispatch(new RecommissionTerminal($terminalId->toNative(), $reason));
         global $eventStore;
-        projectTerminalReadModel($eventStore, $terminalReadModel, $terminalId->toNative());
+        TerminalProjection::project($eventStore, $terminalReadModel, $terminalId->toNative());
 
         Output::success('Terminal recommissioned.');
         Output::field('Terminal ID', $terminalId->toNative());
@@ -339,7 +340,7 @@ function terminalGet(
     // Each CLI invocation is a fresh process — rebuild the read model from
     // the persisted events before querying it.
     global $eventStore;
-    projectTerminalReadModel($eventStore, $terminalReadModel, $terminalIdRaw);
+    TerminalProjection::project($eventStore, $terminalReadModel, $terminalIdRaw);
 
     $terminal = $terminalReadModel->getTerminal($terminalIdRaw);
     if ($terminal === null) {
@@ -363,7 +364,7 @@ function terminalList(
     // the persisted events before querying it.
     global $eventStore, $stateStore;
     foreach ($stateStore->getList('terminal_ids') as $knownTerminalId) {
-        projectTerminalReadModel($eventStore, $terminalReadModel, $knownTerminalId);
+        TerminalProjection::project($eventStore, $terminalReadModel, $knownTerminalId);
     }
 
     $branchFilter = $args->get('branch-id');

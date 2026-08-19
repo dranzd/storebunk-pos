@@ -189,4 +189,19 @@ final class PosSessionOfflineTest extends TestCase
         $this->assertTrue($session->isOrderSynced($orderId));
         $this->assertTrue($session->wasSyncedByCommand($orderId, 'any-command-at-all'));
     }
+
+    public function test_an_online_order_cannot_be_marked_pending_sync(): void
+    {
+        // Pending sync means "created offline, still to be pushed". Letting an
+        // online order in would write a history no host can rebuild a queue
+        // entry from — there is no offline command behind it — and events are
+        // immutable, so that history would break every later start-up.
+        $orderId = new OrderId();
+        $this->session->startNewOrder($orderId);
+
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Only an order created offline can be marked pending sync');
+
+        $this->session->markOrderPendingSync($orderId);
+    }
 }

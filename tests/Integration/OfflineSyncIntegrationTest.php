@@ -13,6 +13,8 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\SessionStarted;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderMarkedPendingSync;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -622,6 +624,35 @@ final class OfflineSyncIntegrationTest extends TestCase
         ))($sync);
 
         $this->assertSame($callsBefore + 1, $this->orderingService->draftOrderCreationCount($orderId));
+    }
+
+    public function test_the_rebuild_refuses_a_history_it_cannot_reconstruct(): void
+    {
+        // The replay needs the offline command id to rebuild a queue entry.
+        // The aggregate no longer lets such a history be written (an online
+        // order cannot be marked pending sync), so this can only come from
+        // outside — and it must say so rather than queue an entry standing
+        // for nothing.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('marked pending sync with no offline creation before it');
+
+        OfflineStateReplay::rebuild(
+            [
+                SessionStarted::occur(
+                    $sessionId,
+                    new ShiftId(),
+                    new TerminalId(),
+                    new \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId(),
+                    new \DateTimeImmutable()
+                ),
+                OrderMarkedPendingSync::occur($sessionId, $orderId),
+            ],
+            new PendingSyncQueue(),
+            new IdempotencyRegistry()
+        );
     }
 
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void

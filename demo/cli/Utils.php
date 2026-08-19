@@ -31,17 +31,4 @@ final class Utils
         $currency = $array['currency'] ?? 'PHP';
         return $currency . ' ' . number_format($amount / 100, 2);
     }
-
-    /**
-     * Format money array for display.
-     */
-    /**
-     * @param array{amount?: int|float|string, currency?: string} $moneyArray
-     */
-    public static function formatMoneyArray(array $moneyArray): string
-    {
-        $amount = (float) ($moneyArray['amount'] ?? 0);
-        $currency = (string) ($moneyArray['currency'] ?? 'PHP');
-        return $currency . ' ' . number_format($amount / 100, 2);
-    }
 }

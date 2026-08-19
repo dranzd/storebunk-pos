@@ -18,11 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** — `PosSession::syncOrderOnline()` and
   `OrderSyncedOnline::occur()` require the command id, so an event without
   one can only come from history stored before it was recorded.
+- **BREAKING** — a command naming an already-synced order that did NOT sync
+  it is refused (`Order is not in pending sync list`) where it used to be
+  absorbed as success. Only a redelivery of the syncing command is absorbed.
+- `PosSession::markOrderPendingSync()` refuses an order that was not created
+  offline. Pending sync means "created offline, still to be pushed", and the
+  history it used to allow could never be rebuilt into a queue entry — which,
+  events being immutable, would have broken every later start-up.
+
+### Added
+
 - `Application\Shared\OfflineStateReplay` rebuilds the pending-sync queue and
   the idempotency registry from events. A host running more than one process
-  has to do this, and doing it by hand is easy to get wrong; the demo now
-  uses it too. PHPStan and phpcs now cover `demo/`, which is how a helper
-  shipped in the production autoload came to be unanalysed.
+  has to do this, and doing it by hand is easy to get wrong; the demo uses it
+  too. PHPStan and phpcs now cover `demo/`, which is how a helper shipped in
+  the production autoload came to be unanalysed — and how three unused,
+  mutually inconsistent money formatters survived there (now deleted).
 
 ### Fixed
 

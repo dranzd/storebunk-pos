@@ -232,28 +232,6 @@ foreach ($handlers as $messageName => $handler) {
 }
 $commandBus = new SimpleCommandBus($registry);
 
-// ── Terminal Read Model Projection Helper ─────────────────────────────────────
-// After each terminal command we replay all terminal events into the read model.
-// This is a simple approach suitable for a demo (not production).
-function projectTerminalReadModel(
-    EventStore $eventStore,
-    InMemoryTerminalReadModel $readModel,
-    string $terminalId
-): void {
-    if (!$eventStore->hasEvents($terminalId)) {
-        return;
-    }
-    $events = $eventStore->loadEvents($terminalId);
-    foreach ($events as $event) {
-        $class = get_class($event);
-        $short = substr($class, strrpos($class, '\\') + 1);
-        $method = 'on' . $short;
-        if (method_exists($readModel, $method)) {
-            $readModel->$method($event);
-        }
-    }
-}
-
 // ── State Store ───────────────────────────────────────────────────────────────
 $stateStore = new StateStore(StateStore::defaultPath());
 

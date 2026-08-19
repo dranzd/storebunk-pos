@@ -228,7 +228,7 @@ uses. When rebuilding the registry, pass the same purpose the handler would.
 Describing a command differently is LOUD: legitimate retries start throwing
 "command id … cannot be reused", which is the diagnostic. The one quiet
 mistake left is a purpose that omits the target — then two different orders'
-commands look like the same work, and the second is absorbed as a redelivery.
+commands that share an id look like the same work, and the second is absorbed as a redelivery.
 
 ### Wiring Dependencies
 

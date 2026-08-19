@@ -301,6 +301,16 @@ final class PosSession implements AggregateRoot
             );
         }
 
+        // Pending sync means "created offline, still to be pushed". An order
+        // created online was never offline, so queueing it would say nothing
+        // true — and a host replaying that history could never rebuild the
+        // queue entry's command id, because there is no offline command.
+        if (!$this->wasStartedOffline($orderId)) {
+            throw InvariantViolationException::withMessage(
+                'Only an order created offline can be marked pending sync'
+            );
+        }
+
         $this->recordThat(
             OrderMarkedPendingSync::occur($this->sessionId, $orderId)
         );
@@ -317,6 +327,21 @@ final class PosSession implements AggregateRoot
         foreach ($this->syncedOrderIds as $synced) {
             if ($synced['order']->sameValueAs($orderId)) {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Was this order created offline? True only when a command id was
+     * recorded for it, which online creation never does.
+     */
+    private function wasStartedOffline(OrderId $orderId): bool
+    {
+        foreach ($this->startedOrderIds as $started) {
+            if ($started['order']->sameValueAs($orderId)) {
+                return $started['command'] !== null;
             }
         }
 
