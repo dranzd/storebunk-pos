@@ -40,7 +40,7 @@ function handleShift(
             shiftAssign($commandBus, $stateStore, $args);
             break;
         case 'unassign':
-            shiftUnassign($commandBus, $stateStore, $args);
+            shiftUnassign($commandBus, $stateStore, $shiftReadModel, $args);
             break;
         case 'close':
             shiftClose($commandBus, $stateStore, $args);
@@ -140,6 +140,12 @@ function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
             array_map(static fn (CashierId $c) => $c->toNative(), $fallbacks)
         ));
 
+        // The shift's operator moved, so the "last cashier" the other
+        // subcommands default to has to move with it — otherwise a bare
+        // `shift assign` or `session start` keeps aiming at whoever opened
+        // the shift, long after they handed it over.
+        $stateStore->set('last_cashier_id', $assignee->toNative());
+
         Output::success('Shift assigned successfully.');
         Output::field('Shift ID', $shiftId->toNative());
         Output::field('Assignee', $assignee->toNative());
@@ -153,8 +159,12 @@ function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
     }
 }
 
-function shiftUnassign(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
-{
+function shiftUnassign(
+    SimpleCommandBus $commandBus,
+    StateStore $stateStore,
+    ShiftReadModelInterface $shiftReadModel,
+    CliArgs $args
+): void {
     $shiftIdRaw = $args->get('shift-id', $stateStore->get('last_shift_id', ''));
     if ($shiftIdRaw === '') {
         Output::error('--shift-id is required (or run shift open first)');
@@ -165,6 +175,12 @@ function shiftUnassign(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
 
     try {
         $commandBus->dispatch(new UnassignShift($shiftId->toNative()));
+
+        // Operation went back to the opener; the defaults follow it.
+        $shift = $shiftReadModel->getShift($shiftId->toNative());
+        if ($shift !== null) {
+            $stateStore->set('last_cashier_id', (string) $shift['opened_by']);
+        }
 
         Output::success('Shift unassigned (now open).');
         Output::field('Shift ID', $shiftId->toNative());
