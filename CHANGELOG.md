@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [3.1.0] - 2026-08-19
+
+> Adds one invariant hosts may notice: a `PosSession` now refuses an order id
+> it has already used. A retry must carry its original command id
+> (`withMessageUuid()`) to be recognised as a redelivery rather than a reuse.
+
 ### Added
 
 - The "an order is only handled from the terminal it belongs to" invariant is
