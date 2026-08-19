@@ -60,25 +60,28 @@ new StartNewOrderOffline($sessionId, $orderId)
   ▼
 StartNewOrderOfflineHandler::__invoke()
   │
-  ├─ 1. Check IdempotencyRegistry → if already processed, return (no-op)
-  ├─ 2. Check PendingSyncQueue → if THIS command queued this order,
-  │      return (no-op: a redelivery arriving before the sync)
-  ├─ 3. Load PosSession aggregate from repository
-  ├─ 4. If THIS command already created this order (redelivery after the
-  │      queue and registry were lost):
-  │      ├─ re-queue it when it has not synced — the create was stored but
-  │      │  the enqueue never happened, so nothing would sync it
+  ├─ 1. Check IdempotencyRegistry → if this command id was already
+  │      processed, return (no-op)
+  ├─ 2. Load PosSession aggregate from repository
+  ├─ 3. If THIS command already created this order (a redelivery reaching
+  │      here because the registry was rebuilt without command ids, or the
+  │      process died between storing the order and queueing it):
+  │      ├─ re-queue it when it has not synced — otherwise nothing syncs it
   │      ├─ mark the command processed
   │      └─ return
-  ├─ 5. session->startNewOrderOffline($orderId, $commandId)
-  │      ├─ Refuses an order id this session has already used under a
-  │      │  DIFFERENT command — that is a reuse, not a redelivery
+  ├─ 4. session->startNewOrderOffline($orderId, $commandId)
+  │      ├─ Refuses an order id this session has already used — by ANY
+  │      │  command. Step 3 is what lets a redelivery past this; anything
+  │      │  reaching here with a used id is a reuse
   │      └─ Records OrderCreatedOffline event (which persists the command id)
-  ├─ 6. session->markOrderPendingSync($orderId)
+  ├─ 5. session->markOrderPendingSync($orderId)
   │      └─ Records OrderMarkedPendingSync event
-  ├─ 7. Store session (persists events to event store)
-  ├─ 8. pendingSyncQueue->enqueue($sessionId, $orderId, $commandId)
-  └─ 9. idempotencyRegistry->markAsProcessed($commandId)
+  ├─ 6. Store session (persists events to event store)
+  ├─ 7. pendingSyncQueue->enqueue($sessionId, $orderId, $commandId)
+  └─ 8. idempotencyRegistry->markAsProcessed($commandId)
+
+(An order still pending sync needs no separate guard: a queue entry only
+exists once the create was stored, so step 3 already recognises it.)
 ```
 
 **Aggregate state after offline creation:**
@@ -145,25 +148,31 @@ All command classes follow this pattern (ADR-003): construction auto-generates a
 
 The command ID (`messageUuid`) must be **unique per command instance**. It must **never** be the aggregate ID (e.g., session ID, shift ID). Using the aggregate ID as the command ID would cause all commands targeting the same aggregate to collide in the `IdempotencyRegistry`, preventing subsequent commands from executing.
 
-### Three Guards in Offline Creation
+### Guards in Offline Creation
 
-`StartNewOrderOfflineHandler` has three, and each one asks about the command
-as well as the order — asking only "is this order known?" would absorb a
-different command reusing an order id and report success for an order it
-never created:
+`StartNewOrderOfflineHandler` has two, and they answer different questions:
 
-1. **`IdempotencyRegistry`** — this exact command has already been processed.
-2. **`PendingSyncQueue::wasQueuedByCommand()`** — this exact command already
-   queued this order, i.e. a redelivery arriving before the order synced.
-3. **`PosSession::wasStartedByCommand()`** — this exact command already
-   created this order, but the queue and registry no longer say so (a restart
-   that does not replay command ids, or a crash between storing the order and
-   queueing it). The order is re-queued if it never synced.
+1. **`IdempotencyRegistry`** — has this exact command id been processed?
+   It knows the id and nothing about what the command did, so it relies on
+   the contract that a command id identifies one command instance. A caller
+   that reuses one id across different commands defeats it (see the
+   follow-up filed for this).
+2. **`PosSession::wasStartedByCommand()`** — did this exact command already
+   create this order? This is what separates a REDELIVERY (absorbed, and
+   re-queued if the order never synced) from a REUSE. `OrderCreatedOffline`
+   persists the command id, which is what makes the distinction possible.
 
-Anything else naming an order id the session has already used is a REUSE, and
-the aggregate refuses it. That is why a retry must carry the original command
-id (`withMessageUuid()`): a fresh command object gets a fresh id, and a fresh
-id on a used order is a reuse by definition.
+Anything else naming an order id the session has already used is refused by
+the aggregate. That is why a retry must carry the original command id
+(`withMessageUuid()`): a fresh command object gets a fresh id, and a fresh id
+on a used order is a reuse by definition.
+
+**The sync path cannot make the same distinction.** `OrderSyncedOnline`
+carries no command id, so `SyncOrderOnlineHandler`'s already-synced check is
+keyed on the order alone — an unrelated command naming a synced order is
+absorbed and re-issues the draft-order call. Safe today because that port is
+idempotent per order id by contract, but it is not the same guarantee as the
+create path. A follow-up covers it.
 
 ---
 
@@ -177,7 +186,7 @@ The `PendingSyncQueue` is a domain service that tracks offline orders awaiting s
 |--------|-------------|
 | `enqueue(SessionId, OrderId, commandId)` | Add an order to the sync queue |
 | `dequeueByOrderId(OrderId)` | Remove an order after successful sync |
-| `hasByOrderId(OrderId): bool` | Check if an order is queued |
+| `hasByOrderId(OrderId): bool` | Check if an order is queued (see the note below) |
 | `hasCommandId(string): bool` | Check if a command ID is in the queue |
 | `all(): array` | Get all queued entries |
 | `count(): int` | Number of queued orders |
@@ -194,6 +203,12 @@ Each entry contains:
 ### Persistence Note
 
 The current `PendingSyncQueue` is an **in-memory implementation**. Consumers integrating this library must provide a persistent implementation (e.g., database-backed) to survive process restarts. The in-memory version is suitable for testing and demo purposes.
+
+
+**On `hasByOrderId` / `hasCommandId`:** neither is used by a handler. "Is this
+order queued" cannot tell a redelivery from a different command reusing the
+id, which is why offline creation asks the aggregate
+`wasStartedByCommand()` instead. They remain for hosts inspecting the queue.
 
 ---
 
@@ -297,9 +312,9 @@ The offline path differs from the online path:
      │                 │ hasBeenProcessed? │                  │                  │
      │                 │─────────────────────────────────────────────────────▶ │
      │                 │                  │                  │       no ◀──────│
-     │                 │ hasByOrderId?    │                  │                  │
-     │                 │─────────────────────────────────── ▶│                  │
-     │                 │                  │        no ◀──────│                  │
+     │                 │ wasStartedByCommand?                │                  │
+     │                 │─────────────────▶│                  │                  │
+     │                 │           no ◀───│                  │                  │
      │                 │ startNewOrderOffline                │                  │
      │                 │─────────────────▶│                  │                  │
      │                 │ markOrderPendingSync                │                  │
