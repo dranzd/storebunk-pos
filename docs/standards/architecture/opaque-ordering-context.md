@@ -12,7 +12,7 @@ Context passed to the Ordering BC at draft-order creation is an opaque, consumer
 **Status:** Accepted
 **Date:** 2026-08-15
 **Context:** `SyncOrderOnline` / `SyncOrderOnlineHandler` / `OrderingServiceInterface::createDraftOrder()`
-**Revises:** the mechanism chosen in reported issue [6003](../reported-issues/6000-bc-integration/6003-draft-order-missing-context.md)
+**Revises:** the mechanism chosen in reported issue [6003](../../reported-issues/6000-bc-integration/6003-draft-order-missing-context.md)
 
 ---
 

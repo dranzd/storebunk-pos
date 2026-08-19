@@ -13,7 +13,7 @@ All domain events in this project use the following encapsulation pattern:
 
 ### 1. Private Properties (Not Readonly)
 
-Properties are declared `private` with explicit types. They are **not** `readonly` — this avoids PHPStan conflicts with assignment in `occur()` and `fromArray()`, while still preventing external mutation since there are no setters.
+Properties are declared `private` with explicit types. They are **not** `readonly` — this avoids PHPStan conflicts with assignment in `occur()` and `setPayload()`, while still preventing external mutation since there are no setters.
 
 ```php
 private TerminalId $terminalId;
@@ -57,12 +57,20 @@ final public static function occur(
 }
 ```
 
-### 4. `toArray()` / `fromArray()` for Serialization
+### 4. `getPayload()` / `setPayload()` for Serialization
 
-These methods handle the serialization contract with the event store. They operate on private properties directly from within the class scope.
+These two methods are the whole serialization contract with the event store,
+and they operate on the private properties directly from inside the class.
+The base class owns `toArray()`/`fromArray()` — envelope fields (message name,
+uuid, timestamp) belong to it, and an event that overrode them would have to
+re-serialize those correctly every time. Each event describes only its own
+payload; nothing else.
+
+`setPayload()` returns early on an empty payload so an envelope carrying no
+payload still reconstitutes.
 
 ```php
-final public function toArray(): array
+final public function getPayload(): array
 {
     return [
         'terminal_id' => $this->terminalId->toNative(),
@@ -72,18 +80,18 @@ final public function toArray(): array
 }
 
 /**
- * @param array<string, mixed> $array
+ * @param array<string, mixed> $payload
  */
-final public static function fromArray(array $array): static
+final protected function setPayload(array $payload): void
 {
-    $event = parent::fromArray($array);
-    $event->terminalId = TerminalId::fromNative($array['payload']['terminal_id']);
-    $event->name = $array['payload']['name'];
-    $event->registeredAt = new DateTimeImmutable($array['payload']['registered_at']);
-    return $event;
+    if (empty($payload)) {
+        return;
+    }
+    $this->terminalId = TerminalId::fromNative($payload['terminal_id']);
+    $this->name = $payload['name'];
+    $this->registeredAt = new DateTimeImmutable($payload['registered_at']);
 }
 ```
-
 ---
 
 ---

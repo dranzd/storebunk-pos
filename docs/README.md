@@ -20,6 +20,7 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[Folder Structure](folder-structure.md)** — Complete directory reference and conventions
 - **[Technical Design](technical_design.md)** — Implementation details, coding standards, and adapters
 - **[Offline Sync](offline-sync.md)** — Offline order creation, sync queue, idempotency model, and consumer integration guide
+- **[Event Pattern Specification](specifications/event-pattern-specification.md)** — The `getPayload()`/`setPayload()` serialization contract every domain event implements
 
 ### Planning & Tracking
 - **[Milestones](milestones.md)** — Project roadmap with phased plan and commit messages
@@ -42,9 +43,13 @@ Built using **Domain-Driven Design (DDD)**, **Event Sourcing (ES)**, **Hexagonal
 - **[ADR-005: Accepted Deviations from the storebunk-inventory Standard](adr/005-accepted-deviations-from-inventory-standard.md)** — Folder layout, no query layer, message-name scheme — intentional, do not "fix"
 - **[ADR-006: Outbound Ordering Context Is Opaque to POS](adr/006-opaque-ordering-context.md)** — Consumer-owned context arrays pass through untyped; the consumer-side translator pattern
 
+### Standards
+- **[Coding & Design Standards](standards/)** — The rules this library is held to, in three trees: `architecture/`, `ddd/`, `event-sourcing/`. Copies synced from the shared standards repository; the local ADRs above take precedence where they differ.
+
 ### Process & Guidelines
 - **[Documentation Process](documentation-process.md)** — How standards and project documentation interact, tagging conventions, and sync workflow
 - **[Agent Workflow](agent_workflow.md)** — Guidelines for AI assistants contributing to this project
+- **[AI Documentation Policy](ai-documentation-policy.md)** — Where a generated document belongs, how to name it, and how to cross-reference it
 
 ### Raw Materials
 - **[Raw Discussions](raw-discussions/)** — Original design discussions and brainstorming
