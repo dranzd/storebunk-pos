@@ -69,19 +69,20 @@ final class MultiTerminalEnforcementService
      * Assert that the given order belongs to the given terminal.
      *
      * NOT called by this library, and that is deliberate — not an oversight.
-     * Every command here that names an order checks it against its session's
-     * own lists (parked, inactive, pending-sync) or acts on the session's
-     * active order without taking an id at all, and a session is bound to one
-     * terminal when it starts. So the binding is already structural: an order
-     * can only be reached through the session that holds it. Adding a lookup
-     * table for it would create a second home for the rule that could
-     * disagree with the aggregate — the failure issue 8003 exists about.
-     * Pinned by OrderTerminalBindingTest.
+     * An order already held by a session cannot be REACHED from another one:
+     * resume, reactivate and sync each check the id against that session's
+     * own parked / inactive / pending-sync list, and complete/cancel take no
+     * id at all. A session is bound to one terminal at start, so that scoping
+     * is what keeps an order on its own terminal, and a lookup table for it
+     * would be a second home for the rule that could drift from the
+     * aggregate — the failure issue 8003 exists about. Pinned by
+     * OrderTerminalBindingTest.
      *
-     * It is here for HOSTS that address orders outside a session — an
-     * endpoint taking an order id plus the caller's terminal, say — where
-     * that structural scoping does not apply and the check must be made
-     * explicitly.
+     * The gap it does NOT close is CLAIMING an id: `StartNewOrder` takes one
+     * from the caller, and the session can only refuse ids it has already
+     * used itself. Two sessions handed the same id is a host concern — order
+     * ids belong to the Ordering context — which is exactly what this method
+     * is here for. Call it from a host that lets a caller name an order.
      *
      * @param array<string, string> $orderTerminalBinding orderId => terminalId, as the host records it
      */

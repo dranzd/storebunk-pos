@@ -116,9 +116,6 @@ final class DemoCliShiftOpenRaceTest extends TestCase
         return array_values($state['terminal_ids'] ?? []);
     }
 
-    /**
-     * @return array{int, string}
-     */
     public function test_two_concurrent_cash_drops_both_survive(): void
     {
         // Cash drops are additive and they are real money: losing the version
@@ -146,6 +143,9 @@ final class DemoCliShiftOpenRaceTest extends TestCase
         $this->assertCount(2, $drops, 'Both cash drops must be persisted');
     }
 
+    /**
+     * @return array{int, string}
+     */
     private function runDemoCli(string $arguments): array
     {
         $command = sprintf(

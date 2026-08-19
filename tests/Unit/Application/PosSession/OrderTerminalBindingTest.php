@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Dranzd\StorebunkPos\Tests\Unit\Application\PosSession;
 
 use Dranzd\Common\EventSourcing\Domain\EventSourcing\InMemoryEventStore;
-use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\CompleteOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\ParkOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\ReactivateOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\ResumeOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\StartNewOrderHandler;
 use Dranzd\StorebunkPos\Application\PosSession\Command\Handler\StartSessionHandler;
-use Dranzd\StorebunkPos\Application\PosSession\Command\CompleteOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\ParkOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\ReactivateOrder;
 use Dranzd\StorebunkPos\Application\PosSession\Command\ResumeOrder;
@@ -25,24 +23,31 @@ use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 use Dranzd\StorebunkPos\Tests\Stub\Service\StubInventoryService;
-use Dranzd\StorebunkPos\Tests\Stub\Service\StubOrderingService;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Invariant: an order is only ever handled from the terminal it belongs to
  * (issue 8002).
  *
- * There is no order→terminal lookup anywhere, and there does not need to be:
- * a session is bound to one terminal when it starts, and every command that
- * names an order checks it against THAT session's own lists — parked,
- * inactive, pending-sync — or acts on the session's active order without
- * taking an id at all. So an order can only be reached through the session
- * that holds it, and that session is on one terminal.
+ * Two legs hold it up, and both are pinned here:
  *
- * These tests pin that structural guarantee, so nobody later "fixes" it by
- * adding a second home for the rule — a read model that could disagree with
- * the aggregate is exactly what issue 8003 spent five review rounds proving
- * cannot be a source of truth.
+ * 1. A session is bound to one terminal when it starts, and nothing moves it.
+ * 2. An order already held by a session cannot be REACHED from another one:
+ *    resume, reactivate and sync each check the id against that session's own
+ *    parked / inactive / pending-sync list, and complete/cancel take no id at
+ *    all — they act on the session's own active order.
+ *
+ * What this does NOT cover, deliberately: CLAIMING an id. `StartNewOrder`
+ * takes an id from the caller, so a session can only be stopped from reusing
+ * one it has already started (asserted below). Two different sessions being
+ * handed the same id is a host concern — order ids belong to the Ordering
+ * context, and a host that lets a caller supply one should check it against
+ * the caller's terminal, which is what
+ * MultiTerminalEnforcementService::assertOrderBelongsToTerminal() is for.
+ *
+ * The point of pinning this is that nobody later "fixes" it by adding a
+ * lookup table: a read model that can disagree with the aggregate is what
+ * issue 8003 spent five review rounds proving cannot be a source of truth.
  */
 final class OrderTerminalBindingTest extends TestCase
 {
@@ -84,20 +89,57 @@ final class OrderTerminalBindingTest extends TestCase
         );
     }
 
-    public function test_another_terminal_cannot_complete_an_order_it_does_not_hold(): void
+    public function test_an_id_less_command_touches_only_its_own_terminals_order(): void
     {
-        // Completion takes no order id at all — it acts on the session's own
-        // active order, so there is no id for another terminal to pass.
-        $this->startOrder($this->sessionOnTerminalA);
+        // Park, like complete and cancel, takes no order id: it acts on the
+        // session's own active order. With BOTH sessions holding one, parking
+        // on B must park B's and leave A's exactly where it was.
+        $orderOnA = $this->startOrder($this->sessionOnTerminalA);
+        $orderOnB = $this->startOrder($this->sessionOnTerminalB);
+
+        (new ParkOrderHandler($this->sessionRepository))(
+            new ParkOrder($this->sessionOnTerminalB->toNative())
+        );
+
+        $this->assertNull(
+            $this->sessionRepository->load($this->sessionOnTerminalB)->activeOrderId(),
+            "B's order was parked"
+        );
+        $this->assertTrue(
+            $this->sessionRepository->load($this->sessionOnTerminalA)->activeOrderId()?->sameValueAs($orderOnA) ?? false,
+            "A's order is untouched"
+        );
+        $this->assertNotSame($orderOnA->toNative(), $orderOnB->toNative());
+    }
+
+    public function test_a_session_stays_on_the_terminal_it_started_on(): void
+    {
+        // The first leg of the guarantee: if a session could move terminals,
+        // everything the order checks buy us would be worthless.
+        $orderId = $this->startAndParkOrder($this->sessionOnTerminalA);
+        $terminalAtStart = $this->sessionRepository->load($this->sessionOnTerminalA)->terminalId();
+
+        (new ResumeOrderHandler($this->sessionRepository))(
+            new ResumeOrder($this->sessionOnTerminalA->toNative(), $orderId->toNative())
+        );
+
+        $this->assertTrue(
+            $this->sessionRepository->load($this->sessionOnTerminalA)->terminalId()->sameValueAs($terminalAtStart)
+        );
+    }
+
+    public function test_a_session_cannot_reuse_an_order_id_it_already_started(): void
+    {
+        // The id is the one thing about a new order the session cannot take
+        // on trust: reusing it would put two orders behind one identifier.
+        $orderId = $this->startAndParkOrder($this->sessionOnTerminalA);
 
         $this->expectException(InvariantViolationException::class);
-        $this->expectExceptionMessage('No active order to complete');
+        $this->expectExceptionMessage('Order id has already been used in this session');
 
-        (new CompleteOrderHandler(
-            $this->sessionRepository,
-            new StubOrderingService(),
-            new StubInventoryService()
-        ))(new CompleteOrder($this->sessionOnTerminalB->toNative()));
+        (new StartNewOrderHandler($this->sessionRepository))(
+            new StartNewOrder($this->sessionOnTerminalA->toNative(), $orderId->toNative())
+        );
     }
 
     public function test_the_owning_terminal_still_works(): void

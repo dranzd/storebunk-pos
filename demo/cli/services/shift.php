@@ -145,8 +145,13 @@ function shiftAssign(SimpleCommandBus $commandBus, StateStore $stateStore, CliAr
         // The shift's operator moved, so the "last cashier" the other
         // subcommands default to has to move with it — otherwise a bare
         // `shift assign` or `session start` keeps aiming at whoever opened
-        // the shift, long after they handed it over.
-        $stateStore->set('last_cashier_id', $assignee->toNative());
+        // the shift, long after they handed it over. Only for the shift those
+        // defaults point at, though: `last_cashier_id` is read together with
+        // `last_shift_id`, so writing it for a different shift would start a
+        // session on one shift under another shift's cashier.
+        if ($shiftIdRaw === $stateStore->get('last_shift_id', '')) {
+            $stateStore->set('last_cashier_id', $assignee->toNative());
+        }
 
         Output::success('Shift assigned successfully.');
         Output::field('Shift ID', $shiftId->toNative());
@@ -178,9 +183,10 @@ function shiftUnassign(
     try {
         $commandBus->dispatch(new UnassignShift($shiftId->toNative()));
 
-        // Operation went back to the opener; the defaults follow it.
+        // Operation went back to the opener; the defaults follow it — again
+        // only when they point at this shift.
         $shift = $shiftReadModel->getShift($shiftId->toNative());
-        if ($shift !== null) {
+        if ($shift !== null && $shiftIdRaw === $stateStore->get('last_shift_id', '')) {
             $stateStore->set('last_cashier_id', (string) $shift['opened_by']);
         }
 
@@ -303,6 +309,18 @@ function shiftCashDrop(
         Output::field('Shift ID', $shiftId->toNative());
         Output::field('Amount', Output::money($amount, $currency));
         Output::field('Recorded At', (new DateTimeImmutable())->format(DATE_ATOM));
+    } catch (ExecutionFailedException $e) {
+        if (!$e->getPrevious() instanceof ConcurrencyException) {
+            throw $e;
+        }
+        // Out of retries. The operator needs to know the money was NOT
+        // recorded and that trying again is the right move — a bare version
+        // conflict tells them neither.
+        Output::error(
+            'The cash drop was NOT recorded: the shift was being changed by other commands at the same time. Try again.'
+        );
+        Output::info($e->getPrevious()->getMessage());
+        exit(1);
     } catch (AggregateNotFoundException $e) {
         Output::domainError($e->getMessage());
         exit(1);
@@ -380,7 +398,10 @@ function dispatchRetryingOnConflict(FileEventStore $eventStore, callable $dispat
             }
 
             // Another process wrote while we held a stale view of the
-            // history; the retry has to see what actually landed.
+            // history; the retry has to see what actually landed. The short
+            // random wait matters: without it every loser reloads in lockstep
+            // and collides again at the same version.
+            usleep(random_int(1_000, 15_000));
             $eventStore->reload();
         }
     }

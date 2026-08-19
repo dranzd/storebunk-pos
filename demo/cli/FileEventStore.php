@@ -211,9 +211,24 @@ final class FileEventStore implements EventStore
             );
         }
 
+        // Snapshot first: load() can throw (unreadable or corrupt file), and
+        // a store left holding an empty history would answer "that aggregate
+        // does not exist" — a lie the rest of this class goes out of its way
+        // to avoid.
+        $eventsBefore    = $this->events;
+        $malformedBefore = $this->malformed;
+
         $this->events    = [];
         $this->malformed = [];
-        $this->load();
+
+        try {
+            $this->load();
+        } catch (\Throwable $failure) {
+            $this->events    = $eventsBefore;
+            $this->malformed = $malformedBefore;
+
+            throw $failure;
+        }
     }
 
     public function filePath(): string

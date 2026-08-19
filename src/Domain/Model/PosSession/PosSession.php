@@ -46,6 +46,15 @@ final class PosSession implements AggregateRoot
     private array $inactiveOrderIds = [];
     /** @var OrderId[] */
     private array $pendingSyncOrderIds = [];
+
+    /**
+     * Every order id this session has started, including ones long since
+     * completed or cancelled. An id identifies one order for the life of the
+     * session, so it cannot be handed back in a second time.
+     *
+     * @var OrderId[]
+     */
+    private array $startedOrderIds = [];
     /** @var OrderId[] Orders already synced online; lets a redelivered sync command heal/no-op instead of tripping the pending-sync invariant. Grows with session lifetime, like the other order-id lists. */
     private array $syncedOrderIds = [];
 
@@ -77,6 +86,8 @@ final class PosSession implements AggregateRoot
                 'Cannot start new order when an order is already active'
             );
         }
+
+        $this->assertOrderIdIsUnused($orderId);
 
         $this->recordThat(
             NewOrderStarted::occur(
@@ -262,6 +273,8 @@ final class PosSession implements AggregateRoot
             );
         }
 
+        $this->assertOrderIdIsUnused($orderId);
+
         $this->recordThat(
             OrderCreatedOffline::occur($this->sessionId, $orderId, $commandId)
         );
@@ -358,6 +371,16 @@ final class PosSession implements AggregateRoot
         );
     }
 
+    /**
+     * The terminal this session runs on. Fixed when the session starts —
+     * nothing moves a session between terminals, which is the leg the
+     * "an order is only handled from its own terminal" guarantee stands on.
+     */
+    final public function terminalId(): TerminalId
+    {
+        return $this->terminalId;
+    }
+
     final public function activeOrderId(): ?OrderId
     {
         return $this->activeOrderId;
@@ -382,9 +405,32 @@ final class PosSession implements AggregateRoot
         $this->state = SessionState::Idle;
     }
 
+    /**
+     * The order id arrives from the caller, so it is the one thing about a
+     * new order this session cannot take on trust. Reusing an id it already
+     * started would put two different orders behind one identifier — the
+     * parked one would be reachable through the new one's state.
+     *
+     * This scopes the check to THIS session. Two sessions claiming the same
+     * id is a host concern: order ids are the Ordering context's to hand out,
+     * and a host that lets a caller supply one should check it belongs to the
+     * caller's terminal (see MultiTerminalEnforcementService).
+     */
+    private function assertOrderIdIsUnused(OrderId $orderId): void
+    {
+        foreach ($this->startedOrderIds as $startedOrderId) {
+            if ($startedOrderId->sameValueAs($orderId)) {
+                throw InvariantViolationException::withMessage(
+                    'Order id has already been used in this session'
+                );
+            }
+        }
+    }
+
     private function applyOnNewOrderStarted(NewOrderStarted $event): void
     {
         $this->activeOrderId = $event->getOrderId();
+        $this->startedOrderIds[] = $event->getOrderId();
         $this->state = SessionState::Building;
     }
 
@@ -459,6 +505,7 @@ final class PosSession implements AggregateRoot
     private function applyOnOrderCreatedOffline(OrderCreatedOffline $event): void
     {
         $this->activeOrderId = $event->getOrderId();
+        $this->startedOrderIds[] = $event->getOrderId();
         $this->state = SessionState::Building;
     }
 

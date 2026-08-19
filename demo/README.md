@@ -68,10 +68,10 @@ Manages POS terminal lifecycle.
 # Rename a terminal
 ./demo/demo terminal rename --name="POS-02" [--terminal-id=<uuid>]
 
-# Reassign a terminal to another branch (terminal must not be active)
+# Reassign a terminal to another branch (disable it or set maintenance first)
 ./demo/demo terminal reassign --branch-id=<uuid> [--terminal-id=<uuid>]
 
-# Decommission a terminal (terminal must not be active — disable it first)
+# Decommission a terminal (disable it or set maintenance first)
 ./demo/demo terminal decommission [--terminal-id=<uuid>] [--reason=<text>]
 
 # Recommission a decommissioned terminal (comes back disabled, needs activate)
@@ -93,8 +93,8 @@ Manages cashier shifts and cash handling.
 ./demo/demo shift open --opening-cash=<amount> [--terminal-id=<uuid>] [--branch-id=<uuid>] [--cashier-id=<uuid>] [--currency=PHP]
 
 # Assign a shift to a cashier, with optional fallbacks (≤3, comma-separated).
-# Assignee defaults to whoever currently operates the shift, so a bare call
-# is the documented "replace membership" no-op. Unassigned shifts are "open".
+# Assignee defaults to whoever currently operates the shift — its assignee,
+# or its opener while it is unassigned. Unassigned shifts are "open".
 ./demo/demo shift assign [--shift-id=<uuid>] [--assignee-id=<uuid>] [--fallback-ids=<uuid>,<uuid>]
 
 # Clear a shift's membership, returning it to open
