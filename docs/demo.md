@@ -802,5 +802,5 @@ Scenario scripts start with `state clear` instead of using per-run data files.
 
 ---
 
-**Last Updated:** August 16, 2026 (synced to the implemented demo)
+**Last Updated:** August 19, 2026 (synced to the implemented demo)
 **Status:** Implemented — see `demo/` and `demo/README.md` for usage

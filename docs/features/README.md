@@ -360,5 +360,5 @@ All v1 features are complete. For future contributions:
 
 ---
 
-**Last Updated:** February 20, 2026
-**Version:** v1.1.0 — All 41 features complete
+**Last Updated:** August 19, 2026
+**Version:** see CHANGELOG.md — 45 features tracked, all complete

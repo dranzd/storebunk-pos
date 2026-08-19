@@ -8,7 +8,9 @@ See [Milestones](milestones.md) for the full roadmap and [Features](features/REA
 
 ## ✓ ALL PHASES COMPLETE — StoreBunk POS Implementation Finished
 
-**109 tests, 230 assertions. PHPStan + PHPCS clean.**
+**Full suite green; PHPStan + PHPCS clean.** (Counts deliberately not
+repeated here — they went stale within a week last time. `./utils quality`
+is the answer.)
 
 | Phase | Status |
 |-------|--------|
