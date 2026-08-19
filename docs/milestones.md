@@ -45,8 +45,8 @@ feat(terminal): implement Terminal aggregate with lifecycle management
 
 - [x] Shift aggregate root with full lifecycle
 - [x] ShiftId, ShiftStatus, Money, CashDrop value objects
-- [x] Open, Close, ForceClose, RecordCashDrop commands and handlers
-- [x] Shift events (Opened, Closed, ForceClosed, CashDropRecorded)
+- [x] `OpenShift`, `CloseShift`, `ForceCloseShift`, `RecordCashDrop` commands and handlers
+- [x] Shift events (`ShiftOpened`, `ShiftClosed`, `ShiftForceClosed`, `CashDropRecorded`)
 - [x] Shift close block policy (no unresolved orders)
 - [x] Cash variance calculation (expected vs declared)
 - [x] Repository interface + in-memory implementation + read model
@@ -85,9 +85,13 @@ feat(session): implement PosSession aggregate with state machine
 - [x] RequestPayment: delegate to Payment BC, act on OK/NOT OK
 - [x] CompleteOrder: mark fully paid orders as completed
 - [x] CancelOrder: cancel with reservation release
-- [ ] Event handlers for checkout/complete/cancel — NOT built. The library
-      records events; reacting to them is the host's job, so this was dropped
-      rather than delivered (corrected 2026-08-19, it was ticked in error).
+- [x] Checkout/complete/cancel side effects — delivered, but NOT as event
+      handlers: they run synchronously in `InitiateCheckoutHandler`,
+      `CompleteOrderHandler` and `CancelOrderHandler`. This library publishes
+      no events (see standards/architecture/event-publishing-separation.md),
+      so there is nothing here to subscribe to; reacting to published events
+      is the host's job. (Wording corrected 2026-08-19: the milestone had
+      named three event-handler classes that were never built.)
 - [x] OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - [x] Stub service adapters for testing
 - [x] Integration tests for full checkout flow

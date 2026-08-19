@@ -39,8 +39,10 @@ Shift aggregate must enforce cashier accountability and cash handling invariants
 
 #### Policies
 
-- **ShiftCloseBlockPolicy**: Before closing, verify no unresolved orders exist.
-- **CashVariancePolicy**: On close, compute and record variance. Never silently correct.
+- **ShiftClosePolicy**: Before closing, verify no unresolved orders exist
+  (`assertCanClose()`).
+- **Cash variance** is not a policy object: `Shift::close()` computes it and
+  records it on `ShiftClosed`. Never silently corrected.
 
 ---
 

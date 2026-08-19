@@ -141,8 +141,10 @@ Shift aggregate must enforce cashier accountability and cash handling invariants
 
 #### Policies
 
-- **ShiftCloseBlockPolicy**: Before closing, verify no unresolved orders exist.
-- **CashVariancePolicy**: On close, compute and record variance. Never silently correct.
+- **ShiftClosePolicy**: Before closing, verify no unresolved orders exist
+  (`assertCanClose()`).
+- **Cash variance** is not a policy object: `Shift::close()` computes it and
+  records it on `ShiftClosed`. Never silently corrected.
 
 ---
 
@@ -321,7 +323,7 @@ POS is a thin orchestrator for payments:
 1. POS → Payment BC (request authorization)
 2. Payment BC → OK / NOT OK
 3. If OK → POS instructs SalesOrder.applyPayment()
-4. If fully paid → POS triggers complete()
+4. If fully paid → POS triggers `completeOrder()`
 ```
 
 POS does NOT:
@@ -440,7 +442,7 @@ interface PaymentServiceInterface
 |---|-----------|-------------|
 | 1 | One cashier = one terminal per open shift | Open/Assign/UnassignShiftHandler via ShiftSlotReservationInterface¹ |
 | 2 | One terminal = one open shift | OpenShiftHandler via ShiftSlotReservationInterface¹ |
-| 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftCloseBlockPolicy |
+| 3 | Shift cannot close if Draft or Confirmed orders exist | ShiftClosePolicy |
 | 4 | Checkout locks order lines | PosSession + Ordering BC |
 | 5 | Payment cannot apply without Confirmed state | PosSession |
 | 6 | Reservation TTL only applies in Draft | Inventory BC |

@@ -84,7 +84,7 @@ This directory contains detailed implementation plans for each core feature of t
 | 7001 | Draft Inactivity TTL | **Completed** | **High** | `DraftLifecycleService::shouldDeactivateOrder()` (15 min TTL) |
 | 7002 | Inactive Order Resume | **Completed** | **High** | `ReactivateOrderHandler` with atomic re-reservation via `InventoryServiceInterface` |
 | 7003 | Auto-Cancel Inactive | **Completed** | **Medium** | `DraftLifecycleService::isOrderExpired()` (60 min threshold) |
-| 7004 | Soft to Hard Reservation | **Completed** | **High** | `InitiateCheckoutHandler` calls `convertSoftReservationToHard` on checkout |
+| 7004 | Soft to Hard Reservation | **Completed** | **High** | `InitiateCheckoutHandler` calls `InventoryServiceInterface::confirmReservation()` on checkout |
 
 ### 8000 Series - Multi-Terminal and Concurrency
 
@@ -141,7 +141,7 @@ feat(terminal): implement Terminal aggregate with lifecycle management
 - Terminal aggregate root with status tracking
 - TerminalId, TerminalStatus value objects
 - Register, Activate, Disable commands and handlers
-- Terminal events (Registered, Activated, Disabled)
+- Terminal events (`TerminalRegistered`, `TerminalActivated`, `TerminalDisabled`)
 - Repository interface + in-memory implementation
 - Terminal read model projection
 - Unit tests
@@ -163,8 +163,8 @@ feat(shift): implement Shift aggregate with cash handling and close policies
 
 - Shift aggregate root with full lifecycle
 - ShiftId, ShiftStatus, Money, CashDrop value objects
-- Open, Close, ForceClose, RecordCashDrop commands
-- Shift events (Opened, Closed, ForceClosed, CashDropRecorded)
+- `OpenShift`, `CloseShift`, `ForceCloseShift`, `RecordCashDrop` commands
+- Shift events (`ShiftOpened`, `ShiftClosed`, `ShiftForceClosed`, `CashDropRecorded`)
 - Shift close block policy (no unresolved orders)
 - Cash variance calculation (expected vs declared)
 - Repository interface + in-memory implementation
@@ -213,8 +213,12 @@ feat(checkout): implement checkout flow, payment orchestration, and BC integrati
 - RequestPayment: delegate to Payment BC, act on OK/NOT OK
 - CompleteOrder: mark fully paid orders as completed
 - CancelOrder: cancel with reservation release
-- Event handlers for checkout/complete/cancel — NOT built; the library records
-  events and leaves reacting to them to the host
+- Event handlers for checkout/complete/cancel — not built AS event handlers.
+  The BC side effects they would have performed run synchronously inside the
+  command handlers (`InitiateCheckoutHandler` confirms the order and the
+  reservation, `CompleteOrderHandler` fulfils it, `CancelOrderHandler`
+  releases it). This library publishes no events, so reacting to them is the
+  host's job.
 - OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - Stub service adapters for testing
 - Integration tests for full checkout flow
