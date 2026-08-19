@@ -32,6 +32,18 @@ final class PendingSyncQueue
         return isset($this->queue[$orderId->toNative()]);
     }
 
+    /**
+     * Was this exact order queued by this exact command? Lets a caller tell a
+     * redelivery of the queuing command apart from a different command
+     * reusing the order id — "is this order queued" alone cannot.
+     */
+    public function wasQueuedByCommand(OrderId $orderId, string $commandId): bool
+    {
+        $entry = $this->queue[$orderId->toNative()] ?? null;
+
+        return $entry !== null && $entry['commandId'] === $commandId;
+    }
+
     public function hasCommandId(string $commandId): bool
     {
         foreach ($this->queue as $entry) {

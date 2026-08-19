@@ -37,7 +37,12 @@ final class StartNewOrderOfflineHandler
         $sessionId = SessionId::fromNative($command->sessionId);
         $orderId = OrderId::fromNative($command->orderId);
 
-        if ($this->pendingSyncQueue->hasByOrderId($orderId)) {
+        // Already queued BY THIS COMMAND: a redelivery arriving before the
+        // order has synced. Asking only "is this order queued" would swallow
+        // a different command reusing the id — silently returning success for
+        // an order it never created — for the whole time the order is
+        // pending, which is most of an offline order's life.
+        if ($this->pendingSyncQueue->wasQueuedByCommand($orderId, $commandId)) {
             return;
         }
 

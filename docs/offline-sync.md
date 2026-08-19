@@ -12,7 +12,7 @@ When network connectivity to the Ordering BC is unavailable, POS supports **offl
 
 - **Offline draft creation** — cashier can start new orders without network access
 - **Pending sync queue** — offline orders are tracked until successfully synced
-- **Idempotent replay** — commands can be safely retried without duplicate side effects. A redelivered CREATE — the same command id arriving twice — is absorbed rather than refused, and re-queues the order if it never synced, the same way a redelivered SYNC of an already-synced order re-issues its draft-order call. A DIFFERENT command carrying an order id the session has already used is refused: the command id is what tells a repeat apart from a reuse
+- **Idempotent replay** — a command carrying its original id (`withMessageUuid()`) can be safely retried without duplicate side effects. A redelivered CREATE — the same command id arriving twice — is absorbed rather than refused, and re-queues the order if it never synced, the same way a redelivered SYNC of an already-synced order re-issues its draft-order call. A DIFFERENT command carrying an order id the session has already used is refused: the command id is what tells a repeat apart from a reuse
 - **Consumer-controlled command IDs** — callers may supply their own command ID for idempotency, or omit it to auto-generate one
 
 ### Limitations
@@ -61,15 +61,24 @@ new StartNewOrderOffline($sessionId, $orderId)
 StartNewOrderOfflineHandler::__invoke()
   │
   ├─ 1. Check IdempotencyRegistry → if already processed, return (no-op)
-  ├─ 2. Check PendingSyncQueue → if orderId already queued, return (no-op)
+  ├─ 2. Check PendingSyncQueue → if THIS command queued this order,
+  │      return (no-op: a redelivery arriving before the sync)
   ├─ 3. Load PosSession aggregate from repository
-  ├─ 4. session->startNewOrderOffline($orderId, $commandId)
-  │      └─ Records OrderCreatedOffline event
-  ├─ 5. session->markOrderPendingSync($orderId)
+  ├─ 4. If THIS command already created this order (redelivery after the
+  │      queue and registry were lost):
+  │      ├─ re-queue it when it has not synced — the create was stored but
+  │      │  the enqueue never happened, so nothing would sync it
+  │      ├─ mark the command processed
+  │      └─ return
+  ├─ 5. session->startNewOrderOffline($orderId, $commandId)
+  │      ├─ Refuses an order id this session has already used under a
+  │      │  DIFFERENT command — that is a reuse, not a redelivery
+  │      └─ Records OrderCreatedOffline event (which persists the command id)
+  ├─ 6. session->markOrderPendingSync($orderId)
   │      └─ Records OrderMarkedPendingSync event
-  ├─ 6. Store session (persists events to event store)
-  ├─ 7. pendingSyncQueue->enqueue($sessionId, $orderId, $commandId)
-  └─ 8. idempotencyRegistry->markAsProcessed($commandId)
+  ├─ 7. Store session (persists events to event store)
+  ├─ 8. pendingSyncQueue->enqueue($sessionId, $orderId, $commandId)
+  └─ 9. idempotencyRegistry->markAsProcessed($commandId)
 ```
 
 **Aggregate state after offline creation:**
@@ -136,12 +145,25 @@ All command classes follow this pattern (ADR-003): construction auto-generates a
 
 The command ID (`messageUuid`) must be **unique per command instance**. It must **never** be the aggregate ID (e.g., session ID, shift ID). Using the aggregate ID as the command ID would cause all commands targeting the same aggregate to collide in the `IdempotencyRegistry`, preventing subsequent commands from executing.
 
-### Dual Guard in Offline Creation
+### Three Guards in Offline Creation
 
-`StartNewOrderOfflineHandler` has two idempotency guards:
+`StartNewOrderOfflineHandler` has three, and each one asks about the command
+as well as the order — asking only "is this order known?" would absorb a
+different command reusing an order id and report success for an order it
+never created:
 
-1. **`IdempotencyRegistry`** — checks by command ID (prevents replaying the exact same command)
-2. **`PendingSyncQueue::hasByOrderId()`** — checks by order ID (prevents different commands from queuing the same order twice)
+1. **`IdempotencyRegistry`** — this exact command has already been processed.
+2. **`PendingSyncQueue::wasQueuedByCommand()`** — this exact command already
+   queued this order, i.e. a redelivery arriving before the order synced.
+3. **`PosSession::wasStartedByCommand()`** — this exact command already
+   created this order, but the queue and registry no longer say so (a restart
+   that does not replay command ids, or a crash between storing the order and
+   queueing it). The order is re-queued if it never synced.
+
+Anything else naming an order id the session has already used is a REUSE, and
+the aggregate refuses it. That is why a retry must carry the original command
+id (`withMessageUuid()`): a fresh command object gets a fresh id, and a fresh
+id on a used order is a reuse by definition.
 
 ---
 

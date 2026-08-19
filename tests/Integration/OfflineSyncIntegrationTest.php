@@ -355,6 +355,84 @@ final class OfflineSyncIntegrationTest extends TestCase
         return count($creations);
     }
 
+    public function test_a_reuse_is_refused_while_the_order_is_still_pending_sync(): void
+    {
+        // Pending sync is where an offline order spends most of its life, and
+        // the queue guard used to answer "is this order queued" — which a
+        // different command reusing the id passes just as well as the command
+        // that queued it.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1'));
+        $this->assertSame(1, $this->pendingSyncQueue->count());
+
+        $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
+        $this->expectExceptionMessage('Order id has already been used in this session');
+
+        $offlineHandler((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-2'));
+    }
+
+    public function test_a_redelivery_while_pending_is_absorbed(): void
+    {
+        // The same command arriving twice before the sync must NOT be refused
+        // and must not create a second order.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $create = (new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1');
+        $offlineHandler($create);
+        $offlineHandler($create);
+
+        $this->assertSame(1, $this->pendingSyncQueue->count());
+        $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId));
+    }
+
+    public function test_a_redelivery_requeues_an_order_whose_enqueue_was_lost(): void
+    {
+        // The crash this heals: the create was stored, then the process died
+        // before the queue entry was written. A host with a persistent queue
+        // comes back with the order created but not queued — nothing would
+        // ever sync it. The redelivery puts it back.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $create = (new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1');
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))($create);
+
+        // Everything the crash would have lost: the queue entry and the
+        // registry, but not the stored event.
+        $lostQueue    = new PendingSyncQueue();
+        $lostRegistry = new IdempotencyRegistry();
+
+        (new StartNewOrderOfflineHandler($this->sessionRepository, $lostQueue, $lostRegistry))($create);
+
+        $this->assertSame(1, $lostQueue->count(), 'The order is queued again');
+        $this->assertTrue($lostQueue->hasByOrderId($orderId));
+        $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId), 'No second order');
+    }
+
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
     {
         $sessionId  = new SessionId();
