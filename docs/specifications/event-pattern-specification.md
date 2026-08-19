@@ -335,13 +335,13 @@ Provides:
 
 ### Verification Results
 
-✅ **Automated Verification** (`verify_payload_fix.php`):
+✅ **Automated Verification** (`tests/Unit/Domain/Event/PayloadContractTest.php`):
 - All 28 events return non-empty payloads
 - All events hydrate correctly from payloads
 - Round-trip serialization preserves data
 - Event store format includes populated payloads
 
-✅ **Test Suite**: All 208 tests passing
+✅ **Test Suite**: The full suite passing
 
 ✅ **Static Analysis** (PHPStan level 8): No errors
 
@@ -366,7 +366,7 @@ $serialized = $event->toArray();
 $eventStore->append($serialized);
 
 // Later: Replay
-$replayed = SessionStarted::hydrate($serialized);
+$replayed = SessionStarted::fromArray($serialized);
 $replayed->getSessionId();  // ❌ NULL - data lost!
 ```
 
@@ -392,7 +392,7 @@ $serialized = $event->toArray();
 $eventStore->append($serialized);
 
 // Later: Replay
-$replayed = SessionStarted::hydrate($serialized);
+$replayed = SessionStarted::fromArray($serialized);
 $replayed->getSessionId();  // ✅ Returns SessionId object
 $replayed->getPayload();    // ✅ Returns full data
 ```
@@ -438,7 +438,7 @@ $replayed->getPayload();    // ✅ Returns full data
 
 ### New Files
 - ✅ `src/Domain/Event/BaseAggregateEvent.php` (base class & guidance)
-- ✅ `verify_payload_fix.php` (verification script)
+- ✅ `tests/Unit/Domain/Event/PayloadContractTest.php` (verification script)
 
 ### Event Files (28 Events)
 
@@ -571,7 +571,7 @@ A: Will be fixed automatically when replayed (setPayload() now works correctly).
 ### Related Files in This Project
 
 - `src/Domain/Event/BaseAggregateEvent.php` — Implementation base class
-- `verify_payload_fix.php` — Verification script
+- `tests/Unit/Domain/Event/PayloadContractTest.php` — Verification script
 - All 28 event files in `src/Domain/Model/*/Event/`
 
 ### Library Documentation

@@ -221,7 +221,7 @@ feat(checkout): implement checkout flow, payment orchestration, and BC integrati
   host's job.
 - OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - Stub service adapters for testing
-- Integration tests for full checkout flow
+- Checkout flow covered by handler unit tests and `demo/scenarios/02-checkout-flow.sh`
 ```
 
 **Estimated Duration:** 2 weeks

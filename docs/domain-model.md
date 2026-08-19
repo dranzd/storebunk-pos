@@ -383,7 +383,7 @@ POS never manipulates stock directly. It requests reservation operations through
 | Item scanning | External payment required |
 | Cash-only completion (feature flag) | |
 
-Offline orders are marked as `PendingSync` via the `PendingSyncQueue` domain service. Upon reconnection, consumers dispatch `SyncOrderOnline` commands to replay orders into the Ordering BC. All offline commands are protected by `IdempotencyRegistry` using per-command unique IDs (auto-generated UUID v4 or consumer-provided).
+Offline orders are recorded with `OrderMarkedPendingSync` and tracked by the `PendingSyncQueue` domain service. Upon reconnection, consumers dispatch `SyncOrderOnline` commands to replay orders into the Ordering BC. All offline commands are protected by `IdempotencyRegistry` using per-command unique IDs (auto-generated UUID v4 or consumer-provided).
 
 For the complete technical reference — including command flow, idempotency model, aggregate state transitions, consumer integration guide, and sequence diagrams — see **[Offline Sync](offline-sync.md)**.
 

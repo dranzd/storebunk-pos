@@ -94,7 +94,9 @@ feat(session): implement PosSession aggregate with state machine
       named three event-handler classes that were never built.)
 - [x] OrderingServiceInterface, InventoryServiceInterface, PaymentServiceInterface
 - [x] Stub service adapters for testing
-- [x] Integration tests for full checkout flow
+- [x] Checkout flow covered by handler unit tests and the
+      `demo/scenarios/02-checkout-flow.sh` walkthrough (no dedicated
+      integration test — corrected 2026-08-19)
 
 **Commit:**
 ```
