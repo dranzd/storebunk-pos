@@ -62,18 +62,31 @@ final class FileEventStore implements EventStore
 
     public function append(AggregateEvent $event): void
     {
-        $this->events[$event->getAggregateRootUuid()][] = $event;
-        $this->unpersisted[] = $event;
-        $this->save();
+        $this->appendAll([$event]);
     }
 
     public function appendAll(array $events): void
     {
+        // The in-memory view is only advanced if the write lands. A refused
+        // append (a version already taken) would otherwise leave this process
+        // believing an event exists that was never persisted — and any retry
+        // would then be built on that phantom.
+        $eventsBefore      = $this->events;
+        $unpersistedBefore = $this->unpersisted;
+
         foreach ($events as $event) {
             $this->events[$event->getAggregateRootUuid()][] = $event;
             $this->unpersisted[] = $event;
         }
-        $this->save();
+
+        try {
+            $this->save();
+        } catch (\Throwable $failure) {
+            $this->events      = $eventsBefore;
+            $this->unpersisted = $unpersistedBefore;
+
+            throw $failure;
+        }
     }
 
     /**
@@ -177,6 +190,30 @@ final class FileEventStore implements EventStore
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
         }
+    }
+
+    /**
+     * Re-read the history from disk, discarding this process's snapshot.
+     *
+     * A command that lost a version race read its aggregate from a snapshot
+     * taken before the winner wrote. Retrying against that same snapshot can
+     * only lose again — the retry has to see what actually landed.
+     *
+     * Refuses while this process holds events it has not persisted: those
+     * would be silently dropped, and a retry is only safe when nothing of
+     * ours is pending.
+     */
+    public function reload(): void
+    {
+        if ($this->unpersisted !== []) {
+            throw new \RuntimeException(
+                'Demo event store cannot reload while events are unpersisted; they would be lost.'
+            );
+        }
+
+        $this->events    = [];
+        $this->malformed = [];
+        $this->load();
     }
 
     public function filePath(): string

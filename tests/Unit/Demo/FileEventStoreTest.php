@@ -520,6 +520,42 @@ final class FileEventStoreTest extends TestCase
         $this->assertSame([], (new FileEventStore($this->filePath))->malformedStreams());
     }
 
+    public function test_a_refused_append_leaves_this_process_view_unchanged(): void
+    {
+        // The in-memory view must not advance past what was persisted, or a
+        // retry would be built on an event that never landed.
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+
+        $rival = new FileEventStore($this->filePath);
+        $rival->append($this->terminalRegistered('agg-1', 2));
+
+        try {
+            $store->append($this->terminalRegistered('agg-1', 2));
+            $this->fail('Expected the taken version to be refused');
+        } catch (ConcurrencyException) {
+        }
+
+        $this->assertCount(1, $store->loadEvents('agg-1'), 'The refused event must not linger in memory');
+    }
+
+    public function test_reload_replaces_the_snapshot_with_what_actually_landed(): void
+    {
+        $store = new FileEventStore($this->filePath);
+        $store->append($this->terminalRegistered('agg-1', 1));
+
+        // Another process writes while this one holds its snapshot.
+        (new FileEventStore($this->filePath))->append($this->terminalRegistered('agg-1', 2));
+        $this->assertCount(1, $store->loadEvents('agg-1'));
+
+        $store->reload();
+
+        $this->assertCount(2, $store->loadEvents('agg-1'));
+        // And the reloaded store can append on top of what it just learned.
+        $store->append($this->terminalRegistered('agg-1', 3));
+        $this->assertCount(3, (new FileEventStore($this->filePath))->loadEvents('agg-1'));
+    }
+
     /**
      * The artifact an older build could write: two events claiming version 2.
      */

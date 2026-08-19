@@ -21,6 +21,8 @@ use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
 use Dranzd\StorebunkPos\Shared\Exception\AggregateNotFoundException;
+use Dranzd\Common\Cqrs\Application\Command\Exception\ExecutionFailedException;
+use Dranzd\StorebunkPos\Shared\Exception\ConcurrencyException;
 use Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException;
 
 function handleShift(
@@ -49,7 +51,7 @@ function handleShift(
             shiftForceClose($commandBus, $stateStore, $args);
             break;
         case 'cash-drop':
-            shiftCashDrop($commandBus, $stateStore, $args);
+            shiftCashDrop($commandBus, $stateStore, $eventStore, $args);
             break;
         case 'reconcile':
             shiftReconcile($shiftReadModel, $shiftSlots, $eventStore);
@@ -260,8 +262,12 @@ function shiftForceClose(SimpleCommandBus $commandBus, StateStore $stateStore, C
     }
 }
 
-function shiftCashDrop(SimpleCommandBus $commandBus, StateStore $stateStore, CliArgs $args): void
-{
+function shiftCashDrop(
+    SimpleCommandBus $commandBus,
+    StateStore $stateStore,
+    FileEventStore $eventStore,
+    CliArgs $args
+): void {
     $shiftIdRaw = $args->get('shift-id', $stateStore->get('last_shift_id', ''));
     if ($shiftIdRaw === '') {
         Output::error('--shift-id is required');
@@ -279,11 +285,19 @@ function shiftCashDrop(SimpleCommandBus $commandBus, StateStore $stateStore, Cli
     $shiftId = new ShiftId($shiftIdRaw);
 
     try {
-        $commandBus->dispatch(new RecordCashDrop(
-            $shiftId->toNative(),
-            $amount,
-            $currency
-        ));
+        // A cash drop is real money leaving the drawer, so losing the race
+        // must not mean losing the record. A conflict means another command
+        // wrote while we held a stale view: re-read the history and try
+        // again, rather than handing the operator an error for something
+        // they cannot act on.
+        dispatchRetryingOnConflict(
+            $eventStore,
+            static fn () => $commandBus->dispatch(new RecordCashDrop(
+                $shiftId->toNative(),
+                $amount,
+                $currency
+            ))
+        );
 
         Output::success('Cash drop recorded.');
         Output::field('Shift ID', $shiftId->toNative());
@@ -338,4 +352,36 @@ function shiftReconcile(
         Output::success(sprintf('Corrected %d slot entr%s.', $corrections, $corrections === 1 ? 'y' : 'ies'));
     }
     Output::info(sprintf('Open shifts holding slots: %d', count($openShifts)));
+}
+
+/**
+ * Run a command, retrying it against a freshly read history when it loses an
+ * optimistic-concurrency race.
+ *
+ * Only safe for commands that can be re-decided from current state — a cash
+ * drop is additive, so replaying it after the winner's write is exactly what
+ * should happen. A command whose decision the winner may have invalidated
+ * (closing a shift, handing it to another cashier) must NOT retry blindly:
+ * it has to be re-issued by whoever decided it.
+ *
+ * @param callable(): void $dispatch
+ */
+function dispatchRetryingOnConflict(FileEventStore $eventStore, callable $dispatch, int $attempts = 3): void
+{
+    for ($attempt = 1; ; $attempt++) {
+        try {
+            $dispatch();
+
+            return;
+        } catch (Throwable $failure) {
+            $conflict = $failure instanceof ExecutionFailedException ? $failure->getPrevious() : $failure;
+            if (!$conflict instanceof ConcurrencyException || $attempt >= $attempts) {
+                throw $failure;
+            }
+
+            // Another process wrote while we held a stale view of the
+            // history; the retry has to see what actually landed.
+            $eventStore->reload();
+        }
+    }
 }

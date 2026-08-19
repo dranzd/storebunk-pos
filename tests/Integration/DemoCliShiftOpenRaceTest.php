@@ -119,6 +119,33 @@ final class DemoCliShiftOpenRaceTest extends TestCase
     /**
      * @return array{int, string}
      */
+    public function test_two_concurrent_cash_drops_both_survive(): void
+    {
+        // Cash drops are additive and they are real money: losing the version
+        // race must cost a retry, never the record. The CLI re-reads the
+        // history and tries again rather than reporting an error the operator
+        // cannot act on.
+        $this->runDemoCliOrFail('terminal register --name=Drop-Terminal');
+        $this->runDemoCliOrFail('shift open --opening-cash=50000');
+        $state   = json_decode((string) file_get_contents($this->dataDir . '/demo-state.json'), true);
+        $shiftId = (string) $state['last_shift_id'];
+
+        [$exitA, $exitB, $outputs] = $this->runTwoConcurrently(
+            "shift cash-drop --shift-id={$shiftId} --amount=1000",
+            "shift cash-drop --shift-id={$shiftId} --amount=2000"
+        );
+
+        $this->assertSame(0, $exitA, $outputs);
+        $this->assertSame(0, $exitB, $outputs);
+
+        $persisted = json_decode((string) file_get_contents($this->dataDir . '/events.json'), true);
+        $drops     = array_filter(
+            $persisted[$shiftId],
+            static fn (array $row): bool => str_contains((string) $row['class'], 'CashDropRecorded')
+        );
+        $this->assertCount(2, $drops, 'Both cash drops must be persisted');
+    }
+
     private function runDemoCli(string $arguments): array
     {
         $command = sprintf(

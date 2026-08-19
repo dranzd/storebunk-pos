@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- Demo: a cash drop that lost a version race was reported as an error and
+  lost. It is real money leaving the drawer, so the CLI now re-reads the
+  history and retries (bounded, and only for this command — a drop is
+  additive, so replaying it after the winner's write is exactly right; a
+  close or a handover must be re-decided by whoever issued it).
+  `FileEventStore` gained `reload()` for that, and a refused append no
+  longer advances this process's in-memory view, which would otherwise leave
+  a retry building on an event that never landed.
+- Demo: `shift assign` and `session start` defaulted to whoever OPENED the
+  shift, even after it was handed to someone else. The default now follows
+  the current operator, and returns to the opener on unassign.
 
 ## [3.0.0] - 2026-08-18
 
