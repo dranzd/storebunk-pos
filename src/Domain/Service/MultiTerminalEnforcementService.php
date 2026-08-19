@@ -68,7 +68,22 @@ final class MultiTerminalEnforcementService
     /**
      * Assert that the given order belongs to the given terminal.
      *
-     * @param array<string, string> $orderTerminalBinding orderId => terminalId, sourced from the read model
+     * NOT called by this library, and that is deliberate — not an oversight.
+     * Every command here that names an order checks it against its session's
+     * own lists (parked, inactive, pending-sync) or acts on the session's
+     * active order without taking an id at all, and a session is bound to one
+     * terminal when it starts. So the binding is already structural: an order
+     * can only be reached through the session that holds it. Adding a lookup
+     * table for it would create a second home for the rule that could
+     * disagree with the aggregate — the failure issue 8003 exists about.
+     * Pinned by OrderTerminalBindingTest.
+     *
+     * It is here for HOSTS that address orders outside a session — an
+     * endpoint taking an order id plus the caller's terminal, say — where
+     * that structural scoping does not apply and the check must be made
+     * explicitly.
+     *
+     * @param array<string, string> $orderTerminalBinding orderId => terminalId, as the host records it
      */
     public function assertOrderBelongsToTerminal(
         OrderId $orderId,

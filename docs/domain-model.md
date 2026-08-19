@@ -448,6 +448,10 @@ interface PaymentServiceInterface
 | 8 | Cash drawer only affected by defined cash movements | Shift aggregate |
 | 9 | No expense withdrawal in POS | Shift aggregate |
 | 10 | POS never owns pricing, tax, stock deduction, or ledger logic | Architecture boundary |
+| 11 | An order is only handled from the terminal it belongs to | PosSession, structurally² |
+| 12 | Payment received = the order can only be completed, never cancelled | PosSession (Payment state) |
+
+² No order→terminal lookup exists, and none is needed: a session is bound to one terminal at start, and every command naming an order checks it against that session's own parked / inactive / pending-sync lists — or acts on its active order without taking an id. An order is therefore only reachable through the session holding it. `MultiTerminalEnforcementService::assertOrderBelongsToTerminal()` is kept for hosts that address orders outside a session; the library does not call it, and a lookup table for it would be a second home for the rule. Pinned by `OrderTerminalBindingTest`.
 
 ¹ Slot claims run through `ShiftSlotReservationInterface` BEFORE the aggregate is stored; a cashier transfer runs as prepare → store → commit (abort on failure), so the outgoing cashier keeps their slot until the change is durable and no rollback can strand an open shift without an operator. The occupancy rules themselves live in `MultiTerminalEnforcementService`, the shared slot bookkeeping in `ShiftSlotBook`. The port's contract requires implementations to be atomic against concurrent callers — the library ships a single-process in-memory implementation, the demo a file-lock one; hosts provide their own (DB uniqueness, SETNX, …). Slots left uncertain by a failure between persistence and slot bookkeeping are recovered with `reconcile()` (demo: `./demo shift reconcile`). See reported issue 8003.
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The "an order is only handled from the terminal it belongs to" invariant is
+  now pinned by tests (`OrderTerminalBindingTest`) and documented as what it
+  actually is: structural. A session is bound to one terminal, and every
+  command naming an order validates it against that session's own lists, so
+  no order→terminal lookup exists or is needed.
+  `MultiTerminalEnforcementService::assertOrderBelongsToTerminal()` stays for
+  hosts that address orders outside a session — the library deliberately does
+  not call it, and building a read model for it would put the rule in a
+  second place that could disagree with the aggregate.
+
 ### Fixed
 
 - Demo: a cash drop that lost a version race was reported as an error and
