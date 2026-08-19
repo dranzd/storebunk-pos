@@ -51,6 +51,7 @@ storebunk-pos/
 │   │   │       ├── ValueObject/
 │   │   │       │   ├── SessionId.php
 │   │   │       │   ├── OrderId.php
+│   │   │       │   ├── CashierId.php        # The session's operating cashier
 │   │   │       │   ├── SessionState.php     # Enum: Idle, Building, Checkout, Payment
 │   │   │       │   └── OfflineMode.php
 │   │   │       ├── Event/
@@ -203,54 +204,93 @@ storebunk-pos/
 │   └── data/                                # Runtime state (git-ignored)
 │
 ├── tests/
+│   ├── Integration/
+│   │   ├── CommonLibraryIntegrationTest.php
+│   │   ├── ConcurrencyIntegrationTest.php
+│   │   ├── DemoCliMalformedHistoryTest.php
+│   │   ├── DemoCliRecoveryTest.php
+│   │   ├── DemoCliShiftCloseGuardTest.php
+│   │   ├── DemoCliShiftOpenRaceTest.php
+│   │   ├── DraftLifecycleIntegrationTest.php
+│   │   └── OfflineSyncIntegrationTest.php
 │   ├── Stub/
-│   │   ├── Repository/                      # Deterministic interleavings/failures
+│   │   ├── Repository/
 │   │   │   ├── CallbackFailingShiftRepository.php
 │   │   │   └── InterleavingShiftRepository.php
 │   │   ├── Reservation/
 │   │   │   └── ReleaseFailingSlotReservation.php
 │   │   └── Service/
-│   │       ├── StubOrderingService.php
 │   │       ├── StubInventoryService.php
+│   │       ├── StubOrderingService.php
 │   │       └── StubPaymentService.php
-│   ├── Unit/
-│   │   ├── Application/
-│   │   │   └── Shared/
-│   │   │       └── IdempotencyRegistryTest.php
-│   │   ├── Domain/
-│   │   │   ├── Model/
-│   │   │   │   ├── Terminal/
-│   │   │   │   │   └── TerminalTest.php
-│   │   │   │   ├── Shift/
-│   │   │   │   │   └── ShiftTest.php
-│   │   │   │   └── PosSession/
-│   │   │   │       ├── PosSessionTest.php
-│   │   │   │       └── PosSessionOfflineTest.php
-│   │   │   └── Service/
-│   │   │       ├── MultiTerminalEnforcementServiceTest.php
-│   │   │       └── ShiftClosePolicyTest.php
-│   │   ├── Application/
-│   │   │   ├── PosSession/
-│   │   │   │   └── Handler/
-│   │   │   │       └── DeactivateOrderHandlerTest.php
-│   │   │   └── Shift/
-│   │   │       └── Handler/
-│   │   │           └── CloseShiftHandlerTest.php
-│   │   └── Infrastructure/
-│   │       └── Terminal/
-│   │           ├── InMemoryTerminalRepositoryTest.php
-│   │           └── InMemoryTerminalReadModelTest.php
-│   ├── Integration/
-│   │   ├── CommonLibraryIntegrationTest.php
-│   │   ├── ConcurrencyIntegrationTest.php
-│   │   ├── DraftLifecycleIntegrationTest.php
-│   │   └── OfflineSyncIntegrationTest.php
-│   └── Shared/
-│       └── Exception/
-│           ├── DomainExceptionTest.php
-│           ├── AggregateNotFoundExceptionTest.php
-│           ├── ConcurrencyExceptionTest.php
-│           └── InvariantViolationExceptionTest.php
+│   └── Unit/
+│       ├── Application/
+│       │   ├── PosSession/
+│       │   │   ├── Handler/
+│       │   │   │   ├── CancelOrderHandlerTest.php
+│       │   │   │   ├── CompleteOrderHandlerTest.php
+│       │   │   │   ├── DeactivateOrderHandlerTest.php
+│       │   │   │   ├── EndSessionHandlerTest.php
+│       │   │   │   ├── InitiateCheckoutHandlerTest.php
+│       │   │   │   ├── ParkOrderHandlerTest.php
+│       │   │   │   ├── RequestPaymentHandlerTest.php
+│       │   │   │   ├── ResumeOrderHandlerTest.php
+│       │   │   │   └── StartSessionHandlerTest.php
+│       │   │   └── OrderTerminalBindingTest.php
+│       │   ├── Shared/
+│       │   │   └── IdempotencyRegistryTest.php
+│       │   ├── Shift/
+│       │   │   └── Handler/
+│       │   │       ├── AssignShiftHandlerTest.php
+│       │   │       ├── CloseShiftHandlerTest.php
+│       │   │       ├── ForceCloseShiftHandlerTest.php
+│       │   │       ├── OpenShiftHandlerTest.php
+│       │   │       ├── RecordCashDropHandlerTest.php
+│       │   │       └── UnassignShiftHandlerTest.php
+│       │   └── Terminal/
+│       │       └── Handler/
+│       │           ├── ActivateTerminalHandlerTest.php
+│       │           ├── DecommissionTerminalHandlerTest.php
+│       │           ├── DisableTerminalHandlerTest.php
+│       │           ├── ReassignTerminalHandlerTest.php
+│       │           ├── RecommissionTerminalHandlerTest.php
+│       │           ├── RegisterTerminalHandlerTest.php
+│       │           ├── RenameTerminalHandlerTest.php
+│       │           └── SetTerminalMaintenanceHandlerTest.php
+│       ├── Demo/
+│       │   ├── DemoResetTest.php
+│       │   ├── FileEventStoreTest.php
+│       │   ├── FileShiftSlotReservationTest.php
+│       │   └── StateStoreTest.php
+│       ├── Domain/
+│       │   ├── Event/
+│       │   │   └── PayloadContractTest.php
+│       │   ├── Model/
+│       │   │   ├── PosSession/
+│       │   │   │   ├── PosSessionOfflineTest.php
+│       │   │   │   └── PosSessionTest.php
+│       │   │   ├── Shift/
+│       │   │   │   └── ShiftTest.php
+│       │   │   └── Terminal/
+│       │   │       └── TerminalTest.php
+│       │   └── Service/
+│       │       ├── MultiTerminalEnforcementServiceTest.php
+│       │       └── ShiftClosePolicyTest.php
+│       ├── Infrastructure/
+│       │   ├── PosSession/
+│       │   │   └── InMemoryPosSessionReadModelTest.php
+│       │   ├── Shift/
+│       │   │   ├── InMemoryShiftReadModelTest.php
+│       │   │   └── InMemoryShiftSlotReservationTest.php
+│       │   └── Terminal/
+│       │       ├── InMemoryTerminalReadModelTest.php
+│       │       └── InMemoryTerminalRepositoryTest.php
+│       └── Shared/
+│           └── Exception/
+│               ├── AggregateNotFoundExceptionTest.php
+│               ├── ConcurrencyExceptionTest.php
+│               ├── DomainExceptionTest.php
+│               └── InvariantViolationExceptionTest.php
 │
 ├── docs/
 │   ├── README.md                            # Documentation index
@@ -399,9 +439,9 @@ Domain models must be organized by bounded context with each context containing 
 1. Create aggregate in `src/Domain/Model/{Context}/{Aggregate}.php`
 2. Add value objects in `src/Domain/Model/{Context}/ValueObject/`
 3. Add events in `src/Domain/Model/{Context}/Event/`
-4. Create repository interface in `src/Domain/Repository/`
+4. Create repository interface in `src/Domain/Model/{Context}/Repository/`
 5. Create read model interface in `src/Domain/ReadModel/`
-6. Implement in-memory repository in `src/Infrastructure/Persistence/Repository/`
+6. Implement in-memory repository in `src/Infrastructure/{Context}/Repository/`
 7. Implement in-memory projection in `src/Infrastructure/Persistence/ReadModel/`
 
 ### New Use Case
