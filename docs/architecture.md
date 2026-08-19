@@ -31,17 +31,18 @@ The core business logic layer, independent of infrastructure concerns.
 - **Events**: Domain events like `ShiftOpened`, `ShiftClosed`, `CheckoutInitiated`, `CashDropRecorded`
 - **Enums/Status**: `TerminalStatus`, `ShiftStatus`, `SessionState`, `OrderPhase`
 
-#### **Repository Interfaces** (`src/Domain/Repository/`)
+#### **Repository Interfaces** (`src/Domain/Model/{Context}/Repository/`)
 Interfaces that define contracts for external dependencies:
 - `TerminalRepositoryInterface` — Terminal aggregate persistence
 - `ShiftRepositoryInterface` — Shift aggregate persistence
 - `PosSessionRepositoryInterface` — Session aggregate persistence
 
-#### **Read Model Interfaces** (`src/Domain/ReadModel/`)
-Interfaces for CQRS read-side queries:
-- `TerminalReadModel` — Terminal status queries
-- `ShiftReadModel` — Shift state and cash queries
-- `SessionReadModel` — Active session queries
+#### **Read Model Interfaces** (`src/Application/{Context}/ReadModel/`)
+Interfaces for CQRS read-side queries — application layer, not domain: a
+projection answers questions, it never decides anything:
+- `TerminalReadModelInterface` — Terminal status queries
+- `ShiftReadModelInterface` — Shift state queries
+- `PosSessionReadModelInterface` — Active session queries
 
 #### **Service Interfaces** (`src/Domain/Service/`)
 Ports for external bounded context integration:
@@ -153,15 +154,15 @@ Separate models for reads and writes:
 
 All projections follow the **Interface Segregation Principle** with separate read model interfaces and concrete implementations:
 
-**Interface Layer** (`src/Domain/ReadModel/*ReadModel.php`):
-- `TerminalReadModel` — Query methods for terminal state
-- `ShiftReadModel` — Query methods for shift state and cash
-- `SessionReadModel` — Query methods for active sessions
+**Interface Layer** (`src/Application/{Context}/ReadModel/*ReadModelInterface.php`):
+- `TerminalReadModelInterface` — Query methods for terminal state
+- `ShiftReadModelInterface` — Query methods for shift state
+- `PosSessionReadModelInterface` — Query methods for active sessions
 
-**Implementation Layer** (`src/Infrastructure/Persistence/ReadModel/InMemory*.php`):
-- `InMemoryTerminalProjection` — In-memory implementation
-- `InMemoryShiftProjection` — In-memory implementation
-- `InMemorySessionProjection` — In-memory implementation
+**Implementation Layer** (`src/Infrastructure/{Context}/ReadModel/InMemory*.php`):
+- `InMemoryTerminalReadModel` — In-memory implementation
+- `InMemoryShiftReadModel` — In-memory implementation
+- `InMemoryPosSessionReadModel` — In-memory implementation
 
 **Benefits:**
 - **Flexibility**: Easy to swap implementations (MySQL, Redis, Elasticsearch, etc.)

@@ -440,16 +440,16 @@ Domain models must be organized by bounded context with each context containing 
 2. Add value objects in `src/Domain/Model/{Context}/ValueObject/`
 3. Add events in `src/Domain/Model/{Context}/Event/`
 4. Create repository interface in `src/Domain/Model/{Context}/Repository/`
-5. Create read model interface in `src/Domain/ReadModel/`
+5. Create read model interface in `src/Application/{Context}/ReadModel/`
 6. Implement in-memory repository in `src/Infrastructure/{Context}/Repository/`
-7. Implement in-memory projection in `src/Infrastructure/Persistence/ReadModel/`
+7. Implement in-memory projection in `src/Infrastructure/{Context}/ReadModel/`
 
 ### New Use Case
-1. Create command/query in `src/Application/{Type}/{Context}/`
-2. Create handler in same directory
-3. Wire up in dependency injection container
+1. Create command in `src/Application/{Context}/Command/`
+2. Create handler in `src/Application/{Context}/Command/Handler/`
+3. Wire up in the host's dependency injection container
 
 ### New External BC Integration
 1. Create service interface in `src/Domain/Service/`
-2. Implement stub adapter in `src/Infrastructure/Service/`
+2. Implement stub adapter in `tests/Stub/Service/`
 3. Consumer provides real adapter

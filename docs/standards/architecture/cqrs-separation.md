@@ -18,15 +18,15 @@ Separate models for reads and writes:
 
 All projections follow the **Interface Segregation Principle** with separate read model interfaces and concrete implementations:
 
-**Interface Layer** (`src/Domain/ReadModel/*ReadModel.php`):
-- `TerminalReadModel` — Query methods for terminal state
-- `ShiftReadModel` — Query methods for shift state and cash
-- `SessionReadModel` — Query methods for active sessions
+**Interface Layer** (`src/Application/{Context}/ReadModel/*ReadModelInterface.php`):
+- `TerminalReadModelInterface` — Query methods for terminal state
+- `ShiftReadModelInterface` — Query methods for shift state
+- `PosSessionReadModelInterface` — Query methods for active sessions
 
-**Implementation Layer** (`src/Infrastructure/Persistence/ReadModel/InMemory*.php`):
-- `InMemoryTerminalProjection` — In-memory implementation
-- `InMemoryShiftProjection` — In-memory implementation
-- `InMemorySessionProjection` — In-memory implementation
+**Implementation Layer** (`src/Infrastructure/{Context}/ReadModel/InMemory*.php`):
+- `InMemoryTerminalReadModel` — In-memory implementation
+- `InMemoryShiftReadModel` — In-memory implementation
+- `InMemoryPosSessionReadModel` — In-memory implementation
 
 **Benefits:**
 - **Flexibility**: Easy to swap implementations (MySQL, Redis, Elasticsearch, etc.)
