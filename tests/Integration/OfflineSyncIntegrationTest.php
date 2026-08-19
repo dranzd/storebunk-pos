@@ -12,6 +12,7 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\StartNewOrderOffline;
 use Dranzd\StorebunkPos\Application\PosSession\Command\StartSession;
 use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Application\Shared\IdempotencyRegistry;
+use Dranzd\StorebunkPos\Domain\Model\PosSession\Event\OrderCreatedOffline;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class OfflineSyncIntegrationTest extends TestCase
 {
+    private InMemoryEventStore $eventStore;
     private InMemoryPosSessionRepository $sessionRepository;
     private PendingSyncQueue $pendingSyncQueue;
     private IdempotencyRegistry $idempotencyRegistry;
@@ -30,8 +32,8 @@ final class OfflineSyncIntegrationTest extends TestCase
 
     protected function setUp(): void
     {
-        $eventStore = new InMemoryEventStore();
-        $this->sessionRepository   = new InMemoryPosSessionRepository($eventStore);
+        $this->eventStore          = new InMemoryEventStore();
+        $this->sessionRepository   = new InMemoryPosSessionRepository($this->eventStore);
         $this->pendingSyncQueue    = new PendingSyncQueue();
         $this->idempotencyRegistry = new IdempotencyRegistry();
         $this->orderingService     = new StubOrderingService();
@@ -325,7 +327,11 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
         $this->expectExceptionMessage('Order id has already been used in this session');
 
-        $this->sessionRepository->load($sessionId)->startNewOrderOffline($orderId, 'another-command');
+        // A DIFFERENT command carrying the same order id — through the
+        // handler, which is where the redelivery no-op lives and where a
+        // reuse must still be refused.
+        $offlineHandler((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-2'));
     }
 
     private function startSession(SessionId $sessionId): void
@@ -340,9 +346,13 @@ final class OfflineSyncIntegrationTest extends TestCase
 
     private function countOfflineCreations(SessionId $sessionId, OrderId $orderId): int
     {
-        $session = $this->sessionRepository->load($sessionId);
+        $creations = array_filter(
+            $this->eventStore->loadEvents($sessionId->toNative()),
+            static fn ($event): bool => $event instanceof OrderCreatedOffline
+                && $event->getOrderId()->sameValueAs($orderId)
+        );
 
-        return $session->hasStartedOrder($orderId) ? 1 : 0;
+        return count($creations);
     }
 
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void

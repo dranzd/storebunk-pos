@@ -43,14 +43,21 @@ final class StartNewOrderOfflineHandler
 
         $session = $this->sessionRepository->load($sessionId);
 
-        // Redelivery of an order this session already created — the registry
-        // was rebuilt after a restart, so the command-id check above could
-        // not recognise it, and the order is no longer pending sync either.
-        // The order exists and is accounted for; re-creating it would be the
-        // duplicate this handler exists to prevent, and refusing outright
-        // would make a safely-retryable command fail forever. Same shape as
-        // SyncOrderOnlineHandler's already-synced path.
-        if ($session->hasStartedOrder($orderId)) {
+        // THIS command already created this order — a redelivery, not a
+        // reuse. The two are told apart by the command id, which
+        // OrderCreatedOffline persists: same order and same command is a
+        // repeat to absorb, same order under a DIFFERENT command is an id
+        // being reused, which the aggregate refuses below.
+        //
+        // A host that replays command ids into the registry never gets here;
+        // one that does not (or that crashed between store() and enqueue())
+        // does, and re-queueing an order that has not synced is what stops
+        // that order being stranded — the same healing the sync handler does
+        // in the mirror position.
+        if ($session->wasStartedByCommand($orderId, $commandId)) {
+            if (!$session->isOrderSynced($orderId)) {
+                $this->pendingSyncQueue->enqueue($sessionId, $orderId, $commandId);
+            }
             $this->idempotencyRegistry->markAsProcessed($commandId);
 
             return;

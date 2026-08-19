@@ -24,9 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PosSession` refuses an order id it has already used. `StartNewOrder` and
   `StartNewOrderOffline` take the id from the caller and previously recorded
   it unexamined, so a session could hand the same id to two different orders
-  and reach a parked one through the new one's state. A REDELIVERED offline
-  create (same order, registry rebuilt after a restart) is a no-op rather
-  than a refusal, matching how a redelivered sync behaves.
+  and reach a parked one through the new one's state. A REDELIVERY — the
+  same command id arriving twice — is absorbed rather than refused, and
+  re-queues the order if it never synced; the command id is what separates
+  that from a different command reusing an id, which is still refused.
 - Demo: a cash drop that lost a version race was reported as an error and
   lost. It is real money leaving the drawer, so the CLI now re-reads the
   history and retries (bounded, and only for this command — a drop is

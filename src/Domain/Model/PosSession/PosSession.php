@@ -48,11 +48,14 @@ final class PosSession implements AggregateRoot
     private array $pendingSyncOrderIds = [];
 
     /**
-     * Every order id this session has started, including ones long since
-     * completed or cancelled. An id identifies one order for the life of the
-     * session, so it cannot be handed back in a second time.
+     * Every order this session has started, including ones long since
+     * completed or cancelled, against the command that started it (null for
+     * online creation, which carries no command id). An id identifies one
+     * order for the life of the session, so it cannot be handed back in a
+     * second time — but the SAME command arriving twice is a redelivery, not
+     * a reuse, and the command id is what tells them apart.
      *
-     * @var OrderId[]
+     * @var array<int, array{order: OrderId, command: string|null}>
      */
     private array $startedOrderIds = [];
     /** @var OrderId[] Orders already synced online; lets a redelivered sync command heal/no-op instead of tripping the pending-sync invariant. Grows with session lifetime, like the other order-id lists. */
@@ -406,25 +409,14 @@ final class PosSession implements AggregateRoot
     }
 
     /**
-     * The order id arrives from the caller, so it is the one thing about a
-     * new order this session cannot take on trust. Reusing an id it already
-     * started would put two different orders behind one identifier — the
-     * parked one would be reachable through the new one's state.
-     *
-     * This scopes the check to THIS session. Two sessions claiming the same
-     * id is a host concern: order ids are the Ordering context's to hand out,
-     * and a host that lets a caller supply one should check it belongs to the
-     * caller's terminal (see MultiTerminalEnforcementService).
-     */
-    /**
-     * Has this session already started this order? Lets a handler tell a
-     * REDELIVERY (same order, arriving twice because a registry was rebuilt)
-     * apart from a genuine attempt to reuse an id, which is refused.
+     * Has this session already started this order? Says nothing about WHICH
+     * command did — see wasStartedByCommand() for the distinction between a
+     * redelivery and an id being reused.
      */
     final public function hasStartedOrder(OrderId $orderId): bool
     {
-        foreach ($this->startedOrderIds as $startedOrderId) {
-            if ($startedOrderId->sameValueAs($orderId)) {
+        foreach ($this->startedOrderIds as $started) {
+            if ($started['order']->sameValueAs($orderId)) {
                 return true;
             }
         }
@@ -432,6 +424,34 @@ final class PosSession implements AggregateRoot
         return false;
     }
 
+    /**
+     * Was this exact order started by this exact command? True means the
+     * command has been delivered before — a redelivery to absorb. An order
+     * id that matches while the command id does not is a different command
+     * reusing an id, which is refused.
+     */
+    final public function wasStartedByCommand(OrderId $orderId, string $commandId): bool
+    {
+        foreach ($this->startedOrderIds as $started) {
+            if ($started['order']->sameValueAs($orderId)) {
+                return $started['command'] === $commandId;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The order id arrives from the caller, so it is the one thing about a
+     * new order this session cannot take on trust. Reusing an id it already
+     * started would put two different orders behind one identifier — the
+     * parked one would be reachable through the new one's state.
+     *
+     * Scoped to THIS session. Two sessions being handed the same id is a host
+     * concern: order ids are the Ordering context's to hand out, and a host
+     * that lets a caller supply one should check it belongs to the caller's
+     * terminal (see MultiTerminalEnforcementService).
+     */
     private function assertOrderIdIsUnused(OrderId $orderId): void
     {
         if ($this->hasStartedOrder($orderId)) {
@@ -444,7 +464,7 @@ final class PosSession implements AggregateRoot
     private function applyOnNewOrderStarted(NewOrderStarted $event): void
     {
         $this->activeOrderId = $event->getOrderId();
-        $this->startedOrderIds[] = $event->getOrderId();
+        $this->startedOrderIds[] = ['order' => $event->getOrderId(), 'command' => null];
         $this->state = SessionState::Building;
     }
 
@@ -519,7 +539,7 @@ final class PosSession implements AggregateRoot
     private function applyOnOrderCreatedOffline(OrderCreatedOffline $event): void
     {
         $this->activeOrderId = $event->getOrderId();
-        $this->startedOrderIds[] = $event->getOrderId();
+        $this->startedOrderIds[] = ['order' => $event->getOrderId(), 'command' => $event->getCommandId()];
         $this->state = SessionState::Building;
     }
 
