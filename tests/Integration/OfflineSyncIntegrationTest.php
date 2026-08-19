@@ -576,6 +576,10 @@ final class OfflineSyncIntegrationTest extends TestCase
 
         $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId));
         $this->assertSame(1, $rebuiltQueue->count());
+        // The entry must carry the ORIGINATING command id — a queue entry
+        // under the wrong id is exactly the "stands for nothing in
+        // particular" state the rebuild refuses to create.
+        $this->assertTrue($rebuiltQueue->hasCommandId('offline-key-1'));
     }
 
     public function test_a_replayed_sync_still_heals_a_lost_draft_order_call(): void

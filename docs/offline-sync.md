@@ -42,7 +42,7 @@ When network connectivity to the Ordering BC is unavailable, POS supports **offl
 | Event | Recorded By | Description |
 |-------|-------------|-------------|
 | `OrderCreatedOffline` | `PosSession::startNewOrderOffline()` | Draft order created while offline. Carries `commandId` for traceability. |
-| `OrderMarkedPendingSync` | `PosSession::markOrderPendingSync()` | Order added to the pending sync list on the aggregate. |
+| `OrderMarkedPendingSync` | `PosSession::markOrderPendingSync()` | Order added to the pending sync list on the aggregate. Only an order CREATED offline may be marked — an online order has no offline command behind it, so no host could rebuild its queue entry. |
 | `OrderSyncedOnline` | `PosSession::syncOrderOnline()` | Order successfully synced. Removed from `pendingSyncOrderIds`. |
 
 ---
@@ -75,6 +75,7 @@ StartNewOrderOfflineHandler::__invoke()
   │      │  reaching here with a used id is a reuse
   │      └─ Records OrderCreatedOffline event (which persists the command id)
   ├─ 5. session->markOrderPendingSync($orderId)
+  │      └─ Refuses an order that was not created offline
   │      └─ Records OrderMarkedPendingSync event
   ├─ 6. Store session (persists events to event store)
   ├─ 7. pendingSyncQueue->enqueue($sessionId, $orderId, $commandId)

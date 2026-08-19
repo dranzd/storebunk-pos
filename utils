@@ -107,16 +107,19 @@ elif [ "$1" == "cs-fix" ]; then
 
 
 elif [ "$1" == "quality" ]; then
+    # -T like every other command here: without it this aborts with "the input
+    # device is not a TTY" outside an interactive shell — and, having no exit
+    # handling, it printed "complete!" and exited 0 having run nothing.
     echo "${YELLOW}Running quality checks...${NC}"
     echo
     echo "${GREEN}1. Running tests...${NC}"
-    $COMPOSE exec php composer test
+    $COMPOSE exec -T php composer test || exit 1
     echo
     echo "${GREEN}2. Running PHPStan...${NC}"
-    $COMPOSE exec php composer phpstan
+    $COMPOSE exec -T php composer phpstan || exit 1
     echo
     echo "${GREEN}3. Checking code style...${NC}"
-    $COMPOSE exec php composer cs-check
+    $COMPOSE exec -T php composer cs-check || exit 1
     echo
     echo "${GREEN}Quality checks complete!${NC}"
 

@@ -15,7 +15,6 @@ use Dranzd\StorebunkPos\Demo\Cli\FileEventStore;
 use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
-use Dranzd\StorebunkPos\Demo\Cli\Utils;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\BranchId;

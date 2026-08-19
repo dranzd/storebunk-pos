@@ -19,7 +19,6 @@ use Dranzd\StorebunkPos\Application\PosSession\Command\SyncOrderOnline;
 use Dranzd\StorebunkPos\Demo\Cli\CliArgs;
 use Dranzd\StorebunkPos\Demo\Cli\Output;
 use Dranzd\StorebunkPos\Demo\Cli\StateStore;
-use Dranzd\StorebunkPos\Demo\Cli\Utils;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
