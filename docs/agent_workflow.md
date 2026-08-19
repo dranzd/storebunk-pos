@@ -127,10 +127,11 @@ final class Shift implements AggregateRoot
 }
 
 // CORRECT: Query through projection
-final class InMemoryShiftProjection implements ShiftReadModel
+final class InMemoryShiftReadModel implements ShiftReadModelInterface
 {
-    public function getShift(ShiftId $shiftId): ?array { }
-    public function getShiftCashSummary(ShiftId $shiftId): ?array { }
+    public function getShift(string $shiftId): ?array { }
+    public function getOpenShifts(): array { }
+    public function getShiftsByTerminal(string $terminalId): array { }
 }
 ```
 
@@ -148,10 +149,10 @@ $event = $this->findEvent(ShiftOpened::class, $events);
 $this->assertEquals($cashierId, $event->cashierId); // GOOD!
 
 // CORRECT: Testing via projection
-$projection = new InMemoryShiftProjection();
+$projection = new InMemoryShiftReadModel();
 $projection->onShiftOpened($event);
-$data = $projection->getShift($shiftId);
-$this->assertEquals('open', $data['status']); // GOOD!
+$data = $projection->getShift($shiftId->toNative());
+$this->assertTrue($data['open']); // GOOD!
 ```
 
 ---
