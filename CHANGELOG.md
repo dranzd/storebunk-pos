@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- `IdempotencyRegistry` records what each command id did (message name plus
+  target), not just that the id was seen. A command id reused for different
+  work — the "one key per order" scheme the offline docs invite, where a
+  create and a sync share a key — was silently absorbed: the sync returned
+  early, no draft order ever reached the Ordering context, and the order sat
+  in the pending queue forever while the caller was told it succeeded. It is
+  now refused. Callers passing one argument keep the old lookup behaviour.
+- `OrderSyncedOnline` records the command that synced the order, so
+  `SyncOrderOnlineHandler` can tell a redelivery of THAT command from an
+  unrelated command naming an already-synced order. The second used to be
+  absorbed as success and re-issue the draft-order call; it now falls through
+  to the pending-sync refusal. Events stored without a command id keep the
+  old behaviour, so existing history still replays and still heals.
 
 ## [3.1.0] - 2026-08-19
 

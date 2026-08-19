@@ -58,7 +58,15 @@ final class PosSession implements AggregateRoot
      * @var array<int, array{order: OrderId, command: string|null}>
      */
     private array $startedOrderIds = [];
-    /** @var OrderId[] Orders already synced online; lets a redelivered sync command heal/no-op instead of tripping the pending-sync invariant. Grows with session lifetime, like the other order-id lists. */
+    /**
+     * Orders already synced online, against the command that synced each one
+     * — null for events written before the command id was recorded. Lets a
+     * redelivered sync heal instead of tripping the pending-sync invariant,
+     * and lets an UNRELATED command naming a synced order be told apart from
+     * that redelivery. Grows with session lifetime, like the other lists.
+     *
+     * @var array<int, array{order: OrderId, command: string|null}>
+     */
     private array $syncedOrderIds = [];
 
     final public static function start(
@@ -306,8 +314,8 @@ final class PosSession implements AggregateRoot
      */
     final public function isOrderSynced(OrderId $orderId): bool
     {
-        foreach ($this->syncedOrderIds as $syncedId) {
-            if ($syncedId->sameValueAs($orderId)) {
+        foreach ($this->syncedOrderIds as $synced) {
+            if ($synced['order']->sameValueAs($orderId)) {
                 return true;
             }
         }
@@ -315,7 +323,27 @@ final class PosSession implements AggregateRoot
         return false;
     }
 
-    final public function syncOrderOnline(OrderId $orderId): void
+    /**
+     * Did THIS command sync this order? True means a redelivery of the
+     * syncing command — the only thing that should be absorbed. False for an
+     * unrelated command naming an order that merely happens to be synced.
+     *
+     * Events written before the command id was recorded answer true for any
+     * command: they cannot tell, and refusing them would break history that
+     * was legitimately synced.
+     */
+    final public function wasSyncedByCommand(OrderId $orderId, string $commandId): bool
+    {
+        foreach ($this->syncedOrderIds as $synced) {
+            if ($synced['order']->sameValueAs($orderId)) {
+                return $synced['command'] === null || $synced['command'] === $commandId;
+            }
+        }
+
+        return false;
+    }
+
+    final public function syncOrderOnline(OrderId $orderId, ?string $commandId = null): void
     {
         $isPending = false;
         foreach ($this->pendingSyncOrderIds as $pendingId) {
@@ -332,7 +360,7 @@ final class PosSession implements AggregateRoot
         }
 
         $this->recordThat(
-            OrderSyncedOnline::occur($this->sessionId, $orderId)
+            OrderSyncedOnline::occur($this->sessionId, $orderId, $commandId)
         );
     }
 
@@ -556,6 +584,6 @@ final class PosSession implements AggregateRoot
             $this->pendingSyncOrderIds,
             fn(OrderId $id) => !$id->sameValueAs($event->getOrderId())
         );
-        $this->syncedOrderIds[] = $event->getOrderId();
+        $this->syncedOrderIds[] = ['order' => $event->getOrderId(), 'command' => $event->getCommandId()];
     }
 }

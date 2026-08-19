@@ -29,13 +29,16 @@ final class StartNewOrderOfflineHandler
     public function __invoke(StartNewOrderOffline $command): void
     {
         $commandId = $command->getMessageUuid();
-
-        if ($this->idempotencyRegistry->hasBeenProcessed($commandId)) {
-            return;
-        }
-
         $sessionId = SessionId::fromNative($command->sessionId);
         $orderId = OrderId::fromNative($command->orderId);
+
+        // What this command does, so the registry can tell a redelivery from
+        // a different command that happens to carry the same id.
+        $purpose = StartNewOrderOffline::expectedMessageName() . ':' . $orderId->toNative();
+
+        if ($this->idempotencyRegistry->hasBeenProcessed($commandId, $purpose)) {
+            return;
+        }
 
         $session = $this->sessionRepository->load($sessionId);
 
@@ -54,7 +57,7 @@ final class StartNewOrderOfflineHandler
             if (!$session->isOrderSynced($orderId)) {
                 $this->pendingSyncQueue->enqueue($sessionId, $orderId, $commandId);
             }
-            $this->idempotencyRegistry->markAsProcessed($commandId);
+            $this->idempotencyRegistry->markAsProcessed($commandId, $purpose);
 
             return;
         }
@@ -69,6 +72,6 @@ final class StartNewOrderOfflineHandler
             $commandId
         );
 
-        $this->idempotencyRegistry->markAsProcessed($commandId);
+        $this->idempotencyRegistry->markAsProcessed($commandId, $purpose);
     }
 }

@@ -433,6 +433,75 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId), 'No second order');
     }
 
+    public function test_one_command_id_cannot_be_spent_on_both_a_create_and_a_sync(): void
+    {
+        // The trap deterministic ids invite: "one key per order". The create
+        // marks the key processed; the sync carrying it used to return early,
+        // so no draft order ever reached the Ordering context and the order
+        // sat in the queue forever — reported as success.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('one-key-per-order'));
+
+        try {
+            (new SyncOrderOnlineHandler(
+                $this->sessionRepository,
+                $this->orderingService,
+                $this->pendingSyncQueue,
+                $this->idempotencyRegistry
+            ))((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+                ->withMessageUuid('one-key-per-order'));
+            $this->fail('Expected the reused command id to be refused');
+        } catch (\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException $refusal) {
+            $this->assertStringContainsString('cannot be reused', $refusal->getMessage());
+        }
+
+        // The order is still queued and still unsynced — loudly, not silently.
+        $this->assertTrue($this->pendingSyncQueue->hasByOrderId($orderId));
+        $this->assertFalse($this->orderingService->draftOrderWasCreated($orderId));
+    }
+
+    public function test_an_unrelated_command_cannot_ride_an_already_synced_order(): void
+    {
+        // The sync path's mirror of the create-path reuse: a command that
+        // never synced anything, naming an order that happens to be synced,
+        // used to be absorbed as success and re-issue the draft-order call.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('create-key'));
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncHandler((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('sync-key-1'));
+        $creationsAfterSync = $this->orderingService->draftOrderCreationCount($orderId);
+
+        $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
+        $this->expectExceptionMessage('Order is not in pending sync list');
+
+        $syncHandler((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('a-different-command'));
+        $this->assertSame($creationsAfterSync, $this->orderingService->draftOrderCreationCount($orderId));
+    }
+
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
     {
         $sessionId  = new SessionId();

@@ -16,13 +16,23 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
     private SessionId $sessionId;
     private OrderId $orderId;
 
+    /**
+     * The command that synced the order. Null on events written before this
+     * was recorded — see setPayload(). It is what lets a handler tell a
+     * REDELIVERY of the syncing command apart from an unrelated command
+     * naming an order that happens to be synced already.
+     */
+    private ?string $commandId = null;
+
     final public static function occur(
         SessionId $sessionId,
         OrderId $orderId,
+        ?string $commandId = null,
     ): self {
         $instance = new self();
         $instance->sessionId = $sessionId;
         $instance->orderId = $orderId;
+        $instance->commandId = $commandId;
 
         return $instance;
     }
@@ -37,6 +47,7 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
         return [
             'session_id' => $this->sessionId->toNative(),
             'order_id' => $this->orderId->toNative(),
+            'command_id' => $this->commandId,
         ];
     }
 
@@ -47,6 +58,10 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
         }
         $this->sessionId = SessionId::fromNative($payload['session_id']);
         $this->orderId = OrderId::fromNative($payload['order_id']);
+        // Absent on events stored before the command id was recorded. Null
+        // means "unknown", not "no command" — a handler must treat it as the
+        // old, order-id-only behaviour rather than as a mismatch.
+        $this->commandId = isset($payload['command_id']) ? (string) $payload['command_id'] : null;
     }
 
     final public function occurredAt(): DateTimeImmutable
@@ -62,5 +77,10 @@ final class OrderSyncedOnline extends BaseAggregateEvent implements
     final public function getOrderId(): OrderId
     {
         return $this->orderId;
+    }
+
+    final public function getCommandId(): ?string
+    {
+        return $this->commandId;
     }
 }

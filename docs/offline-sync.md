@@ -152,27 +152,28 @@ The command ID (`messageUuid`) must be **unique per command instance**. It must 
 
 `StartNewOrderOfflineHandler` has two, and they answer different questions:
 
-1. **`IdempotencyRegistry`** — has this exact command id been processed?
-   It knows the id and nothing about what the command did, so it relies on
-   the contract that a command id identifies one command instance. A caller
-   that reuses one id across different commands defeats it (see the
-   follow-up filed for this).
+1. **`IdempotencyRegistry`** — has this exact command id already done THIS
+   work? The registry records each id with what it did (message name plus
+   target order), so a redelivery is absorbed while the same id claiming
+   different work — the "one key per order" scheme, where a create and a sync
+   share a key — is refused rather than swallowed.
 2. **`PosSession::wasStartedByCommand()`** — did this exact command already
-   create this order? This is what separates a REDELIVERY (absorbed, and
-   re-queued if the order never synced) from a REUSE. `OrderCreatedOffline`
-   persists the command id, which is what makes the distinction possible.
+   create this order? This separates a REDELIVERY (absorbed, and re-queued if
+   the order never synced) from a REUSE. `OrderCreatedOffline` persists the
+   command id, which is what makes the distinction possible.
 
 Anything else naming an order id the session has already used is refused by
 the aggregate. That is why a retry must carry the original command id
 (`withMessageUuid()`): a fresh command object gets a fresh id, and a fresh id
 on a used order is a reuse by definition.
 
-**The sync path cannot make the same distinction.** `OrderSyncedOnline`
-carries no command id, so `SyncOrderOnlineHandler`'s already-synced check is
-keyed on the order alone — an unrelated command naming a synced order is
-absorbed and re-issues the draft-order call. Safe today because that port is
-idempotent per order id by contract, but it is not the same guarantee as the
-create path. A follow-up covers it.
+**The sync path makes the same distinction.** `OrderSyncedOnline` records the
+command that synced the order, so `SyncOrderOnlineHandler` absorbs a
+redelivery of THAT command (re-issuing the draft-order call, which is
+idempotent per order id by contract) while an unrelated command naming an
+already-synced order falls through to the pending-sync refusal. Events stored
+before the command id was recorded answer "yes" for any command — they cannot
+tell, and refusing them would break history that synced legitimately.
 
 ---
 

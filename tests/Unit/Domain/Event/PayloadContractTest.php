@@ -166,7 +166,7 @@ final class PayloadContractTest extends TestCase
 
     public function test_order_synced_online_payload_contract(): void
     {
-        $event = OrderSyncedOnline::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440035'), OrderId::fromNative('550e8400-e29b-41d4-a716-446655440036'), new DateTimeImmutable('2025-04-07T04:00:00Z'));
+        $event = OrderSyncedOnline::occur(SessionId::fromNative('550e8400-e29b-41d4-a716-446655440035'), OrderId::fromNative('550e8400-e29b-41d4-a716-446655440036'), 'sync-command-1');
         $this->verifyPayloadContract($event, OrderSyncedOnline::class);
     }
 
