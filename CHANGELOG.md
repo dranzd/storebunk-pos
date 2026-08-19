@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `PosSession` refuses an order id it has already used. `StartNewOrder` and
-  `StartNewOrderOffline` take the id from the caller and previously recorded
-  it unexamined, so a session could hand the same id to two different orders
-  and reach a parked one through the new one's state.
 - The "an order is only handled from the terminal it belongs to" invariant is
   now pinned by tests (`OrderTerminalBindingTest`) and documented as what it
   actually is: structural for REACHING an order — a session is bound to one
@@ -25,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PosSession` refuses an order id it has already used. `StartNewOrder` and
+  `StartNewOrderOffline` take the id from the caller and previously recorded
+  it unexamined, so a session could hand the same id to two different orders
+  and reach a parked one through the new one's state. A REDELIVERED offline
+  create (same order, registry rebuilt after a restart) is a no-op rather
+  than a refusal, matching how a redelivered sync behaves.
 - Demo: a cash drop that lost a version race was reported as an error and
   lost. It is real money leaving the drawer, so the CLI now re-reads the
   history and retries (bounded, and only for this command — a drop is
@@ -32,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   close or a handover must be re-decided by whoever issued it).
   `FileEventStore` gained `reload()` for that, and a refused append no
   longer advances this process's in-memory view, which would otherwise leave
-  a retry building on an event that never landed.
+  a retry building on an event that never landed. The budget is three
+  attempts with a short random wait between them: enough for the handful of
+  concurrent commands a terminal produces, and beyond that the operator is
+  told plainly that the drop was NOT recorded and to retry.
 - Demo: `shift assign` and `session start` defaulted to whoever OPENED the
   shift, even after it was handed to someone else. The default now follows
   the current operator, and returns to the opener on unassign.

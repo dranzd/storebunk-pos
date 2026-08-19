@@ -254,6 +254,97 @@ final class OfflineSyncIntegrationTest extends TestCase
         $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1'));
     }
 
+    public function test_a_redelivered_offline_create_is_a_noop_after_a_process_restart(): void
+    {
+        // Same shape as the sync case: a restart rebuilds the registry from
+        // events, which cannot recover the create command's id once the order
+        // has been synced and left the pending queue. The redelivery must not
+        // create a second order behind the same id, and must not fail forever
+        // either — the order already exists and is accounted for.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $create = (new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1');
+        $offlineHandler($create);
+
+        $syncHandler = new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $syncHandler((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('sync-key-1'));
+        $this->assertSame(0, $this->pendingSyncQueue->count());
+
+        $restartRegistry = new IdempotencyRegistry();
+        $restartHandler  = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $restartRegistry
+        );
+        $restartHandler($create);
+
+        // Nothing re-created, nothing re-queued, and the redelivery is now
+        // recorded so a third one short-circuits.
+        $this->assertSame(0, $this->pendingSyncQueue->count());
+        $this->assertTrue($restartRegistry->hasBeenProcessed('offline-key-1'));
+        $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId));
+    }
+
+    public function test_an_offline_create_cannot_reuse_an_order_id(): void
+    {
+        // A genuine reuse — a different command, same id — is refused, unlike
+        // the redelivery above. The session has already used that id.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $offlineHandler = new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        );
+        $offlineHandler((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1'));
+        (new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('sync-key-1'));
+
+        $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
+        $this->expectExceptionMessage('Order id has already been used in this session');
+
+        $this->sessionRepository->load($sessionId)->startNewOrderOffline($orderId, 'another-command');
+    }
+
+    private function startSession(SessionId $sessionId): void
+    {
+        (new StartSessionHandler($this->sessionRepository))(new StartSession(
+            $sessionId->toNative(),
+            (new ShiftId())->toNative(),
+            (new TerminalId())->toNative(),
+            \Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\CashierId::generateAsString()
+        ));
+    }
+
+    private function countOfflineCreations(SessionId $sessionId, OrderId $orderId): int
+    {
+        $session = $this->sessionRepository->load($sessionId);
+
+        return $session->hasStartedOrder($orderId) ? 1 : 0;
+    }
+
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
     {
         $sessionId  = new SessionId();

@@ -143,6 +143,38 @@ final class DemoCliShiftOpenRaceTest extends TestCase
         $this->assertCount(2, $drops, 'Both cash drops must be persisted');
     }
 
+    public function test_assigning_another_shift_does_not_move_the_session_default(): void
+    {
+        // `last_cashier_id` is read together with `last_shift_id`, so writing
+        // it while assigning a DIFFERENT shift starts the next session on one
+        // shift under another shift's cashier. Found by review after the
+        // default was made to follow the current operator.
+        $this->runDemoCliOrFail('terminal register --name=Default-T1');
+        $this->runDemoCliOrFail('shift open --opening-cash=50000');
+        $firstShiftId = $this->stateValue('last_shift_id');
+
+        $this->runDemoCliOrFail('terminal register --name=Default-T2');
+        $this->runDemoCliOrFail('shift open --opening-cash=50000');
+        $secondShiftCashier = $this->stateValue('last_cashier_id');
+
+        $this->runDemoCliOrFail(
+            "shift assign --shift-id={$firstShiftId} --assignee-id=11111111-1111-4111-8111-111111111111"
+        );
+
+        $this->assertSame(
+            $secondShiftCashier,
+            $this->stateValue('last_cashier_id'),
+            'Assigning another shift must not move the default off this shift'
+        );
+    }
+
+    private function stateValue(string $key): string
+    {
+        $state = json_decode((string) file_get_contents($this->dataDir . '/demo-state.json'), true);
+
+        return (string) $state[$key];
+    }
+
     /**
      * @return array{int, string}
      */

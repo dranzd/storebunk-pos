@@ -416,14 +416,28 @@ final class PosSession implements AggregateRoot
      * and a host that lets a caller supply one should check it belongs to the
      * caller's terminal (see MultiTerminalEnforcementService).
      */
-    private function assertOrderIdIsUnused(OrderId $orderId): void
+    /**
+     * Has this session already started this order? Lets a handler tell a
+     * REDELIVERY (same order, arriving twice because a registry was rebuilt)
+     * apart from a genuine attempt to reuse an id, which is refused.
+     */
+    final public function hasStartedOrder(OrderId $orderId): bool
     {
         foreach ($this->startedOrderIds as $startedOrderId) {
             if ($startedOrderId->sameValueAs($orderId)) {
-                throw InvariantViolationException::withMessage(
-                    'Order id has already been used in this session'
-                );
+                return true;
             }
+        }
+
+        return false;
+    }
+
+    private function assertOrderIdIsUnused(OrderId $orderId): void
+    {
+        if ($this->hasStartedOrder($orderId)) {
+            throw InvariantViolationException::withMessage(
+                'Order id has already been used in this session'
+            );
         }
     }
 

@@ -93,8 +93,10 @@ Manages cashier shifts and cash handling.
 ./demo/demo shift open --opening-cash=<amount> [--terminal-id=<uuid>] [--branch-id=<uuid>] [--cashier-id=<uuid>] [--currency=PHP]
 
 # Assign a shift to a cashier, with optional fallbacks (≤3, comma-separated).
-# Assignee defaults to whoever currently operates the shift — its assignee,
-# or its opener while it is unassigned. Unassigned shifts are "open".
+# Assignee defaults to the cashier the CLI is currently pointed at — the
+# operator of the LAST shift you opened, which is the named shift only when
+# --shift-id is omitted. Name --assignee-id when assigning another shift.
+# Unassigned shifts are "open".
 ./demo/demo shift assign [--shift-id=<uuid>] [--assignee-id=<uuid>] [--fallback-ids=<uuid>,<uuid>]
 
 # Clear a shift's membership, returning it to open

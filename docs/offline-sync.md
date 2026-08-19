@@ -12,7 +12,7 @@ When network connectivity to the Ordering BC is unavailable, POS supports **offl
 
 - **Offline draft creation** — cashier can start new orders without network access
 - **Pending sync queue** — offline orders are tracked until successfully synced
-- **Idempotent replay** — commands can be safely retried without duplicate side effects
+- **Idempotent replay** — commands can be safely retried without duplicate side effects. A redelivered CREATE whose order the session has already started is treated as a no-op (the order exists and is accounted for), the same way a redelivered SYNC of an already-synced order is; only a genuine attempt to reuse an id for a different order is refused
 - **Consumer-controlled command IDs** — callers may supply their own command ID for idempotency, or omit it to auto-generate one
 
 ### Limitations
