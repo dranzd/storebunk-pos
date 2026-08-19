@@ -105,6 +105,15 @@ it MUST be atomic against concurrent callers — a database unique constraint,
 valid backing. The bundled `InMemoryShiftSlotReservation` is a single-process
 reference; the demo ships a file-locked one you can read as a worked example.
 
+**Offline sync needs something from you too.** `IdempotencyRegistry` and
+`PendingSyncQueue` are plain in-memory objects; a host that runs more than one
+process must persist them or rebuild them from events on start. When
+rebuilding the registry, pass the same purpose the handler would — it is a
+required argument, and `IdempotencyRegistry::purposeFor()` builds it. Getting
+it wrong is silent: either a reused command id is absorbed (reporting success
+for work never done) or a legitimate retry is refused.
+`Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay` is a worked example.
+
 Because the reservation and the event store are two stores, a host that wants
 them to commit or fail as one implements the port inside its own unit of
 work. Without that, what the protocol guarantees is that every reachable

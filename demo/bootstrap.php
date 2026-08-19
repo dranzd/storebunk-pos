@@ -80,6 +80,7 @@ use Dranzd\StorebunkPos\Application\Terminal\Command\RegisterTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\RenameTerminal;
 use Dranzd\StorebunkPos\Application\Terminal\Command\SetTerminalMaintenance;
 use Dranzd\StorebunkPos\Demo\Cli\FileShiftSlotReservation;
+use Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay;
 use Dranzd\StorebunkPos\Domain\Service\ShiftSlotBook;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Domain\Service\ShiftClosePolicy;
@@ -128,35 +129,15 @@ $shiftSlotReservation = new FileShiftSlotReservation(
 // ── Rebuild offline-sync state from persisted events ─────────────────────────
 // The queue and registry are plain in-memory objects; replay the persisted
 // session events so offline orders queued in an earlier process are still
-// pending here. Events per aggregate are in append order, so an
-// OrderCreatedOffline is always seen before its OrderMarkedPendingSync.
-$offlineCommandIdsByOrder = [];
+// pending here. The rules live in OfflineStateReplay, where they can be
+// tested — getting a registry purpose wrong here is invisible until a
+// redelivery is either swallowed or wrongly refused.
+foreach ($eventStore->allEvents() as $aggregateEvents) {
+    OfflineStateReplay::rebuild($aggregateEvents, $pendingSyncQueue, $idempotencyRegistry);
+}
+
 foreach ($eventStore->allEvents() as $aggregateEvents) {
     foreach ($aggregateEvents as $event) {
-        if ($event instanceof OrderCreatedOffline) {
-            // WITH the purpose: a bare mark would record the id as matching
-            // any future work, which is how a restart disarmed the collision
-            // check and let a sync be swallowed by the create that shared its
-            // key — the order stranded in the queue, the caller told it
-            // succeeded.
-            $idempotencyRegistry->markAsProcessed(
-                $event->getCommandId(),
-                IdempotencyRegistry::purposeFor(
-                    StartNewOrderOffline::expectedMessageName(),
-                    $event->getOrderId()->toNative()
-                )
-            );
-            $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] = $event->getCommandId();
-        } elseif ($event instanceof OrderMarkedPendingSync) {
-            $pendingSyncQueue->enqueue(
-                $event->getSessionId(),
-                $event->getOrderId(),
-                $offlineCommandIdsByOrder[$event->getOrderId()->toNative()] ?? ''
-            );
-        } elseif ($event instanceof OrderSyncedOnline) {
-            $pendingSyncQueue->dequeueByOrderId($event->getOrderId());
-        }
-
         // Project the session read model too — CloseShiftHandler's
         // active-session guard reads it, and an unprojected (empty) model
         // would let a shift close while sessions are still running.

@@ -42,9 +42,13 @@ persisted session events. `./demo/demo state clear` resets all three stores
 — the events file, the id state file and the shift-slot file — as one
 all-or-nothing operation.
 
-One accepted limitation: sync-command ids are not part of any event, so
-replaying a *sync* command in a fresh process re-executes it (the stub
-ordering service is process-scoped anyway).
+One deliberate choice: the rebuild does not mark *sync* command ids as
+processed, even though `OrderSyncedOnline` records them. Marking them would
+make a redelivered sync return at the registry — and that redelivery is what
+re-issues a draft-order call lost between storing the event and reaching the
+ordering service. Healing a stranded order matters more than catching a
+reused id there, and the aggregate still tells a redelivery from an unrelated
+command by that recorded id.
 
 ## Services
 

@@ -15,11 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   create and a sync share a key — was silently absorbed: the sync returned
   early, no draft order ever reached the Ordering context, and the order sat
   in the pending queue forever while the caller was told it succeeded. It is
-  now refused. Asking without a purpose is still a plain lookup, but WRITING
-  without one records that id as matching any later work — so a host
-  rebuilding the registry from events must pass the purpose, or it disarms
-  the check for every id it replays (`demo/bootstrap.php` shows the shape,
-  and `IdempotencyRegistry::purposeFor()` builds the string both sides use).
+  now refused. **Breaking for hosts:** both `hasBeenProcessed()` and
+  `markAsProcessed()` now REQUIRE the purpose — there is no "unspecified",
+  because such a record could only match everything (disarming the check) or
+  nothing (refusing legitimate redeliveries). A host rebuilding the registry
+  from events must pass the same purpose the handler would;
+  `IdempotencyRegistry::purposeFor()` builds it and
+  `Demo\Cli\OfflineStateReplay` shows the whole rebuild.
+- **Breaking for hosts:** `PosSession::syncOrderOnline()` and
+  `OrderSyncedOnline::occur()` now require the command id, so an event
+  without one can only come from history stored before it was recorded.
 - `OrderSyncedOnline` records the command that synced the order, so
   `SyncOrderOnlineHandler` can tell a redelivery of THAT command from an
   unrelated command naming an already-synced order. The second used to be

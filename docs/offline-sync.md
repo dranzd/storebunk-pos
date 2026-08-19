@@ -158,10 +158,11 @@ The command ID (`messageUuid`) must be **unique per command instance**. It must 
    same id claiming different work — the "one key per order" scheme, where a
    create and a sync share a key — is refused rather than swallowed.
 
-   **A host rebuilding the registry from events must pass the purpose too.**
-   A bare `markAsProcessed($commandId)` records that id as matching ANY later
-   work, silently disarming this check for every id it replays. See
-   `demo/bootstrap.php` for the shape.
+   **A host rebuilding the registry from events must pass the same purpose
+   the handler would** — it is required, precisely so it cannot be omitted.
+   Describe a command differently on replay and every replayed id looks like
+   a collision, refusing legitimate redeliveries. `Demo\Cli\OfflineStateReplay`
+   is the worked example, including why sync ids are deliberately left out.
 2. **`PosSession::wasStartedByCommand()`** — did this exact command already
    create this order? This separates a REDELIVERY (absorbed, and re-queued if
    the order never synced) from a REUSE. `OrderCreatedOffline` persists the
@@ -219,6 +220,13 @@ id, which is why offline creation asks the aggregate
 ---
 
 ## 6. Consumer Integration Guide
+
+**Both pieces of state below are in-memory.** A host running more than one
+process must persist them or rebuild them from events at start — and when
+rebuilding the registry, pass the same purpose the handler would (see
+`Demo\Cli\OfflineStateReplay`). Getting that wrong fails silently in one of
+two directions: a reused command id absorbed as success, or a legitimate
+retry refused.
 
 ### Wiring Dependencies
 

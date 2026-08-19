@@ -17,6 +17,7 @@ use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\OrderId;
 use Dranzd\StorebunkPos\Domain\Model\PosSession\ValueObject\SessionId;
 use Dranzd\StorebunkPos\Domain\Model\Shift\ValueObject\ShiftId;
 use Dranzd\StorebunkPos\Domain\Model\Terminal\ValueObject\TerminalId;
+use Dranzd\StorebunkPos\Demo\Cli\OfflineStateReplay;
 use Dranzd\StorebunkPos\Domain\Service\PendingSyncQueue;
 use Dranzd\StorebunkPos\Infrastructure\PosSession\Repository\InMemoryPosSessionRepository;
 use Dranzd\StorebunkPos\Tests\Stub\Service\StubOrderingService;
@@ -233,8 +234,9 @@ final class OfflineSyncIntegrationTest extends TestCase
         ))->withMessageUuid('replay-key-1'));
 
         // A process restart rebuilds the in-memory idempotency registry from
-        // events, which cannot recover the sync command's id (OrderSyncedOnline
-        // does not persist it). The redelivered command must succeed — resolved
+        // events, and deliberately does not mark sync command ids (see
+        // OfflineStateReplay: marking them would suppress the healing this
+        // test relies on). The redelivered command must succeed — resolved
         // by the aggregate remembering the order as synced — not throw an
         // "Order is not in pending sync list" invariant violation. Delivery to
         // the ordering port is at-least-once: the port IS re-invoked (healing a
@@ -253,7 +255,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         ))->withMessageUuid('replay-key-1'));
 
         $this->assertSame(2, $this->orderingService->draftOrderCreationCount($orderId));
-        $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1'));
+        $this->assertTrue($restartRegistry->hasBeenProcessed('replay-key-1', IdempotencyRegistry::purposeFor(SyncOrderOnline::expectedMessageName(), $orderId->toNative())));
     }
 
     public function test_a_redelivered_offline_create_is_a_noop_after_a_process_restart(): void
@@ -297,7 +299,7 @@ final class OfflineSyncIntegrationTest extends TestCase
         // Nothing re-created, nothing re-queued, and the redelivery is now
         // recorded so a third one short-circuits.
         $this->assertSame(0, $this->pendingSyncQueue->count());
-        $this->assertTrue($restartRegistry->hasBeenProcessed('offline-key-1'));
+        $this->assertTrue($restartRegistry->hasBeenProcessed('offline-key-1', IdempotencyRegistry::purposeFor(StartNewOrderOffline::expectedMessageName(), $orderId->toNative())));
         $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId));
     }
 
@@ -520,19 +522,14 @@ final class OfflineSyncIntegrationTest extends TestCase
         ))((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
             ->withMessageUuid('one-key-per-order'));
 
-        // The rebuild a host performs on restart, as demo/bootstrap.php does.
+        // The REAL rebuild the demo performs on restart — not a copy of it,
+        // which could drift from the code that actually runs.
         $rebuilt = new IdempotencyRegistry();
-        foreach ($this->eventStore->loadEvents($sessionId->toNative()) as $event) {
-            if ($event instanceof OrderCreatedOffline) {
-                $rebuilt->markAsProcessed(
-                    $event->getCommandId(),
-                    IdempotencyRegistry::purposeFor(
-                        StartNewOrderOffline::expectedMessageName(),
-                        $event->getOrderId()->toNative()
-                    )
-                );
-            }
-        }
+        OfflineStateReplay::rebuild(
+            $this->eventStore->loadEvents($sessionId->toNative()),
+            new PendingSyncQueue(),
+            $rebuilt
+        );
 
         $this->expectException(\Dranzd\StorebunkPos\Shared\Exception\InvariantViolationException::class);
         $this->expectExceptionMessage('cannot be reused');
@@ -544,6 +541,84 @@ final class OfflineSyncIntegrationTest extends TestCase
             $rebuilt
         ))((new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
             ->withMessageUuid('one-key-per-order'));
+    }
+
+    public function test_a_rebuilt_registry_still_absorbs_a_genuine_redelivery(): void
+    {
+        // The other half: the rebuild must describe a command the way the
+        // handler does, or every replayed id looks like a collision and a
+        // legitimate retry is refused instead of absorbed.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        $create = (new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1');
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))($create);
+
+        $rebuiltQueue    = new PendingSyncQueue();
+        $rebuiltRegistry = new IdempotencyRegistry();
+        OfflineStateReplay::rebuild(
+            $this->eventStore->loadEvents($sessionId->toNative()),
+            $rebuiltQueue,
+            $rebuiltRegistry
+        );
+
+        // Redelivered after the restart: absorbed, not refused, and no second
+        // order created.
+        (new StartNewOrderOfflineHandler($this->sessionRepository, $rebuiltQueue, $rebuiltRegistry))($create);
+
+        $this->assertSame(1, $this->countOfflineCreations($sessionId, $orderId));
+        $this->assertSame(1, $rebuiltQueue->count());
+    }
+
+    public function test_a_replayed_sync_still_heals_a_lost_draft_order_call(): void
+    {
+        // The sync command is deliberately NOT marked processed by the
+        // rebuild: that redelivery is what re-issues a draft-order call lost
+        // between storing the event and reaching the port. Marking it would
+        // return at the registry and strand the order.
+        $sessionId = new SessionId();
+        $orderId   = new OrderId();
+        $this->startSession($sessionId);
+
+        (new StartNewOrderOfflineHandler(
+            $this->sessionRepository,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))((new StartNewOrderOffline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('offline-key-1'));
+        $sync = (new SyncOrderOnline($sessionId->toNative(), $orderId->toNative()))
+            ->withMessageUuid('sync-key-1');
+        (new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $this->pendingSyncQueue,
+            $this->idempotencyRegistry
+        ))($sync);
+        $callsBefore = $this->orderingService->draftOrderCreationCount($orderId);
+
+        $rebuiltQueue    = new PendingSyncQueue();
+        $rebuiltRegistry = new IdempotencyRegistry();
+        OfflineStateReplay::rebuild(
+            $this->eventStore->loadEvents($sessionId->toNative()),
+            $rebuiltQueue,
+            $rebuiltRegistry
+        );
+
+        (new SyncOrderOnlineHandler(
+            $this->sessionRepository,
+            $this->orderingService,
+            $rebuiltQueue,
+            $rebuiltRegistry
+        ))($sync);
+
+        $this->assertSame($callsBefore + 1, $this->orderingService->draftOrderCreationCount($orderId));
+        $this->assertTrue($rebuiltQueue->isEmpty(), 'A synced order is not re-queued by the rebuild');
     }
 
     public function test_redelivery_heals_a_sync_that_failed_after_the_event_was_stored(): void
@@ -592,7 +667,7 @@ final class OfflineSyncIntegrationTest extends TestCase
             $this->assertSame('Ordering BC unavailable', $exception->getMessage());
         }
         $this->assertFalse($this->orderingService->draftOrderWasCreated($orderId));
-        $this->assertFalse($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
+        $this->assertFalse($this->idempotencyRegistry->hasBeenProcessed('replay-key-1', IdempotencyRegistry::purposeFor(SyncOrderOnline::expectedMessageName(), $orderId->toNative())));
 
         // The retry (same deterministic id) must HEAL the window: the draft
         // order is finally created, the queue is drained, and the command is
@@ -604,7 +679,7 @@ final class OfflineSyncIntegrationTest extends TestCase
 
         $this->assertTrue($this->orderingService->draftOrderWasCreated($orderId));
         $this->assertTrue($this->pendingSyncQueue->isEmpty());
-        $this->assertTrue($this->idempotencyRegistry->hasBeenProcessed('replay-key-1'));
+        $this->assertTrue($this->idempotencyRegistry->hasBeenProcessed('replay-key-1', IdempotencyRegistry::purposeFor(SyncOrderOnline::expectedMessageName(), $orderId->toNative())));
     }
 
     public function test_sync_online_forwards_empty_context_when_omitted(): void
