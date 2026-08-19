@@ -62,7 +62,7 @@ demo/
 │   ├── FileEventStore.php            # JSON-backed event store for demo persistence
 │   ├── FileShiftSlotReservation.php  # Cross-process shift-slot claims (lock + atomic rename)
 │   ├── DemoReset.php                 # Coordinated all-or-nothing reset of the three stores
-│   ├── Utils.php                     # Formatting helpers
+│   ├── TerminalProjection.php        # Replays one terminal's events into the read model
 │   └── services/
 │       ├── terminal.php              # Terminal service CLI handler
 │       ├── shift.php                 # Shift service CLI handler
