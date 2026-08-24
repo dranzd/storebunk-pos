@@ -7,98 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING** — `IdempotencyRegistry::hasBeenProcessed()` and
-  `markAsProcessed()` now require a second argument saying what the command
-  does (`IdempotencyRegistry::purposeFor($messageName, $targetId)`). There is
-  deliberately no "unspecified": such a record could only match everything,
-  disarming the collision check, or nothing, refusing legitimate
-  redeliveries — both have been shipped here by accident.
-- **BREAKING** — `PosSession::syncOrderOnline()` and
-  `OrderSyncedOnline::occur()` require the command id, so an event without
-  one can only come from history stored before it was recorded.
-- **BREAKING** — a command naming an already-synced order that did NOT sync
-  it is refused (`Order is not in pending sync list`) where it used to be
-  absorbed as success. Only a redelivery of the syncing command is absorbed.
-- `PosSession::markOrderPendingSync()` refuses an order that was not created
-  offline. Pending sync means "created offline, still to be pushed", and the
-  history it used to allow could never be rebuilt into a queue entry. Note
-  the flip side: a history ALREADY holding an online order marked pending
-  sync now fails `OfflineStateReplay::rebuild()` loudly at start-up rather
-  than queueing an entry that stands for nothing.
-
-### Added
-
-- `Application\Shared\OfflineStateReplay` rebuilds the pending-sync queue and
-  the idempotency registry from events. A host running more than one process
-  has to do this, and doing it by hand is easy to get wrong; the demo uses it
-  too. PHPStan and phpcs now cover `demo/`, which is how a helper shipped in
-  the production autoload came to be unanalysed — and how a family of unused,
-  mutually inconsistent money formatters survived there — `Demo\Cli\Utils` is
-  deleted along with `Output::formatMoney()`, leaving `Output::money()`, the
-  one with callers.
-
-### Fixed
-
-- `IdempotencyRegistry` records what each command id did (message name plus
-  target), not just that the id was seen. A command id reused for different
-  work — the "one key per order" scheme the offline docs invite, where a
-  create and a sync share a key — was silently absorbed: the sync returned
-  early, no draft order ever reached the Ordering context, and the order sat
-  in the pending queue forever while the caller was told it succeeded. It is
-  now refused. A host rebuilding the registry from events must pass the same
-  purpose the handler would — see the breaking notes above.
-- `OrderSyncedOnline` records the command that synced the order, so
-  `SyncOrderOnlineHandler` can tell a redelivery of THAT command from an
-  unrelated command naming an already-synced order. The second used to be
-  absorbed as success and re-issue the draft-order call; it now falls through
-  to the pending-sync refusal. Events stored without a command id keep the
-  old behaviour, so existing history still replays and still heals.
-
-## [3.1.0] - 2026-08-19
-
-> Adds one invariant hosts may notice: a `PosSession` now refuses an order id
-> it has already used. A retry must carry its original command id
-> (`withMessageUuid()`) to be recognised as a redelivery rather than a reuse.
-
-### Added
-
-- The "an order is only handled from the terminal it belongs to" invariant is
-  now pinned by tests (`OrderTerminalBindingTest`) and documented as what it
-  actually is: structural for REACHING an order — a session is bound to one
-  terminal, and every command that names an existing order validates it
-  against that session's own lists — but not for CLAIMING an id, which is a
-  host concern. `MultiTerminalEnforcementService::assertOrderBelongsToTerminal()`
-  stays for hosts that let a caller name an order; the library does not call
-  it, since a lookup table would put the rule in a second place that could
-  disagree with the aggregate.
-
-### Fixed
-
-- `PosSession` refuses an order id it has already used. `StartNewOrder` and
-  `StartNewOrderOffline` take the id from the caller and previously recorded
-  it unexamined, so a session could hand the same id to two different orders
-  and reach a parked one through the new one's state. A REDELIVERY — the
-  same command id arriving twice — is absorbed rather than refused, and
-  re-queues the order if it never synced; the command id is what separates
-  that from a different command reusing an id, which is still refused.
-- Demo: a cash drop that lost a version race was reported as an error and
-  lost. It is real money leaving the drawer, so the CLI now re-reads the
-  history and retries (bounded, and only for this command — a drop is
-  additive, so replaying it after the winner's write is exactly right; a
-  close or a handover must be re-decided by whoever issued it).
-  `FileEventStore` gained `reload()` for that, and a refused append no
-  longer advances this process's in-memory view, which would otherwise leave
-  a retry building on an event that never landed. The budget is three
-  attempts with a short random wait between them: enough for the handful of
-  concurrent commands a terminal produces, and beyond that the operator is
-  told plainly that the drop was NOT recorded and to retry.
-- Demo: `shift assign` and `session start` defaulted to whoever OPENED the
-  shift, even after it was handed to someone else. The default now follows
-  the current operator, and returns to the opener on unassign.
-
-## [3.0.0] - 2026-08-18
+## [3.0.0] - 2026-08-24
 
 > **Breaking release.** All command factory methods are gone — commands are
 > constructed with `new` (ADR-003) — and `SyncOrderOnline` now carries an
@@ -107,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > handlers take it, and it must be atomic against concurrent callers (a
 > database unique constraint, `SETNX`, an advisory lock). The bundled
 > `InMemoryShiftSlotReservation` is a single-process reference only.
+>
+> Two further host-facing changes: `IdempotencyRegistry` now requires a
+> purpose alongside every command id, and a `PosSession` refuses an order id
+> it has already used — a retry must carry its original command id
+> (`withMessageUuid()`) to be recognised as a redelivery rather than a reuse.
 
 ### Added
 
@@ -154,6 +68,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recoverable operation. `ShiftReadModelInterface` stays query-only — a
   projection is never a concurrency authority.
 
+- ADR-003/004/005/006; `docs/reported-issues` inbox standard
+  (`incoming-report.md` + `/triage`).
+- Demo: file-backed event store so multi-step scenarios work across CLI
+  invocations; `session deactivate` subcommand; scenario fixes.
+
+- The "an order is only handled from the terminal it belongs to" invariant is
+  now pinned by tests (`OrderTerminalBindingTest`) and documented as what it
+  actually is: structural for REACHING an order — a session is bound to one
+  terminal, and every command that names an existing order validates it
+  against that session's own lists — but not for CLAIMING an id, which is a
+  host concern. `MultiTerminalEnforcementService::assertOrderBelongsToTerminal()`
+  stays for hosts that let a caller name an order; the library does not call
+  it, since a lookup table would put the rule in a second place that could
+  disagree with the aggregate.
+
+- `Application\Shared\OfflineStateReplay` rebuilds the pending-sync queue and
+  the idempotency registry from events. A host running more than one process
+  has to do this, and doing it by hand is easy to get wrong; the demo uses it
+  too. PHPStan and phpcs now cover `demo/`, which is how a helper shipped in
+  the production autoload came to be unanalysed — and how a family of unused,
+  mutually inconsistent money formatters survived there — `Demo\Cli\Utils` is
+  deleted along with `Output::formatMoney()`, leaving `Output::money()`, the
+  one with callers.
+
 ### Changed
 
 - **BREAKING** — All 27 application commands follow the storebunk-inventory
@@ -174,12 +112,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - House code style: strings use single quotes unless interpolation or escape
   sequences are needed (enforced via `Squiz.Strings.DoubleQuoteUsage.NotRequired`).
 
-### Added
-
-- ADR-003/004/005/006; `docs/reported-issues` inbox standard
-  (`incoming-report.md` + `/triage`).
-- Demo: file-backed event store so multi-step scenarios work across CLI
-  invocations; `session deactivate` subcommand; scenario fixes.
+- **BREAKING** — `IdempotencyRegistry::hasBeenProcessed()` and
+  `markAsProcessed()` now require a second argument saying what the command
+  does (`IdempotencyRegistry::purposeFor($messageName, $targetId)`). There is
+  deliberately no "unspecified": such a record could only match everything,
+  disarming the collision check, or nothing, refusing legitimate
+  redeliveries — both have been shipped here by accident.
+- **BREAKING** — `PosSession::syncOrderOnline()` and
+  `OrderSyncedOnline::occur()` require the command id, so an event without
+  one can only come from history stored before it was recorded.
+- **BREAKING** — a command naming an already-synced order that did NOT sync
+  it is refused (`Order is not in pending sync list`) where it used to be
+  absorbed as success. Only a redelivery of the syncing command is absorbed.
+- `PosSession::markOrderPendingSync()` refuses an order that was not created
+  offline. Pending sync means "created offline, still to be pushed", and the
+  history it used to allow could never be rebuilt into a queue entry. Note
+  the flip side: a history ALREADY holding an online order marked pending
+  sync now fails `OfflineStateReplay::rebuild()` loudly at start-up rather
+  than queueing an entry that stands for nothing.
 
 ### Fixed
 
@@ -255,6 +205,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silently losing or resurrecting data, and `./demo/demo state clear` works
   even when a store is corrupt (handled before bootstrap) as a coordinated
   all-or-nothing reset of all three files (events, ids, shift slots).
+
+- `PosSession` refuses an order id it has already used. `StartNewOrder` and
+  `StartNewOrderOffline` take the id from the caller and previously recorded
+  it unexamined, so a session could hand the same id to two different orders
+  and reach a parked one through the new one's state. A REDELIVERY — the
+  same command id arriving twice — is absorbed rather than refused, and
+  re-queues the order if it never synced; the command id is what separates
+  that from a different command reusing an id, which is still refused.
+- Demo: a cash drop that lost a version race was reported as an error and
+  lost. It is real money leaving the drawer, so the CLI now re-reads the
+  history and retries (bounded, and only for this command — a drop is
+  additive, so replaying it after the winner's write is exactly right; a
+  close or a handover must be re-decided by whoever issued it).
+  `FileEventStore` gained `reload()` for that, and a refused append no
+  longer advances this process's in-memory view, which would otherwise leave
+  a retry building on an event that never landed. The budget is three
+  attempts with a short random wait between them: enough for the handful of
+  concurrent commands a terminal produces, and beyond that the operator is
+  told plainly that the drop was NOT recorded and to retry.
+- Demo: `shift assign` and `session start` defaulted to whoever OPENED the
+  shift, even after it was handed to someone else. The default now follows
+  the current operator, and returns to the opener on unassign.
+
+- `IdempotencyRegistry` records what each command id did (message name plus
+  target), not just that the id was seen. A command id reused for different
+  work — the "one key per order" scheme the offline docs invite, where a
+  create and a sync share a key — was silently absorbed: the sync returned
+  early, no draft order ever reached the Ordering context, and the order sat
+  in the pending queue forever while the caller was told it succeeded. It is
+  now refused. A host rebuilding the registry from events must pass the same
+  purpose the handler would — see the breaking notes above.
+- `OrderSyncedOnline` records the command that synced the order, so
+  `SyncOrderOnlineHandler` can tell a redelivery of THAT command from an
+  unrelated command naming an already-synced order. The second used to be
+  absorbed as success and re-issue the draft-order call; it now falls through
+  to the pending-sync refusal. Events stored without a command id keep the
+  old behaviour, so existing history still replays and still heals.
 
 ## [2.0.0] - 2026-06-01
 
